@@ -466,6 +466,53 @@
     .map-row { page-break-inside: avoid; }
   }
 
+  /* ========== 登录弹窗 ========== */
+  .login-form { padding: 10px 0; }
+  .login-form .form-group { margin-bottom: 18px; }
+  .login-form label {
+    display: block; font-size: 14px; font-weight: 600;
+    color: #334155; margin-bottom: 6px;
+  }
+  .login-form input {
+    width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1;
+    border-radius: 8px; font-size: 15px; font-family: inherit;
+    outline: none; transition: border-color .2s, box-shadow .2s; box-sizing: border-box;
+  }
+  .login-form input:focus {
+    border-color: #1a4a7a; box-shadow: 0 0 0 3px rgba(26,74,122,.15);
+  }
+  .login-error { color: #dc2626; font-size: 13px; text-align: center; min-height: 22px; margin-top: 4px; }
+
+  /* ========== 用户信息 ========== */
+  .user-info {
+    display: flex; align-items: center; gap: 8px;
+    margin-left: auto; padding-left: 16px;
+    border-left: 1px solid rgba(255,255,255,.2);
+  }
+  .user-display { font-size: 13px; font-weight: 600; color: #fff; white-space: nowrap; }
+  .btn-logout {
+    padding: 5px 14px; border: 1px solid rgba(255,255,255,.3);
+    border-radius: 6px; background: transparent; color: #fff;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    transition: all .2s; font-family: inherit;
+  }
+  .btn-logout:hover { background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.5); }
+  .btn-admin {
+    padding: 5px 14px; border: 1px solid rgba(255,255,255,.3);
+    border-radius: 6px; background: rgba(255,255,255,.1); color: #fff;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    transition: all .2s; font-family: inherit;
+  }
+  .btn-admin:hover { background: rgba(255,255,255,.2); }
+
+  /* 用户管理表格 */
+  .user-mgmt-status { font-size: 12px; padding: 2px 10px; border-radius: 10px; display: inline-block; }
+  .user-mgmt-status.active { background: #d1fae5; color: #065f46; }
+  .user-mgmt-status.inactive { background: #fee2e2; color: #991b1b; }
+  .user-mgmt-role { font-size: 12px; padding: 2px 10px; border-radius: 10px; display: inline-block; }
+  .user-mgmt-role.admin { background: #dbeafe; color: #1e40af; }
+  .user-mgmt-role.user { background: #f1f5f9; color: #475569; }
+
   /* ========== 响应式 ========== */
   @media (max-width: 768px) {
     .app-header { padding: 14px 16px; }
@@ -491,6 +538,11 @@
     <div class="subtitle">A9 Marketing System · 主管维护版</div>
   </div>
   <div class="header-actions">
+    <span class="user-info" id="userInfo" style="display:none;">
+      <span class="user-display" id="userDisplay"></span>
+      <button class="btn-admin" id="userMgmtBtn" onclick="openUserManager()" style="display:none;">管理用户</button>
+      <button class="btn-logout" onclick="doLogout()">退出</button>
+    </span>
     <span class="save-status" id="saveStatus">⏳ 加载中...</span>
     <button class="btn-export" onclick="toggleLegend()">📖 字段说明</button>
     <button class="btn-excel" onclick="showExportMenu()">📥 导出数据</button>
@@ -800,19 +852,57 @@ let dataOriginalOrder = {}; // 排序前保存原始顺序，用于取消排序�
 const SORTABLE_KEYS = ['name', 'industry', 'rating', 'status', 'coopPoint', 'startDate', 'activeDate', 'amount'];
 
 // ============================================================
-//  初始化
+//  初始化（先验证身份，再加载数据）
 // ============================================================
+let currentUser = null;
+
+// 全局 fetch 拦截器：自动附带凭证、处理 401 会话过期
+const _origFetch = window.fetch;
+window.fetch = async function(url, opts) {
+  opts = opts || {};
+  if (!opts.credentials) opts.credentials = 'same-origin';
+  const res = await _origFetch(url, opts);
+  if (res.status === 401 && typeof url === 'string' && !url.includes('/api/auth/')) {
+    const data = await res.clone().json().catch(() => ({}));
+    if (data.code === 'AUTH_REQUIRED') {
+      const overlay = document.getElementById('loginOverlay');
+      if (overlay && !overlay.classList.contains('active')) {
+        currentUser = null;
+        document.getElementById('userInfo').style.display = 'none';
+        showLogin();
+      }
+    }
+  }
+  return res;
+};
+
 async function init() {
   saveStatusEl = document.getElementById("saveStatus");
+  updateSaveStatus('⏳ 验证身份...', 'saving');
 
-  // 加载已保存的页面配置 / 字段配置（覆盖默认值）
+  // 检查登录状态
+  try {
+    const res = await fetch('/api/auth/me');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.authenticated) {
+        currentUser = data.user;
+        updateHeaderUser();
+        await loadAppData();
+        return;
+      }
+    }
+  } catch (e) { /* 未登录，显示登录窗 */ }
+
+  showLogin();
+}
+
+async function loadAppData() {
   await loadPageConfigs();
   await loadFieldConfigs();
 
-  // 尝试从服务器加载数据
   const loaded = await loadAllData();
   if (!loaded) {
-    // 离线降级：创建空行
     CONFIG.forEach((section, idx) => {
       if (!data[idx]) {
         data[idx] = [];
@@ -828,6 +918,209 @@ async function init() {
   renderTables();
   switchTab(99);
   updateSaveStatus('就绪', 'saved');
+}
+
+// ============================================================
+//  身份认证（登录/退出）
+// ============================================================
+
+function showLogin() {
+  const overlay = document.getElementById('loginOverlay');
+  if (!overlay) return;
+  overlay.classList.add('active');
+  document.getElementById('loginError').textContent = '';
+  document.getElementById('loginUsername').value = '';
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('loginBtn').disabled = false;
+  document.getElementById('loginBtn').textContent = '登 录';
+  setTimeout(() => document.getElementById('loginUsername').focus(), 100);
+  document.getElementById('loginPassword').onkeydown = (e) => {
+    if (e.key === 'Enter') doLogin();
+  };
+}
+
+function hideLogin() {
+  const overlay = document.getElementById('loginOverlay');
+  if (overlay) overlay.classList.remove('active');
+}
+
+async function doLogin() {
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errorEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+
+  if (!username || !password) {
+    errorEl.textContent = '请输入用户名和密码';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '登录中...';
+  errorEl.textContent = '';
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errorEl.textContent = data.error || '登录失败';
+      btn.disabled = false;
+      btn.textContent = '登 录';
+      return;
+    }
+    currentUser = data.user;
+    hideLogin();
+    updateHeaderUser();
+    await loadAppData();
+  } catch (e) {
+    errorEl.textContent = '网络连接失败，请检查服务器';
+    btn.disabled = false;
+    btn.textContent = '登 录';
+  }
+}
+
+async function doLogout() {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST' });
+  } catch (e) { /* ignore */ }
+  currentUser = null;
+  data = [];
+  document.getElementById('userInfo').style.display = 'none';
+  document.getElementById('tableContainer').innerHTML = '';
+  document.getElementById('tabNav').innerHTML = '';
+  document.querySelector('.stats-container').classList.remove('active');
+  showLogin();
+}
+
+function updateHeaderUser() {
+  const infoEl = document.getElementById('userInfo');
+  const displayEl = document.getElementById('userDisplay');
+  const adminBtn = document.getElementById('userMgmtBtn');
+  if (!infoEl || !displayEl) return;
+  if (currentUser) {
+    infoEl.style.display = 'flex';
+    displayEl.textContent = '👤 ' + (currentUser.displayName || currentUser.username);
+    adminBtn.style.display = currentUser.isAdmin ? 'inline-block' : 'none';
+  } else {
+    infoEl.style.display = 'none';
+  }
+}
+
+// ============================================================
+//  用户管理（管理员）
+// ============================================================
+
+async function openUserManager() {
+  let users = [];
+  try {
+    const res = await fetch('/api/users');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    users = await res.json();
+  } catch (e) {
+    alert('加载用户列表失败: ' + e.message);
+    return;
+  }
+
+  const old = document.getElementById('userManagerOverlay');
+  if (old) old.remove();
+
+  const rowsHtml = users.map(u => {
+    const isSelf = currentUser && u.id === currentUser.id;
+    return '<tr>' +
+      '<td style="text-align:center">' + u.id + '</td>' +
+      '<td><strong>' + u.username + '</strong></td>' +
+      '<td>' + (u.displayName || '-') + '</td>' +
+      '<td><span class="user-mgmt-role ' + (u.isAdmin ? 'admin' : 'user') + '">' + (u.isAdmin ? '管理员' : '普通用户') + '</span></td>' +
+      '<td><span class="user-mgmt-status ' + (u.isActive ? 'active' : 'inactive') + '">' + (u.isActive ? '启用' : '禁用') + '</span></td>' +
+      '<td style="font-size:12px;color:#64748b;">' + (u.createdAt || '') + '</td>' +
+      '<td style="text-align:center">' +
+        '<button class="btn-del-field" onclick="editUser(' + u.id + ')">编辑</button>' +
+        (!isSelf ? '<button class="btn-del-field" onclick="deleteUser(' + u.id + ')" style="margin-left:4px;color:#dc2626;">删除</button>' : '') +
+      '</td></tr>';
+  }).join('');
+
+  const html = '<div class="modal-overlay active" id="userManagerOverlay" onclick="if(event.target===this)closeUserManager()">' +
+    '<div class="modal-box" style="max-width:700px;">' +
+    '<div class="modal-header"><h2>👥 用户管理</h2><button class="close-btn" onclick="closeUserManager()">&times;</button></div>' +
+    '<div class="modal-body">' +
+    '<table class="field-editor-table"><thead><tr>' +
+    '<th style="width:8%">ID</th><th style="width:18%">用户名</th><th style="width:18%">显示名称</th>' +
+    '<th style="width:14%">角色</th><th style="width:10%">状态</th><th style="width:18%">创建时间</th><th style="width:14%">操作</th>' +
+    '</tr></thead><tbody>' + rowsHtml + '</tbody></table>' +
+    '<div class="field-editor-add"><h3>添加新用户</h3>' +
+    '<div class="row" style="gap:10px;">' +
+    '<input id="newUserUsername" placeholder="用户名" style="flex:1;min-width:100px;">' +
+    '<input id="newUserDisplay" placeholder="显示名称（可选）" style="flex:1;min-width:100px;">' +
+    '<input id="newUserPassword" type="password" placeholder="密码" style="flex:1;min-width:100px;">' +
+    '<label style="display:flex;align-items:center;gap:4px;font-size:13px;white-space:nowrap;"><input type="checkbox" id="newUserIsAdmin"> 管理员</label>' +
+    '<button class="btn-add-field" onclick="addUser()">添加</button>' +
+    '</div></div></div>' +
+    '<div class="modal-footer"><button class="btn-close-modal" onclick="closeUserManager()">关闭</button></div></div></div>';
+
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeUserManager() {
+  const el = document.getElementById('userManagerOverlay');
+  if (el) el.remove();
+}
+
+async function addUser() {
+  const username = document.getElementById('newUserUsername').value.trim();
+  const password = document.getElementById('newUserPassword').value;
+  const displayName = document.getElementById('newUserDisplay').value.trim();
+  const isAdmin = document.getElementById('newUserIsAdmin').checked;
+
+  if (!username || !password) { alert('用户名和密码不能为空'); return; }
+
+  try {
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, displayName, isAdmin })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '添加失败');
+    closeUserManager();
+    openUserManager();
+  } catch (e) { alert('添加用户失败: ' + e.message); }
+}
+
+async function editUser(userId) {
+  const newDisplay = prompt('显示名称：');
+  if (newDisplay === null) return;
+  const newPw = prompt('新密码（留空不修改）：');
+  if (newPw === null) return;
+
+  const body = { displayName: newDisplay.trim() };
+  if (newPw.trim()) body.password = newPw.trim();
+
+  try {
+    const res = await fetch('/api/users/' + userId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '修改失败');
+    closeUserManager();
+    openUserManager();
+  } catch (e) { alert('修改用户失败: ' + e.message); }
+}
+
+async function deleteUser(userId) {
+  if (!confirm('确定要删除此用户吗？')) return;
+  try {
+    const res = await fetch('/api/users/' + userId, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '删除失败');
+    closeUserManager();
+    openUserManager();
+  } catch (e) { alert('删除用户失败: ' + e.message); }
 }
 
 function createEmptyRow(fields) {
@@ -2553,5 +2846,30 @@ window.addEventListener("resize", function() {
 // ============================================================
 document.addEventListener("DOMContentLoaded", init);
 </script>
+<!-- ===== 登录弹窗 ===== -->
+<div class="modal-overlay" id="loginOverlay">
+  <div class="modal-box" style="max-width:400px;">
+    <div class="modal-header" style="justify-content:center;">
+      <h2 style="font-size:20px;">A9 Marketing System</h2>
+    </div>
+    <div class="modal-body">
+      <p style="text-align:center;color:#64748b;margin:0 0 18px;font-size:13px;">请登录以继续</p>
+      <div class="login-form">
+        <div class="form-group">
+          <label for="loginUsername">用户名</label>
+          <input type="text" id="loginUsername" placeholder="请输入用户名" autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">密码</label>
+          <input type="password" id="loginPassword" placeholder="请输入密码" autocomplete="current-password">
+        </div>
+        <div class="login-error" id="loginError"></div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:center;padding-top:8px;">
+      <button class="btn-copy" id="loginBtn" onclick="doLogin()" style="padding:10px 40px;font-size:15px;border-radius:8px;">登 录</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
