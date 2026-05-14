@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>A9 Marketing System</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
 <!-- Leaflet 地图引擎 -->
 <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
@@ -46,6 +46,8 @@
   .btn-export:hover { background: #e8edf2; }
   .btn-excel     { background: #27ae60; color: #fff; }
   .btn-excel:hover { background: #219a52; }
+  .btn-import    { background: #8b5cf6; color: #fff; }
+  .btn-import:hover { background: #7c3aed; }
   .btn-reset     { background: rgba(255,255,255,.15); color: #fff; }
   .btn-reset:hover   { background: rgba(255,255,255,.25); }
   .header-actions button i { margin-right: 6px; }
@@ -236,6 +238,19 @@
   .modal-footer .btn-copy:hover { background: #0d2b4e; }
   .modal-footer .btn-close-modal { background: #f1f5f9; color: #334155; }
   .modal-footer .btn-close-modal:hover { background: #e2e8f0; }
+  .modal-footer .btn-danger { background: #dc2626; color: #fff; }
+  .modal-footer .btn-danger:hover { background: #b91c1c; }
+
+  /* 导入预览弹窗 */
+  .import-section-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; }
+  .import-section-card h4 { font-size: 14px; color: #0d2b4e; margin: 0 0 6px; }
+  .import-section-card .stat { font-size: 13px; color: #334155; margin: 2px 0; }
+  .import-section-card .warn { color: #b45309; font-size: 12px; }
+  .import-section-card .err { color: #dc2626; font-size: 12px; }
+  .import-section-card.unmatched { border-color: #fca5a5; background: #fef2f2; }
+  .import-strategy { margin: 16px 0; padding: 12px 16px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; }
+  .import-strategy label { display: inline-flex; align-items: center; gap: 8px; margin-right: 20px; font-size: 14px; cursor: pointer; }
+  .import-strategy input[type="radio"] { accent-color: #1a4a7a; }
 
   /* 字段编辑器 */
   .field-editor-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -489,6 +504,8 @@
         <div class="desc">生成 Markdown 表格文档，便于嵌入其他文档</div>
       </button>
     </div>
+    <button class="btn-import" onclick="triggerImport()">📥 导入数据</button>
+    <input type="file" id="fileInput" accept=".xlsx,.md" style="display:none" onchange="handleFileSelected(event)">
   </div>
 </header>
 
@@ -609,22 +626,22 @@ const CONFIG = [
     title: "北京地区重大客户",
     province: "北京市",
     fields: [
-      { key: "name",       label: "客户名称",       width: 24, align: "left" },
+      { key: "name",       label: "客户名称",       width: 22, align: "left" },
       { key: "industry",   label: "行业分类",       width: 16 },
-      { key: "rating",     label: "客户评级",       width: 12, type: "select",
+      { key: "rating",     label: "客户评级",       width: 14, type: "select",
         options: ["","A（战略级）","B（重点级）","C（普通级）"] },
-      { key: "status",     label: "合作状态",       width: 12, type: "select",
+      { key: "status",     label: "合作状态",       width: 14, type: "select",
         options: ["","意向中","洽谈中","已签约","合作中","已暂停","已结束"] },
-      { key: "coopPoint",  label: "合作点",         width: 28, align: "left" },
+      { key: "coopPoint",  label: "合作点",         width: 30, align: "left" },
       { key: "contact",    label: "联系人",         width: 12 },
-      { key: "phone",      label: "联系方式",       width: 18 },
-      { key: "startDate",  label: "合作起始时间",    width: 14 },
-      { key: "amount",     label: "合作金额级别",    width: 14, type: "select",
+      { key: "phone",      label: "联系方式",       width: 20 },
+      { key: "startDate",  label: "合作起始时间",    width: 16 },
+      { key: "amount",     label: "合作金额级别",    width: 18, type: "select",
         options: ["","100万以下","100-500万","500-1000万","1000-5000万","5000万以上"] },
-      { key: "estimate",   label: "预计年度贡献(万)", width: 14 },
-      { key: "activeDate", label: "最近活跃日期",    width: 14 },
-      { key: "background", label: "客户背景简介",    width: 30, align: "left" },
-      { key: "remark",     label: "备注",           width: 20, align: "left" },
+      { key: "estimate",   label: "预计年度贡献(万)", width: 16 },
+      { key: "activeDate", label: "最近活跃日期",    width: 16 },
+      { key: "background", label: "客户背景简介",    width: 35, align: "left" },
+      { key: "remark",     label: "备注",           width: 25, align: "left" },
     ]
   },
   {
@@ -639,18 +656,18 @@ const CONFIG = [
       { key: "industry",   label: "行业分类",       width: 16 },
       { key: "rating",     label: "客户评级",       width: 12, type: "select",
         options: ["","A（战略级）","B（重点级）","C（普通级）"] },
-      { key: "status",     label: "合作状态",       width: 12, type: "select",
+      { key: "status",     label: "合作状态",       width: 14, type: "select",
         options: ["","意向中","洽谈中","已签约","合作中","已暂停","已结束"] },
-      { key: "coopPoint",  label: "合作点",         width: 28, align: "left" },
+      { key: "coopPoint",  label: "合作点",         width: 30, align: "left" },
       { key: "contact",    label: "联系人",         width: 12 },
-      { key: "phone",      label: "联系方式",       width: 18 },
-      { key: "startDate",  label: "合作起始时间",    width: 14 },
-      { key: "amount",     label: "合作金额级别",    width: 14, type: "select",
+      { key: "phone",      label: "联系方式",       width: 20 },
+      { key: "startDate",  label: "合作起始时间",    width: 16 },
+      { key: "amount",     label: "合作金额级别",    width: 18, type: "select",
         options: ["","100万以下","100-500万","500-1000万","1000-5000万","5000万以上"] },
-      { key: "estimate",   label: "预计年度贡献(万)", width: 14 },
-      { key: "activeDate", label: "最近活跃日期",    width: 14 },
-      { key: "background", label: "客户背景简介",    width: 30, align: "left" },
-      { key: "remark",     label: "备注",           width: 20, align: "left" },
+      { key: "estimate",   label: "预计年度贡献(万)", width: 16 },
+      { key: "activeDate", label: "最近活跃日期",    width: 16 },
+      { key: "background", label: "客户背景简介",    width: 35, align: "left" },
+      { key: "remark",     label: "备注",           width: 25, align: "left" },
     ]
   },
   {
@@ -665,18 +682,18 @@ const CONFIG = [
       { key: "industry",   label: "行业分类",       width: 16 },
       { key: "rating",     label: "客户评级",       width: 12, type: "select",
         options: ["","A（战略级）","B（重点级）","C（普通级）"] },
-      { key: "status",     label: "合作状态",       width: 12, type: "select",
+      { key: "status",     label: "合作状态",       width: 14, type: "select",
         options: ["","意向中","洽谈中","已签约","合作中","已暂停","已结束"] },
-      { key: "coopPoint",  label: "合作点",         width: 28, align: "left" },
+      { key: "coopPoint",  label: "合作点",         width: 30, align: "left" },
       { key: "contact",    label: "联系人",         width: 12 },
-      { key: "phone",      label: "联系方式",       width: 18 },
-      { key: "startDate",  label: "合作起始时间",    width: 14 },
-      { key: "amount",     label: "合作金额级别",    width: 14, type: "select",
+      { key: "phone",      label: "联系方式",       width: 20 },
+      { key: "startDate",  label: "合作起始时间",    width: 16 },
+      { key: "amount",     label: "合作金额级别",    width: 18, type: "select",
         options: ["","100万以下","100-500万","500-1000万","1000-5000万","5000万以上"] },
-      { key: "estimate",   label: "预计年度贡献(万)", width: 14 },
-      { key: "activeDate", label: "最近活跃日期",    width: 14 },
-      { key: "background", label: "客户背景简介",    width: 30, align: "left" },
-      { key: "remark",     label: "备注",           width: 20, align: "left" },
+      { key: "estimate",   label: "预计年度贡献(万)", width: 16 },
+      { key: "activeDate", label: "最近活跃日期",    width: 16 },
+      { key: "background", label: "客户背景简介",    width: 35, align: "left" },
+      { key: "remark",     label: "备注",           width: 25, align: "left" },
     ]
   },
   {
@@ -691,18 +708,18 @@ const CONFIG = [
       { key: "industry",   label: "行业分类",       width: 16 },
       { key: "rating",     label: "客户评级",       width: 12, type: "select",
         options: ["","A（战略级）","B（重点级）","C（普通级）"] },
-      { key: "status",     label: "合作状态",       width: 12, type: "select",
+      { key: "status",     label: "合作状态",       width: 14, type: "select",
         options: ["","意向中","洽谈中","已签约","合作中","已暂停","已结束"] },
-      { key: "coopPoint",  label: "合作点",         width: 28, align: "left" },
+      { key: "coopPoint",  label: "合作点",         width: 30, align: "left" },
       { key: "contact",    label: "联系人",         width: 12 },
-      { key: "phone",      label: "联系方式",       width: 18 },
-      { key: "startDate",  label: "合作起始时间",    width: 14 },
-      { key: "amount",     label: "合作金额级别",    width: 14, type: "select",
+      { key: "phone",      label: "联系方式",       width: 20 },
+      { key: "startDate",  label: "合作起始时间",    width: 16 },
+      { key: "amount",     label: "合作金额级别",    width: 18, type: "select",
         options: ["","100万以下","100-500万","500-1000万","1000-5000万","5000万以上"] },
-      { key: "estimate",   label: "预计年度贡献(万)", width: 14 },
-      { key: "activeDate", label: "最近活跃日期",    width: 14 },
-      { key: "background", label: "客户背景简介",    width: 30, align: "left" },
-      { key: "remark",     label: "备注",           width: 20, align: "left" },
+      { key: "estimate",   label: "预计年度贡献(万)", width: 16 },
+      { key: "activeDate", label: "最近活跃日期",    width: 16 },
+      { key: "background", label: "客户背景简介",    width: 35, align: "left" },
+      { key: "remark",     label: "备注",           width: 25, align: "left" },
     ]
   },
   {
@@ -717,18 +734,18 @@ const CONFIG = [
       { key: "industry",   label: "行业分类",       width: 16 },
       { key: "rating",     label: "客户评级",       width: 12, type: "select",
         options: ["","A（战略级）","B（重点级）","C（普通级）"] },
-      { key: "status",     label: "合作状态",       width: 12, type: "select",
+      { key: "status",     label: "合作状态",       width: 14, type: "select",
         options: ["","意向中","洽谈中","已签约","合作中","已暂停","已结束"] },
-      { key: "coopPoint",  label: "合作点",         width: 28, align: "left" },
+      { key: "coopPoint",  label: "合作点",         width: 30, align: "left" },
       { key: "contact",    label: "联系人",         width: 12 },
-      { key: "phone",      label: "联系方式",       width: 18 },
-      { key: "startDate",  label: "合作起始时间",    width: 14 },
-      { key: "amount",     label: "合作金额级别",    width: 14, type: "select",
+      { key: "phone",      label: "联系方式",       width: 20 },
+      { key: "startDate",  label: "合作起始时间",    width: 16 },
+      { key: "amount",     label: "合作金额级别",    width: 18, type: "select",
         options: ["","100万以下","100-500万","500-1000万","1000-5000万","5000万以上"] },
-      { key: "estimate",   label: "预计年度贡献(万)", width: 14 },
-      { key: "activeDate", label: "最近活跃日期",    width: 14 },
-      { key: "background", label: "客户背景简介",    width: 30, align: "left" },
-      { key: "remark",     label: "备注",           width: 20, align: "left" },
+      { key: "estimate",   label: "预计年度贡献(万)", width: 16 },
+      { key: "activeDate", label: "最近活跃日期",    width: 16 },
+      { key: "background", label: "客户背景简介",    width: 35, align: "left" },
+      { key: "remark",     label: "备注",           width: 25, align: "left" },
     ]
   }
 ];
@@ -1602,44 +1619,106 @@ document.addEventListener("click", function(e) {
 });
 
 // ============================================================
-//  导出 Excel（使用 SheetJS）
+//  导出 Excel（使用 ExcelJS，样式与模板一致）
 // ============================================================
-function exportExcel() {
+function colToLetter(col) {
+  let s = '';
+  while (col > 0) {
+    col--;
+    s = String.fromCharCode(65 + (col % 26)) + s;
+    col = Math.floor(col / 26);
+  }
+  return s;
+}
+
+async function exportExcel() {
   document.getElementById("exportMenu").classList.remove("active");
   try {
-    const wb = XLSX.utils.book_new();
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'A9 Marketing System';
+    wb.created = new Date();
+
+    // 模板样式常量
+    const titleFont = { name: '微软雅黑', size: 14, bold: true, color: { argb: 'FF0D2B4E' } };
+    const headerFont = { name: '微软雅黑', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    const dataFont = { name: '微软雅黑', size: 10 };
+    const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A4A7A' } };
+    const thinBorder = {
+      left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+      right: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+      top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+      bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+    };
 
     CONFIG.forEach((sec, secIdx) => {
       const rows = data[secIdx] || [];
       const validRows = rows.filter(row =>
         sec.fields.some(f => (row[f.key] || "").trim() !== "")
       );
-      const headers = sec.fields.map(f => f.label);
-      const dataRows = validRows.map(row =>
-        sec.fields.map(f => row[f.key] || "")
-      );
-      const sheetData = [headers, ...dataRows];
-      const ws = XLSX.utils.aoa_to_sheet(sheetData);
-      ws['!cols'] = sec.fields.map(f => ({ wch: f.width }));
 
       let sheetName = sec.title;
       sheetName = sheetName.replace(/[\[\]:*?\/\\]/g, "·");
       if (sheetName.length > 31) sheetName = sheetName.slice(0, 31);
-      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+      const ws = wb.addWorksheet(sheetName);
+
+      // 设置列宽（匹配模板）
+      ws.columns = sec.fields.map(f => ({ width: f.width }));
+
+      // Row 1: 标题行 — 合并所有列，微软雅黑 14pt 加粗，深蓝色
+      const titleRow = ws.addRow([`九盛卫星科技 — ${sec.title}`]);
+      titleRow.height = 30;
+      const lastCol = colToLetter(sec.fields.length);
+      ws.mergeCells(`A1:${lastCol}1`);
+      titleRow.getCell(1).font = titleFont;
+      titleRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left' };
+
+      // Row 2: 空行（间距）
+      ws.addRow([]);
+
+      // Row 3: 表头行 — 微软雅黑 11pt 白色加粗，深蓝背景，居中，细边框
+      const headerRow = ws.addRow(sec.fields.map(f => f.label));
+      headerRow.height = 28;
+      headerRow.eachCell(cell => {
+        cell.font = headerFont;
+        cell.fill = headerFill;
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = thinBorder;
+      });
+
+      // Row 4+: 数据行 — 微软雅黑 10pt，细边框，垂直居中
+      validRows.forEach(rowData => {
+        const dataRow = ws.addRow(sec.fields.map(f => rowData[f.key] || ""));
+        dataRow.height = 22;
+        dataRow.eachCell(cell => {
+          cell.font = dataFont;
+          cell.alignment = { vertical: 'middle' };
+          cell.border = thinBorder;
+        });
+      });
     });
 
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([wbout], { type: 'application/octet-stream' });
+    // 生成文件
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob);
+
+    // 文件名：a9_customer_ledger_YYYYMMDD.xlsx（与模板命名规则一致）
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const filename = `a9_customer_ledger_${y}${m}${d}.xlsx`;
+
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'A9_Marketing_System.xlsx';
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    alert(`✅ 导出成功！共导出 ${wb.SheetNames.length} 个工作表。`);
+    alert(`✅ 导出成功！共导出 ${wb.worksheets.length} 个工作表。`);
   } catch (e) {
     alert("❌ 导出失败：" + e.message);
     console.error(e);
@@ -1706,6 +1785,354 @@ function exportMarkdown() {
     alert("❌ 导出失败：" + e.message);
     console.error(e);
   }
+}
+
+// ============================================================
+//  导入数据：Excel (.xlsx) / Markdown (.md)
+// ============================================================
+
+// ---------- 辅助函数 ----------
+
+function normalizeTitle(str) {
+  return str.replace(/[\[\]:*?\/\\]/g, "·").toLowerCase().trim();
+}
+
+function matchSection(name) {
+  const normalized = normalizeTitle(name);
+  for (let i = 0; i < CONFIG.length; i++) {
+    const t = normalizeTitle(CONFIG[i].title);
+    if (t === normalized) return i;
+    if (normalized.startsWith(t) || t.startsWith(normalized)) return i;
+  }
+  return -1;
+}
+
+function buildFieldMap(sec) {
+  const map = {};
+  sec.fields.forEach(f => { map[f.label] = f.key; });
+  return map;
+}
+
+// ---------- 入口 ----------
+
+function triggerImport() {
+  document.getElementById("fileInput").click();
+}
+
+function handleFileSelected(event) {
+  const file = event.target.files[0];
+  event.target.value = "";
+  if (!file) return;
+  processImportFile(file);
+}
+
+async function processImportFile(file) {
+  const ext = file.name.split(".").pop().toLowerCase();
+  try {
+    let parsed;
+    if (ext === "xlsx") {
+      const buf = await file.arrayBuffer();
+      parsed = await parseExcelImport(buf);
+    } else if (ext === "md") {
+      const text = await file.text();
+      parsed = parseMarkdownImport(text);
+    } else {
+      alert("❌ 不支持的文件格式，请选择 .xlsx 或 .md 文件。");
+      return;
+    }
+    showImportPreview(parsed, file.name);
+  } catch (e) {
+    alert("❌ 文件解析失败：" + e.message);
+    console.error(e);
+  }
+}
+
+// ---------- Excel 解析 ----------
+
+async function parseExcelImport(arrayBuffer) {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(arrayBuffer);
+
+  const result = { sections: [], unmatchedSheets: [], totalRows: 0 };
+
+  wb.eachSheet((ws) => {
+    const secIdx = matchSection(ws.name);
+    if (secIdx === -1) {
+      result.unmatchedSheets.push(ws.name);
+      return;
+    }
+    const sec = CONFIG[secIdx];
+    const out = parseExcelWorksheet(ws, sec);
+    if (out.rows.length > 0 || out.errors.length > 0) {
+      result.sections.push({
+        secIdx,
+        sectionId: sec.id,
+        sectionLabel: sec.label,
+        rows: out.rows,
+        skippedCols: out.skippedCols,
+        errors: out.errors
+      });
+      result.totalRows += out.rows.length;
+    }
+  });
+
+  return result;
+}
+
+function parseExcelWorksheet(ws, sec) {
+  const fieldMap = buildFieldMap(sec);
+  const rows = [];
+  const skippedCols = [];
+  const errors = [];
+
+  // 收集所有行
+  const allRows = [];
+  ws.eachRow({ includeEmpty: false }, (row, rowNum) => {
+    const cells = [];
+    let maxCol = 0;
+    row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+      maxCol = Math.max(maxCol, colNum);
+    });
+    for (let c = 1; c <= maxCol; c++) {
+      const cell = row.getCell(c);
+      const v = cell.value;
+      cells.push((v === null || v === undefined) ? "" : v.toString().trim());
+    }
+    allRows.push({ rowNum, cells });
+  });
+
+  if (allRows.length === 0) {
+    return { rows: [], skippedCols: [], errors: ["空白工作表"] };
+  }
+
+  // 查找表头行：跳过标题行（含"九盛卫星科技"）和空行
+  let headerRow = null;
+  let headerIdx = -1;
+  for (let i = 0; i < allRows.length; i++) {
+    const { cells } = allRows[i];
+    const nonEmpty = cells.filter(c => c !== "");
+    if (nonEmpty.length === 0) continue;
+    // 跳过合并标题行
+    if (cells[0] && cells[0].includes("九盛卫星科技")) continue;
+    headerRow = cells;
+    headerIdx = i;
+    break;
+  }
+
+  if (!headerRow) {
+    return { rows: [], skippedCols: [], errors: ["未找到有效的表头行"] };
+  }
+
+  // 解析数据行
+  for (let i = headerIdx + 1; i < allRows.length; i++) {
+    const { cells } = allRows[i];
+    const rowObj = {};
+    sec.fields.forEach(f => { rowObj[f.key] = ""; });
+
+    headerRow.forEach((label, colIdx) => {
+      if (!label) return;
+      const val = colIdx < cells.length ? cells[colIdx] : "";
+      if (fieldMap[label] !== undefined) {
+        rowObj[fieldMap[label]] = val;
+      } else if (!skippedCols.includes(label)) {
+        skippedCols.push(label);
+      }
+    });
+
+    rows.push(rowObj);
+  }
+
+  return { rows, skippedCols, errors };
+}
+
+// ---------- Markdown 解析 ----------
+
+function parseMarkdownImport(text) {
+  const result = { sections: [], unmatchedSheets: [], totalRows: 0 };
+  const lines = text.split("\n");
+
+  let currentTitle = "";
+  let headerRow = null;
+  let dataRows = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    if (line.startsWith("## ")) {
+      if (currentTitle && dataRows.length > 0) {
+        processMdSection(currentTitle, headerRow, dataRows, result);
+      }
+      currentTitle = line.slice(3).trim();
+      headerRow = null;
+      dataRows = [];
+      continue;
+    }
+
+    if (!currentTitle) continue;
+
+    // 跳过元数据行
+    if (line === "" || line.startsWith("客户总数") || line === "---" || line.startsWith("> ")) continue;
+
+    if (line.startsWith("|") && line.endsWith("|")) {
+      const cells = line.split("|").slice(1, -1).map(c => c.trim());
+
+      // 跳过分隔线（所有单元格都是 ---/ :--- / ---: 格式）
+      if (cells.length > 0 && cells.every(c => /^[\s\-:]+$/.test(c))) continue;
+
+      if (!headerRow) {
+        headerRow = cells;
+      } else {
+        dataRows.push(cells);
+      }
+    }
+  }
+
+  // 处理最后一个区域
+  if (currentTitle && dataRows.length > 0) {
+    processMdSection(currentTitle, headerRow, dataRows, result);
+  }
+
+  return result;
+}
+
+function processMdSection(title, headerRow, dataRows, result) {
+  if (!headerRow) {
+    result.unmatchedSheets.push(title);
+    return;
+  }
+
+  const secIdx = matchSection(title);
+  if (secIdx === -1) {
+    result.unmatchedSheets.push(title);
+    return;
+  }
+
+  const sec = CONFIG[secIdx];
+  const fieldMap = buildFieldMap(sec);
+  const skippedCols = [];
+  const rows = [];
+
+  dataRows.forEach(cells => {
+    const rowObj = {};
+    sec.fields.forEach(f => { rowObj[f.key] = ""; });
+
+    headerRow.forEach((label, colIdx) => {
+      if (!label) return;
+      const val = colIdx < cells.length ? cells[colIdx] : "";
+      if (fieldMap[label] !== undefined) {
+        rowObj[fieldMap[label]] = val;
+      } else if (!skippedCols.includes(label)) {
+        skippedCols.push(label);
+      }
+    });
+
+    rows.push(rowObj);
+  });
+
+  result.sections.push({
+    secIdx,
+    sectionId: sec.id,
+    sectionLabel: sec.label,
+    rows,
+    skippedCols,
+    errors: []
+  });
+  result.totalRows += rows.length;
+}
+
+// ---------- 预览弹窗 ----------
+
+function showImportPreview(parsed, fileName) {
+  const { sections, unmatchedSheets, totalRows } = parsed;
+
+  let cardsHtml = sections.map(s => {
+    const warnHtml = s.skippedCols.length > 0
+      ? `<div class="warn">⚠️ 已跳过未匹配列：${s.skippedCols.join("、")}</div>`
+      : "";
+    const errHtml = s.errors.length > 0
+      ? s.errors.map(e => `<div class="err">❌ ${e}</div>`).join("")
+      : "";
+    return `<div class="import-section-card">
+      <h4>📋 ${s.sectionLabel}</h4>
+      <div class="stat">解析 ${s.rows.length} 条记录</div>
+      ${warnHtml}${errHtml}
+    </div>`;
+  }).join("");
+
+  if (unmatchedSheets.length > 0) {
+    cardsHtml += `<div class="import-section-card unmatched">
+      <h4>⚠️ 未匹配的区域</h4>
+      <div class="warn">以下工作表/章节未匹配到系统中的区域：${unmatchedSheets.join("、")}</div>
+    </div>`;
+  }
+
+  const modalHtml = `<div class="modal-overlay active" id="importPreviewOverlay" onclick="if(event.target===this)closeModalById('importPreviewOverlay')">
+    <div class="modal-box" style="max-width:600px;">
+      <div class="modal-header">
+        <h2>📥 导入预览</h2>
+        <button class="close-btn" onclick="closeModalById('importPreviewOverlay')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-top:0;color:#334155;">文件：<strong>${fileName}</strong> — 共解析 <strong>${totalRows}</strong> 条记录，涉及 <strong>${sections.length}</strong> 个区域</p>
+        ${cardsHtml}
+        <div class="import-strategy">
+          <label><input type="radio" name="mergeStrategy" value="append" checked> 追加到现有数据（推荐）</label>
+          <label><input type="radio" name="mergeStrategy" value="replace"> 替换现有数据</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-close-modal" onclick="closeModalById('importPreviewOverlay')">取消</button>
+        <button class="btn-copy" onclick="confirmImport()">确认导入</button>
+      </div>
+    </div>
+  </div>`;
+
+  // 移除旧弹窗后插入
+  const old = document.getElementById("importPreviewOverlay");
+  if (old) old.remove();
+  document.body.insertAdjacentHTML("beforeend", modalHtml);
+
+  // 保存解析结果供确认时使用
+  window._pendingImport = parsed;
+}
+
+function confirmImport() {
+  const strategy = document.querySelector('input[name="mergeStrategy"]:checked').value;
+  const parsed = window._pendingImport;
+  if (!parsed) return;
+
+  closeModalById("importPreviewOverlay");
+  window._pendingImport = null;
+
+  if (parsed.sections.length === 0) {
+    alert("没有可导入的数据。");
+    return;
+  }
+
+  // 合并数据
+  parsed.sections.forEach(s => {
+    if (s.rows.length === 0) return;
+    if (strategy === "append") {
+      data[s.secIdx] = (data[s.secIdx] || []).concat(s.rows);
+    } else {
+      data[s.secIdx] = [...s.rows];
+    }
+  });
+
+  // 重新渲染受影响的区域
+  const affected = [...new Set(parsed.sections.map(s => s.secIdx))];
+  affected.forEach(idx => rerenderSection(idx));
+
+  // 触发保存
+  scheduleSave();
+
+  const verb = strategy === "append" ? "追加" : "替换";
+  alert(`✅ 导入完成！共${verb} ${parsed.totalRows} 条记录。`);
+}
+
+function closeModalById(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
 }
 
 // ============================================================
