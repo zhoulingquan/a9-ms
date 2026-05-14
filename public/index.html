@@ -1,0 +1,2130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A9 Marketing System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+<!-- Leaflet 地图引擎 -->
+<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  /* ========== 全局重置 ========== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+    background: #f0f4f8;
+    color: #1a2332;
+    min-height: 100vh;
+  }
+
+  /* ========== 头部 ========== */
+  .app-header {
+    background: linear-gradient(135deg, #0d2b4e 0%, #1a4a7a 100%);
+    color: #fff;
+    padding: 20px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.15);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .app-header h1 { font-size: 22px; font-weight: 700; letter-spacing: 1px; }
+  .app-header .subtitle { font-size: 13px; opacity: .75; margin-top: 4px; }
+  .app-header .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .header-actions button {
+    padding: 8px 18px; border: none; border-radius: 6px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-export    { background: #fff; color: #0d2b4e; }
+  .btn-export:hover { background: #e8edf2; }
+  .btn-excel     { background: #27ae60; color: #fff; }
+  .btn-excel:hover { background: #219a52; }
+  .btn-reset     { background: rgba(255,255,255,.15); color: #fff; }
+  .btn-reset:hover   { background: rgba(255,255,255,.25); }
+  .header-actions button i { margin-right: 6px; }
+
+  /* ========== 导出下拉菜单 ========== */
+  .export-menu {
+    position: absolute; top: 100%; right: 0; margin-top: 6px;
+    background: #fff; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,.18);
+    min-width: 210px; overflow: hidden; z-index: 200;
+    display: none;
+  }
+  .export-menu.active { display: block; }
+  .export-menu-item {
+    display: block; width: 100%; padding: 12px 18px; border: none;
+    background: none; font-size: 14px; text-align: left; cursor: pointer;
+    color: #1a2332; transition: background .15s;
+  }
+  .export-menu-item:hover { background: #f0f4f8; }
+  .export-menu-item .desc { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+  .header-actions { position: relative; }
+
+  /* ========== 主导航 Tab ========== */
+  .tabs {
+    display: flex; flex-wrap: wrap; gap: 2px;
+    background: #fff; padding: 0 20px;
+    border-bottom: 2px solid #e2e8f0;
+    position: sticky; top: 76px; z-index: 99;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .tabs .tab {
+    padding: 12px 20px; font-size: 14px; font-weight: 600;
+    color: #64748b; cursor: pointer; border-bottom: 3px solid transparent;
+    transition: all .2s; user-select: none;
+    white-space: nowrap;
+  }
+  .tabs .tab:hover { color: #1a4a7a; background: #f8fafc; }
+  .tabs .tab.active { color: #0d2b4e; border-bottom-color: #1a4a7a; }
+  .tabs .tab .badge {
+    display: inline-block; margin-left: 6px;
+    background: #e2e8f0; color: #475569;
+    font-size: 11px; font-weight: 700; padding: 0 8px;
+    border-radius: 10px; line-height: 18px;
+  }
+  .tabs .tab.active .badge { background: #1a4a7a; color: #fff; }
+
+  /* ========== 字段说明面板 ========== */
+  .legend-panel {
+    background: #fff; margin: 16px 20px; border-radius: 10px;
+    padding: 20px 24px; box-shadow: 0 1px 6px rgba(0,0,0,.08);
+    display: none;
+  }
+  .legend-panel.active { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .legend-panel .legend-group h3 {
+    font-size: 14px; color: #0d2b4e; margin-bottom: 8px;
+    padding-bottom: 6px; border-bottom: 2px solid #e2e8f0;
+  }
+  .legend-panel .legend-group li {
+    list-style: none; font-size: 13px; line-height: 1.8; color: #334155;
+    padding: 2px 0;
+  }
+  .legend-panel .legend-group li::before { content: "• "; color: #1a4a7a; font-weight: 700; }
+
+  /* ========== 表格区域 ========== */
+  .table-container {
+    margin: 16px 20px; background: #fff; border-radius: 10px;
+    box-shadow: 0 1px 6px rgba(0,0,0,.08); overflow-x: auto;
+    position: relative;
+  }
+  .table-section { display: none; }
+  .table-section.active { display: block; }
+  .table-section .section-title {
+    padding: 16px 20px 12px; font-size: 15px; font-weight: 700;
+    color: #0d2b4e; display: flex; justify-content: space-between; align-items: center;
+  }
+  .table-section .section-title .row-count { font-size: 13px; font-weight: 400; color: #64748b; }
+  .table-section .section-title .row-count span { font-weight: 700; color: #1a4a7a; }
+
+  .toolbar {
+    padding: 0 20px 12px; display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .toolbar button {
+    padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px;
+    background: #fff; font-size: 13px; cursor: pointer; color: #334155;
+    transition: all .2s; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .toolbar button:hover { background: #f1f5f9; border-color: #94a3b8; }
+  .toolbar button.danger { color: #dc2626; border-color: #fca5a5; }
+  .toolbar button.danger:hover { background: #fef2f2; }
+  .toolbar .batch-del-btn { display: none; }
+  .toolbar .batch-del-btn.show { display: inline-flex; }
+  th .checkbox-col, td .checkbox-col { width: 36px; text-align: center; }
+  .row-check { width: 16px; height: 16px; cursor: pointer; accent-color: #1a4a7a; }
+  tr.selected { background: #eff6ff !important; }
+
+  /* ========== 表格 ========== */
+  table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+    min-width: 1200px;
+  }
+  thead th {
+    background: #1a4a7a; color: #fff; padding: 10px 8px;
+    text-align: center; font-weight: 600; font-size: 12px;
+    white-space: nowrap; position: sticky; top: 0; z-index: 2;
+    border-right: 1px solid rgba(255,255,255,.15);
+  }
+  thead th:last-child { border-right: none; }
+  thead th.sortable { cursor: pointer; user-select: none; }
+  thead th.sortable:hover { background: #2563a0; }
+  tbody tr { transition: background .15s; }
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  tbody tr:hover { background: #eef2ff; }
+  tbody td {
+    padding: 6px 4px; border: 1px solid #e2e8f0;
+    vertical-align: middle; text-align: center;
+  }
+  tbody td input, tbody td select {
+    width: 100%; border: none; background: transparent;
+    font-size: 13px; font-family: inherit; color: #1a2332;
+    text-align: center; outline: none; padding: 4px 2px;
+    border-radius: 4px; transition: background .2s;
+  }
+  tbody td input:focus, tbody td select:focus {
+    background: #fff; box-shadow: 0 0 0 2px #1a4a7a40;
+  }
+  tbody td input.text-left { text-align: left; }
+  tbody td select { cursor: pointer; }
+  tbody td .row-num {
+    display: inline-block; width: 24px; height: 24px;
+    line-height: 24px; background: #e2e8f0; border-radius: 50%;
+    font-size: 12px; font-weight: 700; color: #475569;
+  }
+  tbody td .del-btn {
+    display: inline-flex; width: 26px; height: 26px;
+    align-items: center; justify-content: center;
+    border: none; background: transparent; color: #94a3b8;
+    border-radius: 4px; cursor: pointer; font-size: 16px;
+    transition: all .2s;
+  }
+  tbody td .del-btn:hover { background: #fef2f2; color: #dc2626; }
+
+  /* ========== 空状态提示 ========== */
+  .empty-hint {
+    padding: 20px; text-align: center; color: #94a3b8;
+    font-size: 14px; display: none;
+  }
+
+  /* ========== 导出预览弹窗 ========== */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,.5); justify-content: center; align-items: center;
+    padding: 20px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-box {
+    background: #fff; border-radius: 12px; width: 100%; max-width: 780px;
+    max-height: 85vh; display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+  }
+  .modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 24px; border-bottom: 1px solid #e2e8f0;
+  }
+  .modal-header h2 { font-size: 18px; color: #0d2b4e; }
+  .modal-header .close-btn {
+    background: none; border: none; font-size: 24px; cursor: pointer;
+    color: #64748b; padding: 4px 8px; border-radius: 6px;
+  }
+  .modal-header .close-btn:hover { background: #f1f5f9; }
+  .modal-body {
+    padding: 20px 24px; overflow-y: auto; flex: 1;
+  }
+  .modal-body pre {
+    font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 12px; line-height: 1.6; white-space: pre-wrap;
+    background: #f8fafc; padding: 16px; border-radius: 8px;
+    max-height: 400px; overflow-y: auto;
+  }
+  .modal-footer {
+    display: flex; gap: 10px; justify-content: flex-end;
+    padding: 16px 24px; border-top: 1px solid #e2e8f0;
+  }
+  .modal-footer button {
+    padding: 8px 20px; border: none; border-radius: 6px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: all .2s;
+  }
+  .modal-footer .btn-copy { background: #1a4a7a; color: #fff; }
+  .modal-footer .btn-copy:hover { background: #0d2b4e; }
+  .modal-footer .btn-close-modal { background: #f1f5f9; color: #334155; }
+  .modal-footer .btn-close-modal:hover { background: #e2e8f0; }
+
+  /* 字段编辑器 */
+  .field-editor-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .field-editor-table th { text-align: center; padding: 8px 10px; border-bottom: 2px solid #e2e8f0; color: #fff; font-weight: 600; font-size: 12px; background: #0d2b4e; }
+  .field-editor-table td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  .field-editor-table tr:hover td { background: #f8fafc; }
+  .field-editor-add { margin-top: 16px; padding-top: 16px; border-top: 2px solid #e2e8f0; }
+  .field-editor-add h3 { font-size: 14px; color: #0d2b4e; margin-bottom: 10px; }
+  .field-editor-add .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .field-editor-add input { padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; font-family: inherit; outline: none; }
+  .field-editor-add input:focus { border-color: #1a4a7a; box-shadow: 0 0 0 2px #1a4a7a40; }
+  .btn-del-field { background: #fee2e2; color: #dc2626; border: none; border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 12px; }
+  .btn-del-field:hover { background: #fecaca; }
+  .btn-add-field { background: #1a4a7a; color: #fff; border: none; border-radius: 6px; padding: 6px 16px; cursor: pointer; font-size: 13px; }
+  .btn-add-field:hover { background: #0d2b4e; }
+  .field-key-badge { display: inline-block; background: #e2e8f0; color: #475569; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+
+  /* 页面管理按钮 */
+  .page-manager-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-left: auto; padding: 6px 14px;
+    background: none; border: 1px solid transparent; border-radius: 6px;
+    color: #64748b; font-size: 13px; font-weight: 600; cursor: pointer;
+    white-space: nowrap; align-self: center;
+  }
+  .page-manager-btn:hover { background: #f1f5f9; color: #1a4a7a; border-color: #e2e8f0; }
+
+  /* ========== 统计看板样式 ========== */
+  .stats-container {
+    margin: 16px 20px;
+    display: none;
+  }
+  .stats-container.active { display: block; }
+
+  /* 统计卡片网格 */
+  .stats-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .stat-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 18px 20px;
+    box-shadow: 0 1px 6px rgba(0,0,0,.08);
+    text-align: center;
+  }
+  .stat-card .stat-number {
+    font-size: 32px;
+    font-weight: 800;
+    color: #1a4a7a;
+    line-height: 1.2;
+  }
+  .stat-card .stat-label {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 6px;
+  }
+  .stat-card .stat-sub {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 2px;
+  }
+  .stat-card.rating-a { border-left: 4px solid #e74c3c; }
+  .stat-card.rating-b { border-left: 4px solid #f39c12; }
+  .stat-card.rating-c { border-left: 4px solid #3498db; }
+  .stat-card.status-active { border-left: 4px solid #27ae60; }
+  .stat-card.status-pending { border-left: 4px solid #95a5a6; }
+
+  /* 地图 + 图表区域 */
+  .map-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .map-box {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 1px 6px rgba(0,0,0,.08);
+    padding: 16px;
+  }
+  .map-box .map-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0d2b4e;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .btn-fullscreen {
+    background: none;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #64748b;
+    transition: all .2s;
+    font-family: inherit;
+  }
+  .btn-fullscreen:hover { background: #f1f5f9; color: #1a2332; border-color: #94a3b8; }
+  .map-overlay {
+    position: fixed; inset: 0; z-index: 9998;
+    background: rgba(0,0,0,.45);
+    display: none;
+  }
+  .map-overlay.active { display: block; }
+  .map-box.fullscreen {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 92vw; height: 90vh;
+    z-index: 9999;
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+  }
+  .map-box.fullscreen #chinaMap { height: calc(90vh - 100px) !important; }
+  .map-box.fullscreen #regionChart { height: calc(90vh - 100px) !important; }
+  #chinaMap {
+    width: 100%;
+    height: 520px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+  }
+  .basemap-selector {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: rgba(255,255,255,.92);
+    font-size: 12px;
+    color: #334155;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,.1);
+    outline: none;
+  }
+  .basemap-selector:hover { border-color: #1a4a7a; }
+  #regionChart {
+    width: 100%;
+    height: 520px;
+  }
+
+  /* 区域详情表格 */
+  .region-detail-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .region-detail-table th {
+    background: #1a4a7a;
+    color: #fff;
+    padding: 8px 10px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .region-detail-table td {
+    padding: 7px 10px;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+  }
+  .region-detail-table tr:nth-child(even) { background: #f8fafc; }
+  .region-detail-table tr:hover { background: #eef2ff; }
+
+  /* 刷新按钮 */
+  .btn-refresh {
+    background: #1a4a7a;
+    color: #fff;
+    padding: 8px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    margin-bottom: 14px;
+  }
+  .btn-refresh:hover { background: #0d2b4e; }
+
+  /* ========== 保存状态指示 ========== */
+  .save-status {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; padding: 4px 12px; border-radius: 12px;
+    background: rgba(255,255,255,.15); color: #fff;
+    white-space: nowrap;
+  }
+  .save-status.saving { background: rgba(255,193,7,.35); }
+  .save-status.saved { background: rgba(46,204,113,.35); }
+  .save-status.error { background: rgba(231,76,60,.35); }
+
+  /* ========== 打印样式 ========== */
+  @media print {
+    body { background: #fff; }
+    .app-header { position: static; }
+    .tabs { display: none; }
+    .table-section { display: block !important; }
+    .table-section + .table-section { page-break-before: always; }
+    .table-container { margin: 0; border-radius: 0; box-shadow: none; }
+    .modal-overlay { display: none !important; }
+    .toolbar, .legend-panel { display: none !important; }
+    .app-header .header-actions { display: none; }
+    .stats-container { display: block !important; }
+    .map-row { page-break-inside: avoid; }
+  }
+
+  /* ========== 响应式 ========== */
+  @media (max-width: 768px) {
+    .app-header { padding: 14px 16px; }
+    .app-header h1 { font-size: 17px; }
+    .tabs { padding: 0 8px; }
+    .tabs .tab { padding: 10px 12px; font-size: 13px; }
+    .table-container { margin: 8px 8px; }
+    .legend-panel { margin: 8px 8px; padding: 14px; }
+    .modal-box { max-width: 100%; }
+    .map-row { grid-template-columns: 1fr; }
+    #chinaMap { height: 380px; }
+    #regionChart { height: 380px; }
+    .stats-container { margin: 8px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== 头部 ===== -->
+<header class="app-header">
+  <div>
+    <h1>A9 Marketing System</h1>
+    <div class="subtitle">A9 Marketing System · 主管维护版</div>
+  </div>
+  <div class="header-actions">
+    <span class="save-status" id="saveStatus">⏳ 加载中...</span>
+    <button class="btn-export" onclick="toggleLegend()">📖 字段说明</button>
+    <button class="btn-excel" onclick="showExportMenu()">📥 导出数据</button>
+    <div class="export-menu" id="exportMenu">
+      <button class="export-menu-item" onclick="exportExcel()">
+        📗 导出 Excel (.xlsx)
+        <div class="desc">生成 Excel 工作簿，每个区域一个工作表</div>
+      </button>
+      <button class="export-menu-item" onclick="exportMarkdown()">
+        📝 导出 Markdown (.md)
+        <div class="desc">生成 Markdown 表格文档，便于嵌入其他文档</div>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ===== Tab 导航 ===== -->
+<nav class="tabs" id="tabNav"></nav>
+
+<!-- ===== 字段说明 ===== -->
+<div class="legend-panel" id="legendPanel">
+  <div class="legend-group">
+    <h3>📊 客户评级</h3>
+    <ul>
+      <li><strong>A（战略级）</strong> — 年贡献500万以上，或具有重大战略意义的合作伙伴</li>
+      <li><strong>B（重点级）</strong> — 年贡献100-500万，或重要的长期合作客户</li>
+      <li><strong>C（普通级）</strong> — 年贡献100万以下，或意向/洽谈阶段的潜在客户</li>
+    </ul>
+  </div>
+  <div class="legend-group">
+    <h3>🔄 合作状态</h3>
+    <ul>
+      <li><strong>意向中</strong> — 已有初步接触，正在推进合作意向</li>
+      <li><strong>洽谈中</strong> — 正在进行商务谈判或方案对接</li>
+      <li><strong>已签约</strong> — 已完成合同签署</li>
+      <li><strong>合作中</strong> — 正在执行合作项目</li>
+      <li><strong>已暂停</strong> — 合作暂时中止</li>
+      <li><strong>已结束</strong> — 合作已完成或终止</li>
+    </ul>
+  </div>
+  <div class="legend-group">
+    <h3>🤝 合作点（常见类型）</h3>
+    <ul>
+      <li>卫星通信服务 — 宽带接入、数据传输、应急通信等</li>
+      <li>遥感数据服务 — 卫星影像、地理信息、环境监测等</li>
+      <li>数据中继服务 — 卫星数据中继、物联网接入等</li>
+      <li>地面站建设 — 地面站设计、建设、运维等</li>
+      <li>技术合作 — 联合研发、技术转让、标准制定等</li>
+      <li>解决方案 — 行业定制化卫星应用解决方案</li>
+      <li>生态合作 — 渠道合作、联合市场推广、资源共享等</li>
+    </ul>
+  </div>
+  <div class="legend-group">
+    <h3>💰 合作金额级别</h3>
+    <ul>
+      <li>100万以下 / 100-500万 / 500-1000万 / 1000-5000万 / 5000万以上</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ===== 各区域表格 ===== -->
+<div id="tableContainer"></div>
+
+<!-- ===== 数据统计看板（Tab 6） ===== -->
+<div class="stats-container" id="statsContainer">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <h2 style="font-size:18px;color:#0d2b4e;">📊 客户数据统计看板</h2>
+    <button class="btn-refresh" onclick="refreshStats()">🔄 刷新统计</button>
+  </div>
+
+  <!-- 统计卡片 -->
+  <div class="stats-cards" id="statsCards"></div>
+
+  <!-- 地图 + 图表 -->
+  <div class="map-row">
+    <div class="map-box">
+      <div class="map-title">
+        🗺️ 全国客户分布地图
+        <button class="btn-fullscreen" onclick="toggleFullscreen(this)">⛶ 放大</button>
+      </div>
+      <div id="chinaMap">
+        <select class="basemap-selector" id="basemapSelect" onchange="switchBasemap(this.value)">
+          <option value="OpenStreetMap">OpenStreetMap</option>
+          <option value="CartoDB.Positron" selected>CartoDB Positron</option>
+          <option value="CartoDB.DarkMatter">CartoDB DarkMatter</option>
+        </select>
+      </div>
+    </div>
+    <div class="map-box">
+      <div class="map-title">
+        📊 区域客户分布
+        <button class="btn-fullscreen" onclick="toggleFullscreen(this)">⛶ 放大</button>
+      </div>
+      <div id="regionChart"></div>
+    </div>
+  </div>
+
+  <!-- 区域详情 -->
+  <div class="map-box">
+    <div class="map-title">📋 区域客户详情</div>
+    <div style="overflow-x:auto;">
+      <table class="region-detail-table" id="regionDetailTable">
+        <thead>
+          <tr>
+            <th>区域</th>
+            <th>客户总数</th>
+            <th>A（战略级）</th>
+            <th>B（重点级）</th>
+            <th>C（普通级）</th>
+            <th>合作中</th>
+            <th>已签约</th>
+            <th>洽谈/意向</th>
+            <th>已暂停/结束</th>
+          </tr>
+        </thead>
+        <tbody id="regionDetailBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  配置：五大区域及字段定义
+// ============================================================
+const CONFIG = [
+  {
+    id: "beijing",
+    label: "北京地区",
+    badge: "重大客户",
+    title: "北京地区重大客户",
+    province: "北京市",
+    fields: [
+      { key: "name",       label: "客户名称",       width: 24, align: "left" },
+      { key: "industry",   label: "行业分类",       width: 16 },
+      { key: "rating",     label: "客户评级",       width: 12, type: "select",
+        options: ["","A（战略级）","B（重点级）","C（普通级）"] },
+      { key: "status",     label: "合作状态",       width: 12, type: "select",
+        options: ["","意向中","洽谈中","已签约","合作中","已暂停","已结束"] },
+      { key: "coopPoint",  label: "合作点",         width: 28, align: "left" },
+      { key: "contact",    label: "联系人",         width: 12 },
+      { key: "phone",      label: "联系方式",       width: 18 },
+      { key: "startDate",  label: "合作起始时间",    width: 14 },
+      { key: "amount",     label: "合作金额级别",    width: 14, type: "select",
+        options: ["","100万以下","100-500万","500-1000万","1000-5000万","5000万以上"] },
+      { key: "estimate",   label: "预计年度贡献(万)", width: 14 },
+      { key: "activeDate", label: "最近活跃日期",    width: 14 },
+      { key: "background", label: "客户背景简介",    width: 30, align: "left" },
+      { key: "remark",     label: "备注",           width: 20, align: "left" },
+    ]
+  },
+  {
+    id: "east",
+    label: "华东(除安徽)",
+    badge: "安徽以外",
+    title: "安徽以外 · 华东地区",
+    province: "上海市",
+    fields: [
+      { key: "name",       label: "客户名称",       width: 24, align: "left" },
+      { key: "location",   label: "所在省市",       width: 14 },
+      { key: "industry",   label: "行业分类",       width: 16 },
+      { key: "rating",     label: "客户评级",       width: 12, type: "select",
+        options: ["","A（战略级）","B（重点级）","C（普通级）"] },
+      { key: "status",     label: "合作状态",       width: 12, type: "select",
+        options: ["","意向中","洽谈中","已签约","合作中","已暂停","已结束"] },
+      { key: "coopPoint",  label: "合作点",         width: 28, align: "left" },
+      { key: "contact",    label: "联系人",         width: 12 },
+      { key: "phone",      label: "联系方式",       width: 18 },
+      { key: "startDate",  label: "合作起始时间",    width: 14 },
+      { key: "amount",     label: "合作金额级别",    width: 14, type: "select",
+        options: ["","100万以下","100-500万","500-1000万","1000-5000万","5000万以上"] },
+      { key: "estimate",   label: "预计年度贡献(万)", width: 14 },
+      { key: "activeDate", label: "最近活跃日期",    width: 14 },
+      { key: "background", label: "客户背景简介",    width: 30, align: "left" },
+      { key: "remark",     label: "备注",           width: 20, align: "left" },
+    ]
+  },
+  {
+    id: "south",
+    label: "华南/华北",
+    badge: "安徽以外",
+    title: "安徽以外 · 华南地区 & 华北地区（不含北京）",
+    province: "广东省",
+    fields: [
+      { key: "name",       label: "客户名称",       width: 24, align: "left" },
+      { key: "location",   label: "所在省市",       width: 14 },
+      { key: "industry",   label: "行业分类",       width: 16 },
+      { key: "rating",     label: "客户评级",       width: 12, type: "select",
+        options: ["","A（战略级）","B（重点级）","C（普通级）"] },
+      { key: "status",     label: "合作状态",       width: 12, type: "select",
+        options: ["","意向中","洽谈中","已签约","合作中","已暂停","已结束"] },
+      { key: "coopPoint",  label: "合作点",         width: 28, align: "left" },
+      { key: "contact",    label: "联系人",         width: 12 },
+      { key: "phone",      label: "联系方式",       width: 18 },
+      { key: "startDate",  label: "合作起始时间",    width: 14 },
+      { key: "amount",     label: "合作金额级别",    width: 14, type: "select",
+        options: ["","100万以下","100-500万","500-1000万","1000-5000万","5000万以上"] },
+      { key: "estimate",   label: "预计年度贡献(万)", width: 14 },
+      { key: "activeDate", label: "最近活跃日期",    width: 14 },
+      { key: "background", label: "客户背景简介",    width: 30, align: "left" },
+      { key: "remark",     label: "备注",           width: 20, align: "left" },
+    ]
+  },
+  {
+    id: "other",
+    label: "其他地区",
+    badge: "安徽以外",
+    title: "安徽以外 · 华中 / 西南 / 西北 / 东北地区",
+    province: "湖北省",
+    fields: [
+      { key: "name",       label: "客户名称",       width: 24, align: "left" },
+      { key: "location",   label: "所在省市",       width: 14 },
+      { key: "industry",   label: "行业分类",       width: 16 },
+      { key: "rating",     label: "客户评级",       width: 12, type: "select",
+        options: ["","A（战略级）","B（重点级）","C（普通级）"] },
+      { key: "status",     label: "合作状态",       width: 12, type: "select",
+        options: ["","意向中","洽谈中","已签约","合作中","已暂停","已结束"] },
+      { key: "coopPoint",  label: "合作点",         width: 28, align: "left" },
+      { key: "contact",    label: "联系人",         width: 12 },
+      { key: "phone",      label: "联系方式",       width: 18 },
+      { key: "startDate",  label: "合作起始时间",    width: 14 },
+      { key: "amount",     label: "合作金额级别",    width: 14, type: "select",
+        options: ["","100万以下","100-500万","500-1000万","1000-5000万","5000万以上"] },
+      { key: "estimate",   label: "预计年度贡献(万)", width: 14 },
+      { key: "activeDate", label: "最近活跃日期",    width: 14 },
+      { key: "background", label: "客户背景简介",    width: 30, align: "left" },
+      { key: "remark",     label: "备注",           width: 20, align: "left" },
+    ]
+  },
+  {
+    id: "overseas",
+    label: "海外客户",
+    badge: "海外",
+    title: "海外客户",
+    province: null,
+    fields: [
+      { key: "name",       label: "客户名称",       width: 24, align: "left" },
+      { key: "country",    label: "所在国家/地区",   width: 16 },
+      { key: "industry",   label: "行业分类",       width: 16 },
+      { key: "rating",     label: "客户评级",       width: 12, type: "select",
+        options: ["","A（战略级）","B（重点级）","C（普通级）"] },
+      { key: "status",     label: "合作状态",       width: 12, type: "select",
+        options: ["","意向中","洽谈中","已签约","合作中","已暂停","已结束"] },
+      { key: "coopPoint",  label: "合作点",         width: 28, align: "left" },
+      { key: "contact",    label: "联系人",         width: 12 },
+      { key: "phone",      label: "联系方式",       width: 18 },
+      { key: "startDate",  label: "合作起始时间",    width: 14 },
+      { key: "amount",     label: "合作金额级别",    width: 14, type: "select",
+        options: ["","100万以下","100-500万","500-1000万","1000-5000万","5000万以上"] },
+      { key: "estimate",   label: "预计年度贡献(万)", width: 14 },
+      { key: "activeDate", label: "最近活跃日期",    width: 14 },
+      { key: "background", label: "客户背景简介",    width: 30, align: "left" },
+      { key: "remark",     label: "备注",           width: 20, align: "left" },
+    ]
+  }
+];
+
+// 地图省份映射（区域 → 省份坐标）
+const REGION_MAP_DATA = [
+  { name: "北京地区", province: "北京市", coord: [116.4, 39.9], color: "#e74c3c" },
+  { name: "华东地区", province: "上海市", coord: [121.5, 31.2], color: "#f39c12" },
+  { name: "华南华北", province: "广东省", coord: [113.3, 23.1], color: "#2ecc71" },
+  { name: "华中西南等", province: "湖北省", coord: [114.3, 30.6], color: "#3498db" },
+  { name: "海外客户", province: null, coord: [100, 15], color: "#9b59b6" },
+];
+
+// ============================================================
+//  状态
+// ============================================================
+let currentTab = 99;
+const DEFAULT_ROWS = 5;
+let data = [];
+let leafletMap = null;
+let leafletInitialized = false;
+let currentTileLayer = null;
+
+const BASEMAPS = {
+  OpenStreetMap: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19,
+  },
+  'CartoDB.Positron': {
+    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+    maxZoom: 20,
+    subdomains: 'abcd',
+  },
+  'CartoDB.DarkMatter': {
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+    maxZoom: 20,
+    subdomains: 'abcd',
+  },
+};
+let regionChart = null;
+
+// 持久化状态
+let saveTimer = null;
+let saveStatusEl = null;
+let lastSavedTime = null;
+let selectedRows = {};
+let sortState = {};
+let dataOriginalOrder = {}; // 排序前保存原始顺序，用于取消排序时恢复
+const SORTABLE_KEYS = ['name', 'industry', 'rating', 'status', 'coopPoint', 'startDate', 'activeDate', 'amount'];
+
+// ============================================================
+//  初始化
+// ============================================================
+async function init() {
+  saveStatusEl = document.getElementById("saveStatus");
+
+  // 加载已保存的页面配置 / 字段配置（覆盖默认值）
+  await loadPageConfigs();
+  await loadFieldConfigs();
+
+  // 尝试从服务器加载数据
+  const loaded = await loadAllData();
+  if (!loaded) {
+    // 离线降级：创建空行
+    CONFIG.forEach((section, idx) => {
+      if (!data[idx]) {
+        data[idx] = [];
+        for (let i = 0; i < DEFAULT_ROWS; i++) {
+          data[idx].push(createEmptyRow(section.fields));
+        }
+      }
+    });
+    updateSaveStatus('离线模式', 'error');
+  }
+
+  renderTabs();
+  renderTables();
+  switchTab(99);
+  updateSaveStatus('就绪', 'saved');
+}
+
+function createEmptyRow(fields) {
+  const row = {};
+  fields.forEach(f => { row[f.key] = ""; });
+  return row;
+}
+
+// ============================================================
+//  渲染 Tab
+// ============================================================
+function renderTabs() {
+  const nav = document.getElementById("tabNav");
+  const tabs = [
+    ...CONFIG.map((sec, idx) => ({
+      label: sec.label,
+      badge: sec.badge,
+      onClick: `switchTab(${idx})`
+    })),
+    { label: "📊 数据统计", badge: "看板", onClick: "switchTab(99)" }
+  ];
+
+  nav.innerHTML = tabs.map((t, idx) =>
+    `<div class="tab ${(idx === currentTab || (idx === tabs.length - 1 && currentTab === 99)) ? 'active' : ''}"
+          onclick="${t.onClick}"
+          data-tab-idx="${idx}">
+       ${t.label}
+       <span class="badge">${t.badge}</span>
+     </div>`
+  ).join("") + `<button class="page-manager-btn" onclick="openPageEditor()">⚙ 管理页面</button>`;
+}
+
+// ============================================================
+//  渲染表格
+// ============================================================
+function renderTables() {
+  const container = document.getElementById("tableContainer");
+  container.innerHTML = CONFIG.map((sec, secIdx) => {
+    const rows = data[secIdx] || [];
+    return `
+      <div class="table-section ${secIdx === currentTab ? 'active' : ''}" data-section="${secIdx}">
+        <div class="section-title">
+          <span>${sec.title}</span>
+          <span class="row-count">客户总数：<span id="count_${secIdx}">${rows.length}</span></span>
+        </div>
+        <div class="toolbar">
+          <button onclick="addRow(${secIdx})">＋ 新增客户</button>
+          <button onclick="addRows(${secIdx})">＋＋ 批量新增</button>
+          <button onclick="openFieldEditor(${secIdx})">管理字段</button>
+          <button class="danger batch-del-btn" id="batchDel_${secIdx}" onclick="deleteSelected(${secIdx})">✕ 删除选中</button>
+        </div>
+        <table>
+          <thead><tr>${renderHeader(sec.fields, secIdx)}</tr></thead>
+          <tbody id="tbody_${secIdx}">
+            ${rows.map((row, rowIdx) => renderRow(sec, row, rowIdx, secIdx)).join("")}
+          </tbody>
+        </table>
+        <div class="empty-hint" id="empty_${secIdx}">暂无客户数据，点击上方「新增客户」添加</div>
+      </div>`;
+  }).join("");
+}
+
+function renderHeader(fields, secIdx) {
+  const sort = sortState[secIdx];
+  return `<th class="checkbox-col"><input class="row-check" type="checkbox" onchange="toggleSelectAll(${secIdx},this.checked)"></th>`
+    + fields.map(f => {
+      const isSortable = SORTABLE_KEYS.includes(f.key);
+      const isActive = sort && sort.key === f.key;
+      const arrow = isActive ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+      const cls = isSortable ? 'sortable' : '';
+      return `<th style="min-width:${f.width * 8}px" class="${cls}" onclick="${isSortable ? `sortBy(${secIdx},'${f.key}')` : ''}">${f.label}${arrow}</th>`;
+    }).join("")
+    + '<th style="width:44px">操作</th>';
+}
+
+function renderRow(sec, row, rowIdx, secIdx) {
+  const checked = selectedRows[secIdx]?.[rowIdx] || false;
+  const cells = sec.fields.map(f => {
+    const val = row[f.key] || "";
+    const align = f.align === "left" ? 'text-left' : '';
+    if (f.type === "select") {
+      const opts = f.options.map(o =>
+        `<option value="${o}" ${val === o ? 'selected' : ''}>${o || '— 请选择 —'}</option>`
+      ).join("");
+      return `<td><select data-section="${secIdx}" data-row="${rowIdx}" data-key="${f.key}"
+                onchange="updateCell(${secIdx},${rowIdx},'${f.key}',this.value)">${opts}</select></td>`;
+    }
+    return `<td><input class="${align}" type="text" value="${escapeHtml(val)}"
+                data-section="${secIdx}" data-row="${rowIdx}" data-key="${f.key}"
+                oninput="updateCell(${secIdx},${rowIdx},'${f.key}',this.value)"
+                placeholder="—"></td>`;
+  }).join("");
+
+  return `<tr class="${checked ? 'selected' : ''}">
+    <td class="checkbox-col"><input class="row-check" type="checkbox" ${checked ? 'checked' : ''}
+      onchange="onRowCheckChange(${secIdx})"></td>
+    ${cells}
+    <td><button class="del-btn" onclick="deleteRow(${secIdx},${rowIdx})" title="删除此行">✕</button></td>
+  </tr>`;
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ============================================================
+//  数据操作
+// ============================================================
+function updateCell(secIdx, rowIdx, key, value) {
+  if (!data[secIdx]) data[secIdx] = [];
+  if (!data[secIdx][rowIdx]) data[secIdx][rowIdx] = createEmptyRow(CONFIG[secIdx].fields);
+  data[secIdx][rowIdx][key] = value;
+  scheduleSave();
+}
+
+function addRow(secIdx) {
+  const row = createEmptyRow(CONFIG[secIdx].fields);
+  data[secIdx].push(row);
+  rerenderSection(secIdx);
+  scheduleSave();
+}
+
+function addRows(secIdx) {
+  const n = prompt("请输入要新增的行数：", "3");
+  const count = parseInt(n);
+  if (isNaN(count) || count < 1) return;
+  for (let i = 0; i < count; i++) {
+    data[secIdx].push(createEmptyRow(CONFIG[secIdx].fields));
+  }
+  rerenderSection(secIdx);
+  scheduleSave();
+}
+
+function deleteRow(secIdx, rowIdx) {
+  if (data[secIdx].length <= 1) return;
+  const row = data[secIdx][rowIdx];
+  const name = (row.name || "").trim() || `第 ${rowIdx + 1} 行`;
+  if (!confirm(`确定要删除「${name}」吗？此操作不可撤销。`)) return;
+  data[secIdx].splice(rowIdx, 1);
+  rerenderSection(secIdx);
+  scheduleSave();
+}
+
+function rerenderSection(secIdx) {
+  const sec = CONFIG[secIdx];
+  const tbody = document.getElementById(`tbody_${secIdx}`);
+  const countSpan = document.getElementById(`count_${secIdx}`);
+  const rows = data[secIdx] || [];
+  tbody.innerHTML = rows.map((row, rowIdx) => renderRow(sec, row, rowIdx, secIdx)).join("");
+  if (countSpan) countSpan.textContent = rows.length;
+  updateBatchDelBtn(secIdx);
+}
+
+// ============================================================
+//  多选删除
+// ============================================================
+function toggleSelectAll(secIdx, checked) {
+  if (!selectedRows[secIdx]) selectedRows[secIdx] = {};
+  const rows = data[secIdx] || [];
+  rows.forEach((_, i) => {
+    selectedRows[secIdx][i] = checked;
+  });
+  rerenderSection(secIdx);
+}
+
+function onRowCheckChange(secIdx) {
+  if (!selectedRows[secIdx]) selectedRows[secIdx] = {};
+  const checks = document.querySelectorAll(`#tbody_${secIdx} .row-check`);
+  const sel = selectedRows[secIdx];
+  checks.forEach((cb, i) => {
+    sel[i] = cb.checked;
+  });
+  // 同步全选复选框
+  const allChecked = checks.length > 0 && Array.from(checks).every(cb => cb.checked);
+  const headerCb = document.querySelector(`#tableContainer .table-section[data-section="${secIdx}"] thead .row-check`);
+  if (headerCb) headerCb.checked = allChecked;
+  updateBatchDelBtn(secIdx);
+}
+
+function deleteSelected(secIdx) {
+  const sel = selectedRows[secIdx] || {};
+  const indices = Object.keys(sel).filter(k => sel[k]).map(Number).sort((a, b) => b - a);
+  if (indices.length === 0) return;
+  if (!confirm(`确定要删除选中的 ${indices.length} 行吗？此操作不可撤销。`)) return;
+  indices.forEach(i => data[secIdx].splice(i, 1));
+  selectedRows[secIdx] = {};
+  rerenderSection(secIdx);
+  scheduleSave();
+}
+
+function updateBatchDelBtn(secIdx) {
+  const sel = selectedRows[secIdx] || {};
+  const count = Object.values(sel).filter(v => v).length;
+  const btn = document.getElementById(`batchDel_${secIdx}`);
+  if (btn) {
+    btn.classList.toggle("show", count > 0);
+    btn.innerHTML = count > 0 ? `✕ 删除选中 (${count})` : '✕ 删除选中';
+  }
+}
+
+// ============================================================
+//  表格排序
+// ============================================================
+function getCustomSortOrder(key) {
+  if (key === 'rating') return ['A（战略级）', 'B（重点级）', 'C（普通级）', ''];
+  if (key === 'status') return ['合作中', '已签约', '洽谈中', '意向中', '已暂停', '已结束', ''];
+  if (key === 'amount') return ['5000万以上', '1000-5000万', '500-1000万', '100-500万', '100万以下', ''];
+  return null;
+}
+
+function sortBy(secIdx, key) {
+  const current = sortState[secIdx];
+
+  // 第三次点击：取消排序，恢复原始顺序
+  if (current && current.key === key && current.dir === 'desc') {
+    if (dataOriginalOrder[secIdx]) {
+      data[secIdx] = dataOriginalOrder[secIdx];
+    }
+    delete sortState[secIdx];
+    delete dataOriginalOrder[secIdx];
+    selectedRows[secIdx] = {};
+    rerenderSection(secIdx);
+    return;
+  }
+
+  // 首次排序：保存原始顺序副本
+  if (!dataOriginalOrder[secIdx]) {
+    dataOriginalOrder[secIdx] = data[secIdx].map(r => ({ ...r }));
+  }
+
+  const dir = current && current.key === key && current.dir === 'asc' ? 'desc' : 'asc';
+  sortState[secIdx] = { key, dir };
+
+  const rows = data[secIdx];
+  const customOrder = getCustomSortOrder(key);
+
+  // 排序副本，不直接修改原数组
+  const sorted = [...rows].sort((a, b) => {
+    const va = (a[key] || '').toString();
+    const vb = (b[key] || '').toString();
+
+    if (customOrder) {
+      const ia = customOrder.indexOf(va);
+      const ib = customOrder.indexOf(vb);
+      if (ia !== -1 && ib !== -1) return dir === 'asc' ? ia - ib : ib - ia;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+    }
+
+    if (key === 'startDate' || key === 'activeDate') {
+      const da = va ? new Date(va).getTime() : 0;
+      const db = vb ? new Date(vb).getTime() : 0;
+      if (da && db) return dir === 'asc' ? da - db : db - da;
+      if (da) return -1;
+      if (db) return 1;
+      return 0;
+    }
+
+    const na = parseFloat(va);
+    const nb = parseFloat(vb);
+    if (!isNaN(na) && !isNaN(nb)) {
+      return dir === 'asc' ? na - nb : nb - na;
+    }
+
+    return dir === 'asc' ? va.localeCompare(vb, 'zh-CN') : vb.localeCompare(va, 'zh-CN');
+  });
+
+  data[secIdx] = sorted;
+  selectedRows[secIdx] = {};
+  rerenderSection(secIdx);
+}
+
+// ============================================================
+//  字段管理（添加 / 删除字段）
+// ============================================================
+
+/**
+ * 从服务端加载已保存的字段配置，覆盖 CONFIG 默认值
+ */
+async function loadFieldConfigs() {
+  try {
+    const res = await fetch('/api/config');
+    if (!res.ok) return;
+    const saved = await res.json();
+    if (!saved || typeof saved !== 'object') return;
+    CONFIG.forEach((sec, idx) => {
+      const fields = saved[sec.id];
+      if (Array.isArray(fields) && fields.length > 0) {
+        CONFIG[idx].fields = fields;
+      }
+    });
+  } catch (e) {
+    console.warn('字段配置加载失败，使用默认配置');
+  }
+}
+
+/**
+ * 打开字段编辑器弹窗
+ */
+function openFieldEditor(secIdx) {
+  const sec = CONFIG[secIdx];
+  const fieldsHtml = sec.fields.map((f, fi) => `
+    <tr>
+      <td><code class="field-key-badge">${f.key}</code></td>
+      <td>${f.label}</td>
+      <td style="text-align:center">${f.width}</td>
+      <td style="text-align:center">
+        <button class="btn-del-field" onclick="removeField(${secIdx},${fi})">删除</button>
+      </td>
+    </tr>
+  `).join('');
+
+  const html = `
+    <div class="modal-overlay active" id="fieldEditorOverlay" onclick="if(event.target===this)closeFieldEditor()">
+      <div class="modal-box" style="max-width:calc(100vw - 40px);">
+        <div class="modal-header">
+          <h2>管理字段 — ${sec.label}</h2>
+          <button class="close-btn" onclick="closeFieldEditor()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <table class="field-editor-table">
+            <thead><tr>
+              <th style="width:30%">字段标识</th>
+              <th style="width:35%">显示名称</th>
+              <th style="width:10%;text-align:center">宽度</th>
+              <th style="width:15%;text-align:center">操作</th>
+            </tr></thead>
+            <tbody>${fieldsHtml}</tbody>
+          </table>
+
+          <div class="field-editor-add">
+            <h3>添加新字段</h3>
+            <div class="row">
+              <input id="newFieldKey_${secIdx}" placeholder="字段标识 (英文)" style="flex:1;min-width:100px;">
+              <input id="newFieldLabel_${secIdx}" placeholder="显示名称" style="flex:1;min-width:100px;">
+              <input id="newFieldWidth_${secIdx}" placeholder="宽度" value="16" style="width:70px;">
+              <button class="btn-add-field" onclick="addField(${secIdx})">＋ 添加</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-close-modal" onclick="closeFieldEditor()">取消</button>
+          <button class="btn-copy" onclick="saveFieldConfig(${secIdx})">保存配置</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeFieldEditor() {
+  const el = document.getElementById('fieldEditorOverlay');
+  if (el) el.remove();
+}
+
+/**
+ * 添加新字段
+ */
+function addField(secIdx) {
+  const key = document.getElementById(`newFieldKey_${secIdx}`).value.trim();
+  const label = document.getElementById(`newFieldLabel_${secIdx}`).value.trim();
+  const width = parseInt(document.getElementById(`newFieldWidth_${secIdx}`).value) || 16;
+  if (!key || !label) {
+    alert('请填写字段标识和显示名称');
+    return;
+  }
+  // 只允许英文、数字、下划线
+  if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(key)) {
+    alert('字段标识只能包含英文字母、数字和下划线，且必须以字母开头');
+    return;
+  }
+  if (CONFIG[secIdx].fields.some(f => f.key === key)) {
+    alert('字段标识已存在');
+    return;
+  }
+
+  CONFIG[secIdx].fields.push({ key, label, width });
+  // 为新字段补充空值
+  if (data[secIdx]) {
+    data[secIdx].forEach(row => { row[key] = ''; });
+  }
+  closeFieldEditor();
+  openFieldEditor(secIdx);
+  rerenderSection(secIdx);
+  scheduleSave();
+}
+
+/**
+ * 删除字段
+ */
+function removeField(secIdx, fieldIdx) {
+  const sec = CONFIG[secIdx];
+  const field = sec.fields[fieldIdx];
+  if (sec.fields.length <= 1) {
+    alert('至少保留一个字段');
+    return;
+  }
+  if (!confirm(`确定删除字段「${field.label}」吗？该列所有数据将丢失。`)) return;
+
+  const key = field.key;
+  sec.fields.splice(fieldIdx, 1);
+  // 从所有行中移除该字段数据
+  if (data[secIdx]) {
+    data[secIdx].forEach(row => { delete row[key]; });
+  }
+  closeFieldEditor();
+  openFieldEditor(secIdx);
+  rerenderSection(secIdx);
+  scheduleSave();
+}
+
+/**
+ * 保存字段配置到服务端
+ */
+async function saveFieldConfig(secIdx) {
+  const payload = {};
+  CONFIG.forEach((sec) => {
+    payload[sec.id] = sec.fields;
+  });
+  try {
+    const res = await fetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    closeFieldEditor();
+  } catch (e) {
+    alert('保存字段配置失败: ' + e.message);
+  }
+}
+
+// ============================================================
+//  页面管理（添加 / 删除标签）
+// ============================================================
+
+/** 新页面的默认字段 */
+const DEFAULT_PAGE_FIELDS = [
+  { key: "name",       label: "客户名称",       width: 24, align: "left" },
+  { key: "industry",   label: "行业分类",       width: 16 },
+  { key: "rating",     label: "客户评级",       width: 12, type: "select",
+    options: ["","A（战略级）","B（重点级）","C（普通级）"] },
+  { key: "status",     label: "合作状态",       width: 12, type: "select",
+    options: ["","意向中","洽谈中","已签约","合作中","已暂停","已结束"] },
+  { key: "coopPoint",  label: "合作点",         width: 28, align: "left" },
+  { key: "contact",    label: "联系人",         width: 12 },
+  { key: "phone",      label: "联系方式",       width: 18 },
+  { key: "remark",     label: "备注",           width: 20, align: "left" },
+];
+
+/** 从标签名生成唯一页面 ID */
+function generatePageId(label) {
+  let base = label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_一-鿿]/g, '');
+  if (!base || /^\d/.test(base)) base = 'page';
+  let id = base;
+  let n = 2;
+  while (CONFIG.some(s => s.id === id)) {
+    id = base + '_' + n;
+    n++;
+  }
+  return id;
+}
+
+/**
+ * 从服务端加载页面配置，覆盖 CONFIG
+ */
+async function loadPageConfigs() {
+  try {
+    const res = await fetch('/api/pages');
+    if (!res.ok) return;
+    const saved = await res.json();
+    if (!Array.isArray(saved) || saved.length === 0) return;
+
+    const newConfig = [];
+    saved.forEach(s => {
+      const existing = CONFIG.find(c => c.id === s.id);
+      newConfig.push({
+        id: s.id,
+        label: s.label || s.id,
+        badge: s.badge || '',
+        title: s.title || s.label || s.id,
+        province: s.province || null,
+        fields: existing ? existing.fields : DEFAULT_PAGE_FIELDS.map(f => ({ ...f })),
+      });
+    });
+
+    CONFIG.length = 0;
+    CONFIG.push(...newConfig);
+  } catch (e) {
+    console.warn('页面配置加载失败，使用默认配置');
+  }
+}
+
+/** 保存当前页面配置到服务端 */
+async function savePageConfigs() {
+  const payload = CONFIG.map(sec => ({
+    id: sec.id,
+    label: sec.label,
+    badge: sec.badge,
+    title: sec.title,
+    province: sec.province,
+  }));
+  const res = await fetch('/api/pages', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+}
+
+/** 打开页面管理器弹窗 */
+function openPageEditor() {
+  const existing = document.getElementById('pageEditorOverlay');
+  if (existing) existing.remove();
+
+  const pagesHtml = CONFIG.map((sec, idx) => `
+    <tr>
+      <td style="text-align:center">${idx + 1}</td>
+      <td><code class="field-key-badge">${sec.id}</code></td>
+      <td>${sec.label}</td>
+      <td><span class="field-key-badge">${sec.badge || '-'}</span></td>
+      <td style="text-align:center">
+        <button class="btn-del-field" onclick="deletePage(${idx})">删除</button>
+      </td>
+    </tr>
+  `).join('');
+
+  const html = `
+    <div class="modal-overlay active" id="pageEditorOverlay" onclick="if(event.target===this)closePageEditor()">
+      <div class="modal-box" style="max-width:calc(100vw - 40px);">
+        <div class="modal-header">
+          <h2>管理页面</h2>
+          <button class="close-btn" onclick="closePageEditor()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <table class="field-editor-table">
+            <thead><tr>
+              <th style="width:10%;text-align:center">#</th>
+              <th style="width:25%">页面 ID</th>
+              <th style="width:30%">页面名称</th>
+              <th style="width:20%">标签</th>
+              <th style="width:15%;text-align:center">操作</th>
+            </tr></thead>
+            <tbody>${pagesHtml}</tbody>
+          </table>
+
+          <div class="field-editor-add">
+            <h3>添加新页面</h3>
+            <div class="row">
+              <input id="newPageLabel" placeholder="页面名称（如：西部地区）" style="flex:1;min-width:160px;">
+              <input id="newPageBadge" placeholder="标签（如：区域）" style="width:120px;">
+              <button class="btn-add-field" onclick="addPage()">＋ 添加</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-close-modal" onclick="closePageEditor()">取消</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.getElementById('newPageLabel').focus();
+}
+
+function closePageEditor() {
+  const el = document.getElementById('pageEditorOverlay');
+  if (el) el.remove();
+}
+
+/** 添加新页面 */
+async function addPage() {
+  const label = document.getElementById('newPageLabel').value.trim();
+  const badge = document.getElementById('newPageBadge').value.trim() || '自定义';
+  if (!label) { alert('请输入页面名称'); return; }
+
+  const id = generatePageId(label);
+  CONFIG.push({
+    id, label, badge,
+    title: label,
+    province: null,
+    fields: DEFAULT_PAGE_FIELDS.map(f => ({ ...f })),
+  });
+  data.push([]);
+
+  try {
+    await savePageConfigs();
+    closePageEditor();
+    renderTabs();
+    renderTables();
+    switchTab(CONFIG.length - 1);
+  } catch (e) {
+    alert('保存页面配置失败: ' + e.message);
+  }
+}
+
+/** 删除页面 */
+async function deletePage(idx) {
+  if (CONFIG.length <= 1) { alert('至少保留一个页面'); return; }
+  if (!confirm(`确定删除页面「${CONFIG[idx].label}」吗？`)) return;
+
+  CONFIG.splice(idx, 1);
+  data.splice(idx, 1);
+
+  // 更新选中状态索引
+  const newSel = {};
+  Object.keys(selectedRows).forEach(k => {
+    const ki = parseInt(k);
+    if (ki < idx) newSel[k] = selectedRows[k];
+    else if (ki > idx) newSel[ki - 1] = selectedRows[k];
+  });
+  selectedRows = newSel;
+
+  // 更新排序状态索引
+  const newSort = {};
+  Object.keys(sortState).forEach(k => {
+    const ki = parseInt(k);
+    if (ki < idx) newSort[k] = sortState[k];
+    else if (ki > idx) newSort[ki - 1] = sortState[k];
+  });
+  sortState = newSort;
+
+  // 更新原始顺序索引
+  const newOrder = {};
+  Object.keys(dataOriginalOrder).forEach(k => {
+    const ki = parseInt(k);
+    if (ki < idx) newOrder[k] = dataOriginalOrder[k];
+    else if (ki > idx) newOrder[ki - 1] = dataOriginalOrder[k];
+  });
+  dataOriginalOrder = newOrder;
+
+  try {
+    await savePageConfigs();
+    renderTabs();
+    renderTables();
+    if (currentTab === 99) { /* stats tab, do nothing */ }
+    else if (currentTab >= CONFIG.length) switchTab(CONFIG.length - 1);
+    else switchTab(currentTab);
+  } catch (e) {
+    alert('保存页面配置失败: ' + e.message);
+  }
+}
+
+// ============================================================
+//  数据持久化（服务端 SQLite）
+// ============================================================
+
+// 加载所有数据
+async function loadAllData() {
+  try {
+    // 初始化服务端表结构
+    await fetch('/api/init', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        configs: CONFIG.map(sec => ({
+          id: sec.id,
+          label: sec.label,
+          fields: sec.fields
+        }))
+      })
+    });
+
+    const res = await fetch('/api/data');
+    if (!res.ok) throw new Error('服务器返回 ' + res.status);
+    const serverData = await res.json();
+
+    let hasData = false;
+    CONFIG.forEach((sec, idx) => {
+      const entry = serverData[sec.id];
+      if (entry && Array.isArray(entry.rows) && entry.rows.length > 0) {
+        data[idx] = entry.rows;
+        lastSavedTime = entry.updatedAt || null;
+        hasData = true;
+      }
+    });
+    selectedRows = {};
+    dataOriginalOrder = {};
+    sortState = {};
+    return hasData;
+  } catch (err) {
+    console.warn('从服务器加载数据失败:', err.message);
+    return false;
+  }
+}
+
+// 更新保存状态显示
+function updateSaveStatus(text, type) {
+  if (!saveStatusEl) saveStatusEl = document.getElementById("saveStatus");
+  if (!saveStatusEl) return;
+  saveStatusEl.textContent = text;
+  saveStatusEl.className = 'save-status' + (type ? ' ' + type : '');
+}
+
+// 调度自动保存（防抖 500ms）
+function scheduleSave() {
+  if (saveTimer) clearTimeout(saveTimer);
+  updateSaveStatus('💾 保存中...', 'saving');
+  saveTimer = setTimeout(saveAllData, 500);
+}
+
+// 保存所有数据到服务端
+async function saveAllData() {
+  try {
+    // 构建 payload：{ sectionId: rows[] }
+    const payload = {};
+    CONFIG.forEach((sec, idx) => {
+      payload[sec.id] = data[idx] || [];
+    });
+
+    const res = await fetch('/api/data', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const result = await res.json();
+
+    lastSavedTime = result.time || new Date().toLocaleString('zh-CN');
+    updateSaveStatus(`✅ 已保存 ${lastSavedTime}`, 'saved');
+    saveTimer = null;
+  } catch (err) {
+    console.error('保存失败:', err);
+    updateSaveStatus('⚠️ 保存失败', 'error');
+    saveTimer = null;
+  }
+}
+
+// ============================================================
+//  Tab 切换
+// ============================================================
+function switchTab(idx) {
+  currentTab = idx;
+  selectedRows = {};
+  sortState = {};
+  const isStats = idx === 99;
+
+  // 更新 Tab 高亮
+  document.querySelectorAll(".tabs .tab").forEach((t, i) => {
+    const isLast = i === document.querySelectorAll(".tabs .tab").length - 1;
+    if (isStats && isLast) {
+      t.classList.add("active");
+    } else if (!isStats && i < CONFIG.length) {
+      t.classList.toggle("active", i === idx);
+    } else {
+      t.classList.remove("active");
+    }
+  });
+
+  // 显示/隐藏区域
+  document.querySelectorAll(".table-section").forEach((s, i) => {
+    s.classList.toggle("active", !isStats && i === idx);
+  });
+
+  const statsEl = document.getElementById("statsContainer");
+  if (isStats) {
+    statsEl.classList.add("active");
+    // 使用 requestAnimationFrame 确保 DOM 渲染完毕再刷新统计
+    requestAnimationFrame(() => { setTimeout(refreshStats, 50); });
+  } else {
+    statsEl.classList.remove("active");
+  }
+}
+
+// ============================================================
+//  字段说明面板
+// ============================================================
+function toggleLegend() {
+  document.getElementById("legendPanel").classList.toggle("active");
+}
+
+// ============================================================
+//  重置
+// ============================================================
+// ============================================================
+//  导出数据（下拉菜单）
+// ============================================================
+function showExportMenu() {
+  const menu = document.getElementById("exportMenu");
+  menu.classList.toggle("active");
+}
+
+// 点击其他地方关闭菜单
+document.addEventListener("click", function(e) {
+  const btn = document.querySelector(".btn-excel");
+  const menu = document.getElementById("exportMenu");
+  if (menu && btn && !btn.contains(e.target) && !menu.contains(e.target)) {
+    menu.classList.remove("active");
+  }
+});
+
+// ============================================================
+//  导出 Excel（使用 SheetJS）
+// ============================================================
+function exportExcel() {
+  document.getElementById("exportMenu").classList.remove("active");
+  try {
+    const wb = XLSX.utils.book_new();
+
+    CONFIG.forEach((sec, secIdx) => {
+      const rows = data[secIdx] || [];
+      const validRows = rows.filter(row =>
+        sec.fields.some(f => (row[f.key] || "").trim() !== "")
+      );
+      const headers = sec.fields.map(f => f.label);
+      const dataRows = validRows.map(row =>
+        sec.fields.map(f => row[f.key] || "")
+      );
+      const sheetData = [headers, ...dataRows];
+      const ws = XLSX.utils.aoa_to_sheet(sheetData);
+      ws['!cols'] = sec.fields.map(f => ({ wch: f.width }));
+
+      let sheetName = sec.title;
+      sheetName = sheetName.replace(/[\[\]:*?\/\\]/g, "·");
+      if (sheetName.length > 31) sheetName = sheetName.slice(0, 31);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    });
+
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'A9_Marketing_System.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    alert(`✅ 导出成功！共导出 ${wb.SheetNames.length} 个工作表。`);
+  } catch (e) {
+    alert("❌ 导出失败：" + e.message);
+    console.error(e);
+  }
+}
+
+// ============================================================
+//  导出 Markdown
+// ============================================================
+function exportMarkdown() {
+  document.getElementById("exportMenu").classList.remove("active");
+  try {
+    let md = `# A9 Marketing System\n\n`;
+    md += `> 导出时间：${new Date().toLocaleString('zh-CN')}\n\n`;
+
+    CONFIG.forEach((sec, secIdx) => {
+      const rows = data[secIdx] || [];
+      const validRows = rows.filter(row =>
+        sec.fields.some(f => (row[f.key] || "").trim() !== "")
+      );
+      if (validRows.length === 0) return;
+
+      md += `## ${sec.title}\n\n`;
+      md += `客户总数：${validRows.length}\n\n`;
+
+      // 表头
+      const headers = sec.fields.map(f => f.label);
+      md += `| ${headers.join(" | ")} |\n`;
+      md += `| ${headers.map(() => "---").join(" | ")} |\n`;
+
+      // 数据行
+      validRows.forEach(row => {
+        const vals = sec.fields.map(f => (row[f.key] || "").trim() || "-");
+        md += `| ${vals.join(" | ")} |\n`;
+      });
+
+      md += `\n`;
+    });
+
+    // 统计摘要
+    const stats = computeStats();
+    md += `---\n\n`;
+    md += `## 数据摘要\n\n`;
+    md += `- 有效客户总数：${stats.validTotal}\n`;
+    md += `- A（战略级）：${stats.byRating["A（战略级）"]}\n`;
+    md += `- B（重点级）：${stats.byRating["B（重点级）"]}\n`;
+    md += `- C（普通级）：${stats.byRating["C（普通级）"]}\n`;
+    md += `- 合作中/已签约：${stats.byStatus["合作中"] + stats.byStatus["已签约"]}\n`;
+    md += `- 洽谈中/意向中：${stats.byStatus["洽谈中"] + stats.byStatus["意向中"]}\n`;
+    md += `- 预计年度贡献：${stats.totalEstimate.toFixed(0)} 万元\n`;
+
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'A9_Marketing_System.md';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    alert("✅ Markdown 导出成功！");
+  } catch (e) {
+    alert("❌ 导出失败：" + e.message);
+    console.error(e);
+  }
+}
+
+// ============================================================
+//  统计看板：计算统计数据
+// ============================================================
+function computeStats() {
+  const stats = {
+    total: 0,
+    validTotal: 0,
+    byRegion: [],
+    byRating: { "A（战略级）": 0, "B（重点级）": 0, "C（普通级）": 0 },
+    byStatus: { "意向中": 0, "洽谈中": 0, "已签约": 0, "合作中": 0, "已暂停": 0, "已结束": 0 },
+    totalEstimate: 0,
+    overseasCount: 0
+  };
+
+  CONFIG.forEach((sec, secIdx) => {
+    const rows = data[secIdx] || [];
+    // 有效行：至少有一个字段非空
+    const validRows = rows.filter(row =>
+      sec.fields.some(f => (row[f.key] || "").trim() !== "")
+    );
+    stats.total += rows.length;
+    stats.validTotal += validRows.length;
+
+    const regionInfo = {
+      name: sec.label,
+      title: sec.title,
+      total: validRows.length,
+      ratingA: 0, ratingB: 0, ratingC: 0,
+      statusActive: 0, statusSigned: 0, statusNegotiating: 0, statusEnded: 0,
+      estimate: 0,
+      isOverseas: sec.id === "overseas"
+    };
+
+    validRows.forEach(row => {
+      const rating = row.rating || "";
+      const status = row.status || "";
+      const est = parseFloat(row.estimate) || 0;
+
+      if (rating in stats.byRating) stats.byRating[rating]++;
+      if (status in stats.byStatus) stats.byStatus[status]++;
+      stats.totalEstimate += est;
+
+      if (rating === "A（战略级）") regionInfo.ratingA++;
+      else if (rating === "B（重点级）") regionInfo.ratingB++;
+      else if (rating === "C（普通级）") regionInfo.ratingC++;
+
+      if (status === "合作中") regionInfo.statusActive++;
+      else if (status === "已签约") regionInfo.statusSigned++;
+      else if (status === "洽谈中" || status === "意向中") regionInfo.statusNegotiating++;
+      else if (status === "已暂停" || status === "已结束") regionInfo.statusEnded++;
+
+      regionInfo.estimate += est;
+    });
+
+    stats.byRegion.push(regionInfo);
+    if (sec.id === "overseas") stats.overseasCount = validRows.length;
+  });
+
+  return stats;
+}
+
+// ============================================================
+//  统计看板：渲染统计卡片
+// ============================================================
+function renderStatsCards(stats) {
+  const container = document.getElementById("statsCards");
+  container.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-number">${stats.validTotal}</div>
+      <div class="stat-label">客户总数（有效）</div>
+      <div class="stat-sub">总行数 ${stats.total}</div>
+    </div>
+    <div class="stat-card rating-a">
+      <div class="stat-number">${stats.byRating["A（战略级）"]}</div>
+      <div class="stat-label">A（战略级）</div>
+      <div class="stat-sub">年贡献500万以上</div>
+    </div>
+    <div class="stat-card rating-b">
+      <div class="stat-number">${stats.byRating["B（重点级）"]}</div>
+      <div class="stat-label">B（重点级）</div>
+      <div class="stat-sub">年贡献100-500万</div>
+    </div>
+    <div class="stat-card rating-c">
+      <div class="stat-number">${stats.byRating["C（普通级）"]}</div>
+      <div class="stat-label">C（普通级）</div>
+      <div class="stat-sub">年贡献100万以下</div>
+    </div>
+    <div class="stat-card status-active">
+      <div class="stat-number">${stats.byStatus["合作中"] + stats.byStatus["已签约"]}</div>
+      <div class="stat-label">合作中 / 已签约</div>
+      <div class="stat-sub">合作中 ${stats.byStatus["合作中"]} · 已签约 ${stats.byStatus["已签约"]}</div>
+    </div>
+    <div class="stat-card status-pending">
+      <div class="stat-number">${stats.byStatus["洽谈中"] + stats.byStatus["意向中"]}</div>
+      <div class="stat-label">洽谈中 / 意向中</div>
+      <div class="stat-sub">洽谈 ${stats.byStatus["洽谈中"]} · 意向 ${stats.byStatus["意向中"]}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">${stats.totalEstimate > 0 ? stats.totalEstimate.toFixed(0) : '-'}</div>
+      <div class="stat-label">预计年度贡献（万元）</div>
+      <div class="stat-sub">海外 ${stats.overseasCount} 家</div>
+    </div>
+  `;
+}
+
+// ============================================================
+//  统计看板：渲染区域详情表格
+// ============================================================
+function renderRegionTable(stats) {
+  const tbody = document.getElementById("regionDetailBody");
+  tbody.innerHTML = stats.byRegion.map(r => `
+    <tr>
+      <td style="font-weight:600;text-align:left;padding-left:14px;">${r.name}</td>
+      <td style="font-weight:700;">${r.total}</td>
+      <td style="color:#e74c3c;font-weight:600;">${r.ratingA || '-'}</td>
+      <td style="color:#f39c12;font-weight:600;">${r.ratingB || '-'}</td>
+      <td style="color:#3498db;font-weight:600;">${r.ratingC || '-'}</td>
+      <td style="color:#27ae60;font-weight:600;">${r.statusActive || '-'}</td>
+      <td style="color:#2ecc71;font-weight:600;">${r.statusSigned || '-'}</td>
+      <td>${r.statusNegotiating || '-'}</td>
+      <td style="color:#95a5a6;">${r.statusEnded || '-'}</td>
+    </tr>
+  `).join("");
+}
+
+// ============================================================
+//  统计看板：渲染地图（Leaflet）
+// ============================================================
+function renderMap(stats) {
+  const dom = document.getElementById("chinaMap");
+  if (!dom.offsetParent) return;
+
+  try {
+    if (!leafletInitialized) {
+      if (typeof L === 'undefined') {
+        dom.innerHTML = `<div style="padding:60px 20px;text-align:center;color:#94a3b8;">
+          <p style="font-size:16px;">⏳ 地图引擎加载中...</p>
+        </div>`;
+        return;
+      }
+
+      leafletMap = L.map('chinaMap', {
+        center: [35.0, 104.0],
+        zoom: 4,
+        zoomControl: true,
+        attributionControl: true,
+        doubleClickZoom: false,
+      });
+
+      const defaultBasemap = BASEMAPS['CartoDB.Positron'];
+      currentTileLayer = L.tileLayer(defaultBasemap.url, {
+        attribution: defaultBasemap.attribution,
+        maxZoom: defaultBasemap.maxZoom,
+        subdomains: defaultBasemap.subdomains || 'abc',
+      }).addTo(leafletMap);
+
+      leafletInitialized = true;
+    }
+
+    // 清除旧标记
+    leafletMap.eachLayer(layer => {
+      if (layer._isMarker) leafletMap.removeLayer(layer);
+    });
+
+    // 添加各区域气泡标记
+    stats.byRegion.forEach((r, idx) => {
+      if (r.total === 0) return;
+      const mapInfo = REGION_MAP_DATA[idx];
+      if (!mapInfo || !mapInfo.coord) return;
+
+      const [lng, lat] = mapInfo.coord;
+      const size = Math.max(14, Math.min(50, 10 + r.total * 6));
+
+      const marker = L.circleMarker([lat, lng], {
+        radius: size / 2,
+        color: '#fff',
+        weight: 2,
+        fillColor: mapInfo.color,
+        fillOpacity: 0.85,
+      }).addTo(leafletMap);
+      marker._isMarker = true;
+
+      const infoHtml = `\
+<div style="font-family:system-ui,sans-serif;min-width:180px;">
+  <h3 style="margin:0 0 8px;color:${mapInfo.color};">${r.name}</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <tr><td style="padding:3px 8px;font-weight:600;">客户总数</td><td style="padding:3px 8px;">${r.total}</td></tr>
+    <tr style="background:#f8fafc;"><td style="padding:3px 8px;font-weight:600;color:#e74c3c;">A（战略级）</td><td style="padding:3px 8px;">${r.ratingA}</td></tr>
+    <tr><td style="padding:3px 8px;font-weight:600;color:#f39c12;">B（重点级）</td><td style="padding:3px 8px;">${r.ratingB}</td></tr>
+    <tr style="background:#f8fafc;"><td style="padding:3px 8px;font-weight:600;color:#3498db;">C（普通级）</td><td style="padding:3px 8px;">${r.ratingC}</td></tr>
+  </table>
+</div>`;
+
+      marker.bindTooltip(`${r.name} ${r.total}家`, {
+        direction: 'top',
+        offset: [0, -size / 2],
+        className: 'map-tooltip',
+      });
+
+      marker.bindPopup(infoHtml, { maxWidth: 300 });
+    });
+
+    // 海外客户标注
+    if (stats.overseasCount > 0) {
+      const overseasMarker = L.circleMarker([15, 100], {
+        radius: 12,
+        color: '#fff',
+        weight: 2,
+        fillColor: '#9b59b6',
+        fillOpacity: 0.85,
+      }).addTo(leafletMap);
+      overseasMarker._isMarker = true;
+      overseasMarker.bindTooltip(`🌏 海外客户 ${stats.overseasCount} 家`, {
+        direction: 'top',
+        offset: [0, -14],
+        className: 'map-tooltip',
+      });
+    }
+  } catch (err) {
+    console.error("Leaflet 地图加载失败:", err);
+    dom.innerHTML = `<div style="padding:60px 20px;text-align:center;color:#94a3b8;">
+      <p style="font-size:16px;">⚠️ 地图数据加载失败</p>
+      <p style="font-size:13px;margin-top:6px;">请检查网络连接后刷新页面</p>
+      <p style="font-size:12px;margin-top:4px;color:#cbd5e1;">${err.message}</p>
+    </div>`;
+    leafletInitialized = false;
+  }
+}
+
+// ============================================================
+//  地图：切换底图
+// ============================================================
+function switchBasemap(name) {
+  if (!leafletMap || !BASEMAPS[name]) return;
+  const cfg = BASEMAPS[name];
+  if (currentTileLayer) {
+    leafletMap.removeLayer(currentTileLayer);
+  }
+  currentTileLayer = L.tileLayer(cfg.url, {
+    attribution: cfg.attribution,
+    maxZoom: cfg.maxZoom,
+    subdomains: cfg.subdomains || 'abc',
+  }).addTo(leafletMap);
+}
+
+// ============================================================
+//  统计看板：渲染区域分布柱状图
+// ============================================================
+function renderRegionChart(stats) {
+  const dom = document.getElementById("regionChart");
+  if (!dom.offsetParent) return;
+
+  if (!regionChart) {
+    regionChart = echarts.init(dom);
+  }
+
+  const names = stats.byRegion.map(r => r.name);
+  const totals = stats.byRegion.map(r => r.total);
+  const ratingA = stats.byRegion.map(r => r.ratingA);
+  const ratingB = stats.byRegion.map(r => r.ratingB);
+  const ratingC = stats.byRegion.map(r => r.ratingC);
+
+  const option = {
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { type: "shadow" }
+    },
+    legend: {
+      data: ["A（战略级）", "B（重点级）", "C（普通级）"],
+      bottom: 0,
+      textStyle: { fontSize: 12 }
+    },
+    grid: {
+      left: "3%",
+      right: "4%",
+      bottom: "18%",
+      top: "8%",
+      containLabel: true
+    },
+    xAxis: {
+      type: "category",
+      data: names,
+      axisLabel: { fontSize: 11, fontWeight: 600 }
+    },
+    yAxis: {
+      type: "value",
+      minInterval: 1,
+      name: "客户数"
+    },
+    series: [
+      {
+        name: "A（战略级）",
+        type: "bar",
+        stack: "total",
+        data: ratingA,
+        itemStyle: { color: "#e74c3c", borderRadius: [0, 0, 0, 0] },
+        label: {
+          show: true,
+          position: "inside",
+          formatter: function(p) { return p.value > 0 ? p.value : ""; },
+          color: "#fff",
+          fontSize: 11,
+          fontWeight: 700
+        }
+      },
+      {
+        name: "B（重点级）",
+        type: "bar",
+        stack: "total",
+        data: ratingB,
+        itemStyle: { color: "#f39c12" },
+        label: {
+          show: true,
+          position: "inside",
+          formatter: function(p) { return p.value > 0 ? p.value : ""; },
+          color: "#fff",
+          fontSize: 11,
+          fontWeight: 700
+        }
+      },
+      {
+        name: "C（普通级）",
+        type: "bar",
+        stack: "total",
+        data: ratingC,
+        itemStyle: { color: "#3498db", borderRadius: [4, 4, 0, 0] },
+        label: {
+          show: true,
+          position: "top",
+          formatter: function(p) {
+            const total = stats.byRegion[p.dataIndex].total;
+            return total > 0 ? total + "家" : "";
+          },
+          fontSize: 12,
+          fontWeight: 700,
+          color: "#0d2b4e"
+        }
+      }
+    ]
+  };
+
+  regionChart.setOption(option, true);
+  regionChart.resize();
+}
+
+// ============================================================
+//  统计看板：刷新
+// ============================================================
+function refreshStats() {
+  const stats = computeStats();
+  renderStatsCards(stats);
+  renderRegionTable(stats);
+  renderMap(stats);
+  renderRegionChart(stats);
+}
+
+// ============================================================
+//  全屏切换（地图 / 图表）
+// ============================================================
+function toggleFullscreen(btn) {
+  const box = btn.closest('.map-box');
+  const isFull = box.classList.toggle('fullscreen');
+  btn.textContent = isFull ? '✕ 收起' : '⛶ 放大';
+
+  // 管理遮罩层
+  let overlay = document.getElementById('mapModalOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'mapModalOverlay';
+    overlay.className = 'map-overlay';
+    overlay.onclick = closeMapModal;
+    document.body.appendChild(overlay);
+  }
+  overlay.classList.toggle('active', isFull);
+
+  // 通知地图/图表容器尺寸变化
+  setTimeout(() => {
+    if (box.querySelector('#chinaMap') && leafletMap) leafletMap.invalidateSize();
+    if (box.querySelector('#regionChart') && regionChart) regionChart.resize();
+  }, 300);
+
+  if (isFull) {
+    document.addEventListener('keydown', mapEscHandler);
+  } else {
+    document.removeEventListener('keydown', mapEscHandler);
+  }
+}
+
+function closeMapModal() {
+  document.querySelectorAll('.map-box.fullscreen').forEach(box => {
+    box.classList.remove('fullscreen');
+    const btn = box.querySelector('.btn-fullscreen');
+    if (btn) btn.textContent = '⛶ 放大';
+  });
+  const overlay = document.getElementById('mapModalOverlay');
+  if (overlay) overlay.classList.remove('active');
+  document.removeEventListener('keydown', mapEscHandler);
+  setTimeout(() => {
+    if (leafletMap) leafletMap.invalidateSize();
+    if (regionChart) regionChart.resize();
+  }, 300);
+}
+
+function mapEscHandler(e) {
+  if (e.key === 'Escape') closeMapModal();
+}
+
+// 窗口大小变化时重绘图表
+window.addEventListener("resize", function() {
+  if (leafletMap) setTimeout(() => leafletMap.invalidateSize(), 200);
+  if (regionChart) setTimeout(() => regionChart.resize(), 200);
+});
+
+// ============================================================
+//  启动
+// ============================================================
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
