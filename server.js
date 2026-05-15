@@ -96,6 +96,28 @@ if (userCount.count === 0) {
   console.log('Default admin account created: admin / admin123');
 }
 
+// 创建 Agent 记忆表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS agent_conversations (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL DEFAULT '',
+    tags TEXT NOT NULL DEFAULT '[]',
+    username TEXT NOT NULL DEFAULT '',
+    messages TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+  )
+`);
+db.exec(`
+  CREATE TABLE IF NOT EXISTS agent_memories (
+    id TEXT PRIMARY KEY,
+    content TEXT NOT NULL,
+    tags TEXT NOT NULL DEFAULT '[]',
+    username TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+  )
+`);
+
 // ---------- 自定义 SQLite 会话存储 ----------
 class SQLiteSessionStore extends session.Store {
   constructor(database) {
@@ -684,13 +706,71 @@ app.post('/api/agent/reset', (req, res) => {
  */
 app.post('/api/agent/chat', (req, res) => {
   if (!agentBridge) return res.status(503).json({ error: 'Agent 未初始化' });
-  const { message } = req.body;
+  const { message, convId } = req.body;
   if (!message || !message.trim()) return res.status(400).json({ error: '消息不能为空' });
+  agentBridge.setUser(req.currentUser.username);
+  if (convId) agentBridge.loadConversation(convId);
   agentBridge.process(message.trim()).then(reply => {
-    res.json({ reply });
+    res.json({ reply, convId: agentBridge.convId });
   }).catch(e => {
     res.status(500).json({ error: e.message });
   });
+});
+
+/**
+ * GET /api/agent/conversations — 获取对话列表
+ */
+app.get('/api/agent/conversations', (req, res) => {
+  try {
+    const list = db.prepare(
+      "SELECT id, title, tags, username, created_at, updated_at FROM agent_conversations WHERE username = ? ORDER BY updated_at DESC LIMIT 50"
+    ).all(req.currentUser.username);
+    res.json(list.map(c => ({ id: c.id, title: c.title, tags: JSON.parse(c.tags || '[]'), createdAt: c.created_at, updatedAt: c.updated_at })));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/**
+ * GET /api/agent/conversations/:id — 获取单条对话
+ */
+app.get('/api/agent/conversations/:id', (req, res) => {
+  try {
+    const row = db.prepare('SELECT * FROM agent_conversations WHERE id = ? AND username = ?').get(req.params.id, req.currentUser.username);
+    if (!row) return res.status(404).json({ error: '对话不存在' });
+    res.json({ id: row.id, title: row.title, tags: JSON.parse(row.tags || '[]'), messages: JSON.parse(row.messages || '[]'), createdAt: row.created_at });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/**
+ * PUT /api/agent/conversations/:id/tags — 更新对话标签
+ */
+app.put('/api/agent/conversations/:id/tags', (req, res) => {
+  try {
+    const { tags } = req.body;
+    db.prepare('UPDATE agent_conversations SET tags = ? WHERE id = ? AND username = ?').run(JSON.stringify(tags || []), req.params.id, req.currentUser.username);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/**
+ * POST /api/agent/memories — 添加记忆
+ */
+app.post('/api/agent/memories', (req, res) => {
+  if (!agentBridge) return res.status(503).json({ error: 'Agent 未初始化' });
+  const { content, tags } = req.body;
+  if (!content) return res.status(400).json({ error: '内容不能为空' });
+  agentBridge.setUser(req.currentUser.username);
+  agentBridge.addMemory(content, tags || []);
+  res.json({ success: true });
+});
+
+/**
+ * GET /api/agent/memories — 搜索记忆
+ */
+app.get('/api/agent/memories', (req, res) => {
+  if (!agentBridge) return res.status(503).json({ error: 'Agent 未初始化' });
+  const keyword = req.query.q || '';
+  const results = agentBridge.searchMemories(keyword);
+  res.json(results);
 });
 
 /**

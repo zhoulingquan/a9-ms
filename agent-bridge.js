@@ -10,6 +10,9 @@ class AgentBridge {
     this.db = db;
     this.logChange = logChangeFn;
     this.messages = [];
+    this.convId = null;
+    this.convTitle = '';
+    this.username = '';
     this.maxTurns = 15;
     this.config = {
       provider: process.env.AI_PROVIDER || 'deepseek',
@@ -20,7 +23,62 @@ class AgentBridge {
     };
   }
 
-  reset() { this.messages = []; }
+  reset() {
+    // 保存当前对话到数据库后再重置
+    this._saveConversation();
+    this.messages = [];
+    this.convId = null;
+    this.convTitle = '';
+  }
+
+  // 设置当前用户名
+  setUser(username) { this.username = username; }
+
+  // 加载已有的对话
+  async loadConversation(convId) {
+    const row = this.db.prepare('SELECT * FROM agent_conversations WHERE id = ?').get(convId);
+    if (!row) return false;
+    this.convId = row.id;
+    this.convTitle = row.title || '';
+    this.messages = JSON.parse(row.messages || '[]');
+    return true;
+  }
+
+  // 保存对话到数据库
+  _saveConversation() {
+    if (!this.messages.length || !this.username) return;
+    const id = this.convId || crypto.randomUUID();
+    if (!this.convId) this.convId = id;
+    // 从首条用户消息生成标题
+    if (!this.convTitle) {
+      const firstUser = this.messages.find(m => m.role === 'user');
+      if (firstUser) this.convTitle = firstUser.content.slice(0, 50) + (firstUser.content.length > 50 ? '...' : '');
+    }
+    try {
+      this.db.prepare(`INSERT INTO agent_conversations (id, title, tags, username, messages, updated_at)
+        VALUES (?, ?, '[]', ?, ?, datetime('now','localtime'))
+        ON CONFLICT(id) DO UPDATE SET messages = ?, updated_at = datetime('now','localtime')`)
+        .run(id, this.convTitle, this.username, JSON.stringify(this.messages), JSON.stringify(this.messages));
+    } catch (e) { /* ignore save errors */ }
+  }
+
+  // 添加记忆
+  addMemory(content, tags = []) {
+    if (!this.username) return;
+    try {
+      this.db.prepare('INSERT INTO agent_memories (id, content, tags, username) VALUES (?, ?, ?, ?)')
+        .run(crypto.randomUUID(), content, JSON.stringify(tags), this.username);
+    } catch (e) { /* ignore */ }
+  }
+
+  // 搜索记忆
+  searchMemories(keyword) {
+    try {
+      return this.db.prepare(
+        "SELECT id, content, tags, created_at FROM agent_memories WHERE content LIKE ? ORDER BY created_at DESC LIMIT 20"
+      ).all(`%${keyword}%`);
+    } catch (e) { return []; }
+  }
 
   // 运行时重新配置（由配置页面调用）
   reconfigure(newConfig) {
@@ -59,12 +117,15 @@ class AgentBridge {
             const args = JSON.parse(call.function.arguments);
             const result = await this._executeTool(call.function.name, args);
             this.messages.push({ role: 'tool', tool_call_id: call.id, content: result });
+            // 自动保存对话（持久化记忆）
+            this._saveConversation();
           } catch (e) {
             this.messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ error: e.message }) });
           }
         }
       } else {
         this.messages.push({ role: 'assistant', content: msg.content, reasoning_content: msg.reasoning_content });
+        this._saveConversation();
         return msg.content || '';
       }
     }

@@ -3182,12 +3182,14 @@ async function agentSend() {
     const res = await fetch('/api/agent/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg })
+      body: JSON.stringify({ message: msg, convId: agentConvId })
     });
     const data = await res.json();
     agentHideTyping();
-    if (data.reply) agentAddMsg('assistant', data.reply);
-    else agentAddMsg('system', '❌ ' + (data.error || '请求失败'));
+    if (data.reply) {
+      agentAddMsg('assistant', data.reply);
+      if (data.convId) agentConvId = data.convId;
+    } else agentAddMsg('system', '❌ ' + (data.error || '请求失败'));
   } catch (e) {
     agentHideTyping();
     agentAddMsg('assistant', '❌ 请求失败: ' + e.message);
@@ -3195,6 +3197,81 @@ async function agentSend() {
 
   agentSetLoading(false);
   input.focus();
+}
+
+// ===== 对话历史 =====
+let agentConvId = null;
+
+function agentToggleHistory() {
+  const msgs = document.getElementById('agentMessages');
+  const hist = document.getElementById('agentHistory');
+  if (hist.style.display === 'none') {
+    hist.style.display = 'flex';
+    msgs.style.display = 'none';
+    agentLoadHistory();
+  } else {
+    hist.style.display = 'none';
+    msgs.style.display = 'flex';
+  }
+}
+
+async function agentLoadHistory() {
+  const el = document.getElementById('agentHistoryList');
+  el.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">加载中...</div>';
+  try {
+    const res = await fetch('/api/agent/conversations');
+    const list = await res.json();
+    if (!list.length) { el.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">暂无对话记录</div>'; return; }
+    el.innerHTML = list.map(c => {
+      const tags = (c.tags || []).map(t => `<span style="font-size:10px;background:#e2e8f0;color:#475569;padding:1px 6px;border-radius:4px;margin-right:4px;">${t}</span>`).join('');
+      return `<div class="history-item" data-id="${c.id}" onclick="agentLoadConv('${c.id}')" style="padding:10px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+        <div style="font-size:13px;font-weight:500;color:#1a2332;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.title || '无标题'}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          ${tags}
+          <span style="font-size:11px;color:#94a3b8;margin-left:auto;">${c.createdAt || ''}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    el.innerHTML = '<div style="text-align:center;color:#dc2626;padding:20px;">加载失败</div>';
+  }
+}
+
+async function agentLoadConv(convId) {
+  try {
+    const res = await fetch(`/api/agent/conversations/${convId}`);
+    const data = await res.json();
+    if (!data.messages) return;
+    // 显示历史消息
+    const msgsEl = document.getElementById('agentMessages');
+    msgsEl.innerHTML = '';
+    data.messages.forEach(m => {
+      if (m.role === 'user' || m.role === 'assistant') {
+        const div = document.createElement('div');
+        div.className = 'msg-bubble ' + m.role;
+        div.textContent = m.content || (m.tool_calls ? '(调用工具...)' : '');
+        msgsEl.appendChild(div);
+      }
+    });
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+    agentConvId = convId;
+    // 切回聊天视图
+    document.getElementById('agentHistory').style.display = 'none';
+    msgsEl.style.display = 'flex';
+  } catch (e) { /* ignore */ }
+}
+
+async function agentTagConv(convId) {
+  const tag = prompt('输入标签名称：');
+  if (!tag) return;
+  try {
+    const res = await fetch(`/api/agent/conversations/${convId}/tags`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tags: [tag] })
+    });
+    if (res.ok) agentLoadHistory();
+  } catch (e) { /* ignore */ }
 }
 
 async function agentUploadFile(event) {
@@ -3272,9 +3349,19 @@ async function agentUploadFile(event) {
   <div class="panel-header">
     <h3>🤖 AI 填表助手 <span class="status-dot" id="agentDot"></span></h3>
     <span id="agentStatus" style="font-size:11px;opacity:.8;">未配置</span>
-    <button onclick="openAgentConfig()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:16px;padding:2px 6px;border-radius:4px;" title="配置">⚙️</button>
+    <div style="display:flex;gap:4px;">
+      <button onclick="agentToggleHistory()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;" title="对话历史">📋</button>
+      <button onclick="openAgentConfig()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:16px;padding:2px 6px;border-radius:4px;" title="配置">⚙️</button>
+    </div>
   </div>
   <div class="panel-messages" id="agentMessages"></div>
+  <div id="agentHistory" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
+    <div style="padding:10px 12px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+      <span style="font-size:13px;font-weight:600;color:#334155;">📋 对话历史</span>
+      <button onclick="agentToggleHistory()" style="background:none;border:none;color:#8b5cf6;cursor:pointer;font-size:13px;">✕ 关闭</button>
+    </div>
+    <div id="agentHistoryList" style="flex:1;overflow-y:auto;"></div>
+  </div>
   <div class="panel-input">
     <button class="btn-upload-file" onclick="document.getElementById('agentFileInput').click()" title="上传文件">📎</button>
     <input type="file" id="agentFileInput" accept=".xlsx,.md" style="display:none" onchange="agentUploadFile(event)">

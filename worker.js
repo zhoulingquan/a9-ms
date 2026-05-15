@@ -609,6 +609,45 @@ async function routeApi(request, env, auth) {
     await env.A9_MS_KV.put(AGENT_CONFIG_KEY, JSON.stringify(merged));
     return jsonResponse({ success: true });
   }
+  // Agent 记忆 API
+  if (pathname === '/api/agent/conversations' && method === 'GET') {
+    const list = safeJsonParse(await env.A9_MS_KV.get(`agent_conv_list:${auth.username}`), []);
+    return jsonResponse(list);
+  }
+  const convMatch = pathname.match(/^\/api\/agent\/conversations\/(.+)$/);
+  if (convMatch) {
+    const cid = convMatch[1];
+    if (method === 'GET') {
+      const data = JSON.parse(await env.A9_MS_KV.get(`agent_convs:${auth.username}:${cid}`) || 'null');
+      if (!data) return jsonResponse({ error: '对话不存在' }, 404);
+      return jsonResponse(data);
+    }
+    if (method === 'PUT' && cid.endsWith('/tags')) {
+      const realId = cid.replace('/tags','');
+      const { tags } = await request.json();
+      const data = JSON.parse(await env.A9_MS_KV.get(`agent_convs:${auth.username}:${realId}`) || '{}');
+      if (data.title) { data.tags = tags || []; await env.A9_MS_KV.put(`agent_convs:${auth.username}:${realId}`, JSON.stringify(data)); }
+      return jsonResponse({ success: true });
+    }
+  }
+  if (pathname === '/api/agent/memories' && method === 'POST') {
+    const { content, tags } = await request.json();
+    if (!content) return jsonResponse({ error: '内容不能为空' }, 400);
+    const id = crypto.randomUUID();
+    const mem = { id, content, tags: tags||[], username: auth.username, createdAt: new Date().toISOString() };
+    await env.A9_MS_KV.put(`agent_mems:${auth.username}:${id}`, JSON.stringify(mem));
+    const list = safeJsonParse(await env.A9_MS_KV.get(`agent_mem_list:${auth.username}`), []);
+    list.unshift({ id, content: content.slice(0,100), tags: tags||[], createdAt: mem.createdAt });
+    if (list.length > 200) list.length = 200;
+    await env.A9_MS_KV.put(`agent_mem_list:${auth.username}`, JSON.stringify(list));
+    return jsonResponse({ success: true });
+  }
+  if (pathname === '/api/agent/memories' && method === 'GET') {
+    const list = safeJsonParse(await env.A9_MS_KV.get(`agent_mem_list:${auth.username}`), []);
+    const q = url.searchParams.get('q');
+    if (q) return jsonResponse(list.filter(m => m.content.toLowerCase().includes(q.toLowerCase())));
+    return jsonResponse(list);
+  }
   if (pathname === '/api/agent/reset' && method === 'POST') {
     return jsonResponse({ success: true });
   }
