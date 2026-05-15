@@ -3015,17 +3015,91 @@ async function checkAgentStatus() {
   try {
     const res = await fetch('/api/agent/status');
     const data = await res.json();
-    if (data.connected) {
+    if (data.connected && data.configured) {
       dot.className = 'status-dot online';
       status.textContent = data.aiProvider;
-    } else {
+    } else if (data.connected) {
       dot.className = 'status-dot offline';
       status.textContent = '未配置';
+    } else {
+      dot.className = 'status-dot offline';
+      status.textContent = '不可用';
     }
   } catch (e) {
     dot.className = 'status-dot offline';
     status.textContent = '不可用';
   }
+}
+
+// ===== Agent 配置弹窗 =====
+
+async function openAgentConfig() {
+  // 加载当前配置
+  try {
+    const res = await fetch('/api/agent/config');
+    const data = await res.json();
+    document.getElementById('cfgProvider').value = data.provider || 'openai';
+    document.getElementById('cfgApiKey').placeholder = data.hasKey ? '已设置（输入新值覆盖）' : 'sk-...';
+    document.getElementById('cfgApiKey').value = '';
+    document.getElementById('cfgModel').value = data.model || '';
+    document.getElementById('cfgApiUrl').value = data.apiUrl || '';
+    document.getElementById('cfgRequestTemplate').value = data.requestTemplate || '';
+    onProviderChange();
+  } catch (e) {
+    console.warn('加载配置失败:', e);
+  }
+
+  // 移除旧弹窗后显示
+  const old = document.getElementById('agentConfigOverlay');
+  if (old) old.classList.add('active');
+}
+
+function onProviderChange() {
+  const v = document.getElementById('cfgProvider').value;
+  // Ollama 不需要 API Key
+  document.getElementById('cfgApiKey').disabled = v === 'ollama';
+  document.getElementById('cfgApiKey').placeholder = v === 'ollama' ? '本地模型不需要 API Key' : 'sk-...';
+  // 自定义 API 显示额外字段
+  document.getElementById('cfgUrlRow').style.display = v === 'custom' ? '' : 'none';
+  document.getElementById('cfgTemplateRow').style.display = v === 'custom' ? '' : 'none';
+  // 预设模型名
+  const modelInput = document.getElementById('cfgModel');
+  if (!modelInput.value || modelInput.dataset.auto) {
+    const models = { openai: 'gpt-4o', deepseek: 'deepseek-chat', ollama: 'qwen2.5', custom: '' };
+    modelInput.value = models[v] || '';
+    modelInput.dataset.auto = '1';
+  }
+}
+
+async function saveAgentConfig() {
+  const provider = document.getElementById('cfgProvider').value;
+  const apiKey = document.getElementById('cfgApiKey').value;
+  const model = document.getElementById('cfgModel').value;
+  const apiUrl = document.getElementById('cfgApiUrl').value;
+  const requestTemplate = document.getElementById('cfgRequestTemplate').value;
+  const btn = document.querySelector('#agentConfigOverlay .btn-copy');
+  btn.disabled = true;
+  btn.textContent = '保存中...';
+
+  try {
+    const res = await fetch('/api/agent/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, apiKey, model, apiUrl, requestTemplate })
+    });
+    const data = await res.json();
+    if (data.success) {
+      closeModalById('agentConfigOverlay');
+      checkAgentStatus();
+    } else {
+      alert('保存失败: ' + (data.error || ''));
+    }
+  } catch (e) {
+    alert('保存失败: ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '保存';
 }
 
 function agentAddMsg(role, text) {
@@ -3137,12 +3211,56 @@ async function agentUploadFile(event) {
   agentSetLoading(false);
 }
 </script>
+<!-- ===== AI Agent 配置弹窗 ===== -->
+<div class="modal-overlay" id="agentConfigOverlay" onclick="if(event.target===this)closeModalById('agentConfigOverlay')">
+  <div class="modal-box" style="max-width:500px;">
+    <div class="modal-header">
+      <h2>⚙️ AI Agent 配置</h2>
+      <button class="close-btn" onclick="closeModalById('agentConfigOverlay')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:4px;">AI 提供商</label>
+          <select id="cfgProvider" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:inherit;" onchange="onProviderChange()">
+            <option value="openai">OpenAI</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="ollama">Ollama（本地）</option>
+            <option value="custom">自定义 API</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:4px;">API Key</label>
+          <input type="password" id="cfgApiKey" placeholder="sk-..." style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:inherit;">
+        </div>
+        <div>
+          <label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:4px;">模型名称</label>
+          <input type="text" id="cfgModel" placeholder="gpt-4o / deepseek-chat / qwen2.5" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:inherit;">
+        </div>
+        <div id="cfgUrlRow" style="display:none;">
+          <label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:4px;">API 地址</label>
+          <input type="text" id="cfgApiUrl" placeholder="https://api.openai.com/v1/chat/completions" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:inherit;">
+        </div>
+        <div id="cfgTemplateRow" style="display:none;">
+          <label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:4px;">请求体模板</label>
+          <textarea id="cfgRequestTemplate" rows="3" placeholder='{"model":"$(model)","messages":$(messages),"tools":$(tools)}' style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;font-family:monospace;"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-close-modal" onclick="closeModalById('agentConfigOverlay')">取消</button>
+      <button class="btn-copy" onclick="saveAgentConfig()">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== AI Agent 浮动聊天 ===== -->
 <button class="agent-fab" id="agentFab" onclick="toggleAgent()">🤖</button>
 <div class="agent-panel" id="agentPanel">
   <div class="panel-header">
     <h3>🤖 AI 填表助手 <span class="status-dot" id="agentDot"></span></h3>
-    <span id="agentStatus" style="font-size:11px;opacity:.8;">...</span>
+    <span id="agentStatus" style="font-size:11px;opacity:.8;">未配置</span>
+    <button onclick="openAgentConfig()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:16px;padding:2px 6px;border-radius:4px;" title="配置">⚙️</button>
   </div>
   <div class="panel-messages" id="agentMessages"></div>
   <div class="panel-input">

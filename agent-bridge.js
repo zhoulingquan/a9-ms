@@ -22,6 +22,18 @@ class AgentBridge {
 
   reset() { this.messages = []; }
 
+  // 运行时重新配置（由配置页面调用）
+  reconfigure(newConfig) {
+    if (newConfig.provider) this.config.provider = newConfig.provider;
+    if (newConfig.apiKey !== undefined) this.config.apiKey = newConfig.apiKey;
+    if (newConfig.model) this.config.model = newConfig.model;
+    if (newConfig.apiUrl !== undefined) this.config.apiUrl = newConfig.apiUrl;
+    if (newConfig.requestTemplate !== undefined) this.config.requestTemplate = newConfig.requestTemplate;
+    this.reset();
+  }
+
+  getConfig() { return { ...this.config }; }
+
   async process(userMessage) {
     this.messages.push({ role: 'user', content: userMessage });
 

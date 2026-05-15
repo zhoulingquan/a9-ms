@@ -187,6 +187,7 @@ app.use(attachUser);
 // ---------- AI Agent 初始化 ----------
 let agentBridge = null;
 const agentUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const agentConfigPath = path.join(dbDir, 'agent-config.json');
 
 // ---------- 辅助函数 ----------
 
@@ -619,13 +620,55 @@ app.put('/api/pages', (req, res) => {
  * GET /api/agent/status — Agent 连接状态
  */
 app.get('/api/agent/status', (req, res) => {
-  const cfg = agentBridge ? agentBridge.config : {};
+  if (!agentBridge) return res.json({ connected: false });
+  const cfg = agentBridge.getConfig();
   res.json({
-    connected: !!agentBridge,
+    connected: true,
+    configured: !!(cfg.provider && cfg.apiKey),
     aiProvider: cfg.provider || '未配置',
-    aiModel: cfg.model || '',
-    hint: agentBridge ? '' : '需要设置 AI_PROVIDER 等环境变量'
+    aiModel: cfg.model || ''
   });
+});
+
+/**
+ * GET /api/agent/config — 获取 Agent 配置（API Key 脱敏）
+ */
+app.get('/api/agent/config', (req, res) => {
+  if (!agentBridge) return res.status(503).json({ error: 'Agent 未初始化' });
+  const cfg = agentBridge.getConfig();
+  // API Key 脱敏
+  const maskedKey = cfg.apiKey ? cfg.apiKey.slice(0, 4) + '****' + cfg.apiKey.slice(-4) : '';
+  res.json({
+    provider: cfg.provider,
+    apiKey: maskedKey,
+    model: cfg.model,
+    apiUrl: cfg.apiUrl,
+    hasKey: !!cfg.apiKey,
+    requestTemplate: cfg.requestTemplate
+  });
+});
+
+/**
+ * PUT /api/agent/config — 更新 Agent 配置
+ */
+app.put('/api/agent/config', (req, res) => {
+  if (!agentBridge) return res.status(503).json({ error: 'Agent 未初始化' });
+  try {
+    const { provider, apiKey, model, apiUrl, requestTemplate } = req.body;
+    const newConfig = {};
+    if (provider) newConfig.provider = provider;
+    if (apiKey !== undefined) newConfig.apiKey = apiKey;
+    if (model) newConfig.model = model;
+    if (apiUrl !== undefined) newConfig.apiUrl = apiUrl;
+    if (requestTemplate !== undefined) newConfig.requestTemplate = requestTemplate;
+
+    agentBridge.reconfigure(newConfig);
+    // 持久化保存
+    fs.writeFileSync(agentConfigPath, JSON.stringify(agentBridge.getConfig(), null, 2));
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 /**
@@ -733,12 +776,18 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   // 初始化 AI Agent
   try {
     agentBridge = new AgentBridge(db, logChange);
-    if (process.env.AI_PROVIDER) {
-      console.log(`  AI Agent: ${process.env.AI_PROVIDER} / ${process.env.OPENAI_MODEL || process.env.DEEPSEEK_MODEL || process.env.CUSTOM_MODEL || 'gpt-4o'}`);
+    // 从持久化配置文件中加载覆盖
+    try {
+      if (fs.existsSync(agentConfigPath)) {
+        const saved = JSON.parse(fs.readFileSync(agentConfigPath, 'utf-8'));
+        agentBridge.reconfigure(saved);
+      }
+    } catch (e) { /* ignore config load errors */ }
+    const c = agentBridge.getConfig();
+    if (c.provider && c.apiKey) {
+      console.log(`  AI Agent: ${c.provider} / ${c.model}`);
     } else {
-      console.log('  AI Agent: 未配置 AI 提供商（需设置 AI_PROVIDER 等环境变量）');
-      console.log('  支持：AI_PROVIDER=openai / deepseek / ollama / custom');
-      console.log('  详情见 agent/.env.example');
+      console.log('  AI Agent: 未配置（点击页面右下角 🤖 → ⚙️ 设置 API）');
     }
   } catch (e) {
     console.error('  AI Agent 初始化失败:', e.message);
