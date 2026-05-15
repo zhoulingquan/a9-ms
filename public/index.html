@@ -1039,12 +1039,13 @@ async function openUserManager() {
       '<td style="font-size:12px;color:#64748b;">' + (u.createdAt || '') + '</td>' +
       '<td style="text-align:center">' +
         '<button class="btn-del-field" onclick="editUser(' + u.id + ')">编辑</button>' +
+        '<button class="btn-del-field" onclick="viewUserLogs(\'' + u.username.replace(/'/g,"\\'") + '\')" style="margin-left:4px;">日志</button>' +
         (!isSelf ? '<button class="btn-del-field" onclick="deleteUser(' + u.id + ')" style="margin-left:4px;color:#dc2626;">删除</button>' : '') +
       '</td></tr>';
   }).join('');
 
   const html = '<div class="modal-overlay active" id="userManagerOverlay" onclick="if(event.target===this)closeUserManager()">' +
-    '<div class="modal-box" style="max-width:700px;">' +
+    '<div class="modal-box" style="max-width:96vw;">' +
     '<div class="modal-header"><h2>👥 用户管理</h2><button class="close-btn" onclick="closeUserManager()">&times;</button></div>' +
     '<div class="modal-body">' +
     '<table class="field-editor-table"><thead><tr>' +
@@ -1121,6 +1122,48 @@ async function deleteUser(userId) {
     closeUserManager();
     openUserManager();
   } catch (e) { alert('删除用户失败: ' + e.message); }
+}
+
+// ============================================================
+//  查看用户操作日志
+// ============================================================
+
+async function viewUserLogs(username) {
+  let logs = [];
+  try {
+    const res = await fetch('/api/logs?username=' + encodeURIComponent(username) + '&limit=100');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    logs = await res.json();
+  } catch (e) {
+    alert('加载日志失败: ' + e.message);
+    return;
+  }
+
+  const old = document.getElementById('userLogOverlay');
+  if (old) old.remove();
+
+  const rowsHtml = logs.length === 0
+    ? '<tr><td colspan="4" style="text-align:center;padding:30px;color:#94a3b8;">暂无操作记录</td></tr>'
+    : logs.map(log =>
+      '<tr>' +
+        '<td style="font-size:12px;color:#64748b;">' + (log.created_at || '') + '</td>' +
+        '<td>' + (log.action || '') + '</td>' +
+        '<td style="color:#475569;">' + (log.detail || '') + '</td>' +
+        '<td style="font-size:12px;color:#64748b;">' + (log.section_id || '') + '</td>' +
+      '</tr>'
+    ).join('');
+
+  const html = '<div class="modal-overlay active" id="userLogOverlay" onclick="if(event.target===this)closeModalById(\'userLogOverlay\')">' +
+    '<div class="modal-box" style="max-width:800px;">' +
+    '<div class="modal-header"><h2>📋 操作日志 — ' + username + '</h2><button class="close-btn" onclick="closeModalById(\'userLogOverlay\')">&times;</button></div>' +
+    '<div class="modal-body" style="padding:12px 24px;">' +
+    '<table class="field-editor-table"><thead><tr>' +
+    '<th style="width:22%">时间</th><th style="width:15%">操作</th><th style="width:45%">详情</th><th style="width:18%">区域</th>' +
+    '</tr></thead><tbody>' + rowsHtml + '</tbody></table>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn-close-modal" onclick="closeModalById(\'userLogOverlay\')">关闭</button></div></div></div>';
+
+  document.body.insertAdjacentHTML('beforeend', html);
 }
 
 function createEmptyRow(fields) {

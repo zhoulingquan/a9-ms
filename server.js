@@ -399,13 +399,20 @@ app.get('/api/export/json', (req, res) => {
 
 /**
  * GET /api/logs — 最近的操作日志
+ * Query: ?limit=N&username=xxx
  */
 app.get('/api/logs', (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-    const logs = db.prepare(
-      'SELECT * FROM change_log ORDER BY created_at DESC LIMIT ?'
-    ).all(limit);
+    let sql, params;
+    if (req.query.username) {
+      sql = 'SELECT * FROM change_log WHERE username = ? ORDER BY created_at DESC LIMIT ?';
+      params = [req.query.username, limit];
+    } else {
+      sql = 'SELECT * FROM change_log ORDER BY created_at DESC LIMIT ?';
+      params = [limit];
+    }
+    const logs = db.prepare(sql).all(...params);
     res.json(logs);
   } catch (err) {
     res.status(500).json({ error: err.message });
