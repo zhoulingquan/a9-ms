@@ -513,6 +513,71 @@
   .user-mgmt-role.admin { background: #dbeafe; color: #1e40af; }
   .user-mgmt-role.user { background: #f1f5f9; color: #475569; }
 
+  /* ========== AI Agent 浮动聊天 ========== */
+  .agent-fab {
+    position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+    width: 56px; height: 56px; border-radius: 50%; border: none;
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: #fff;
+    font-size: 24px; cursor: pointer; box-shadow: 0 4px 16px rgba(139,92,246,.4);
+    transition: all .3s; display: flex; align-items: center; justify-content: center;
+  }
+  .agent-fab:hover { transform: scale(1.1); box-shadow: 0 6px 24px rgba(139,92,246,.5); }
+  .agent-fab.active { transform: rotate(45deg); background: #dc2626; box-shadow: 0 4px 16px rgba(220,38,38,.4); }
+
+  .agent-panel {
+    position: fixed; bottom: 92px; right: 24px; z-index: 9998;
+    width: 380px; height: 560px; background: #fff; border-radius: 16px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.2); display: none; flex-direction: column;
+    overflow: hidden; animation: slideUp .25s; border: 1px solid #e2e8f0;
+  }
+  .agent-panel.active { display: flex; }
+
+  @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+  .agent-panel .panel-header {
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: #fff;
+    padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+  }
+  .agent-panel .panel-header h3 { margin: 0; font-size: 14px; font-weight: 600; }
+  .agent-panel .panel-header .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-left: 6px; }
+  .agent-panel .panel-header .status-dot.online { background: #4ade80; }
+  .agent-panel .panel-header .status-dot.offline { background: #f87171; }
+
+  .agent-panel .panel-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+  .agent-panel .panel-messages:empty::after { content: '输入消息或上传文件开始操作'; display: block; text-align: center; color: #94a3b8; padding: 40px 10px; font-size: 13px; }
+
+  .agent-panel .msg-bubble { max-width: 90%; padding: 8px 12px; border-radius: 10px; line-height: 1.5; word-wrap: break-word; animation: fadeIn .2s; }
+  .agent-panel .msg-bubble.user { align-self: flex-end; background: #8b5cf6; color: #fff; border-bottom-right-radius: 2px; }
+  .agent-panel .msg-bubble.assistant { align-self: flex-start; background: #f1f5f9; color: #1a2332; border-bottom-left-radius: 2px; }
+  .agent-panel .msg-bubble pre { background: #e2e8f0; border-radius: 4px; padding: 6px; font-size: 12px; overflow-x: auto; margin: 4px 0; }
+  .agent-panel .msg-bubble code { font-size: 12px; }
+  .agent-panel .msg-bubble p { margin: 2px 0; }
+
+  .agent-panel .panel-input { display: flex; gap: 6px; padding: 10px 12px; border-top: 1px solid #e2e8f0; flex-shrink: 0; align-items: flex-end; }
+  .agent-panel .panel-input textarea {
+    flex: 1; resize: none; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px;
+    font-size: 13px; font-family: inherit; outline: none; line-height: 1.4; min-height: 36px; max-height: 80px;
+  }
+  .agent-panel .panel-input textarea:focus { border-color: #8b5cf6; box-shadow: 0 0 0 2px rgba(139,92,246,.15); }
+  .agent-panel .panel-input button {
+    padding: 7px 14px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
+    cursor: pointer; white-space: nowrap; font-family: inherit;
+  }
+  .agent-panel .panel-input .btn-send-msg { background: #8b5cf6; color: #fff; }
+  .agent-panel .panel-input .btn-send-msg:hover { background: #7c3aed; }
+  .agent-panel .panel-input .btn-send-msg:disabled { opacity: .5; cursor: not-allowed; }
+  .agent-panel .panel-input .btn-upload-file { background: #f1f5f9; color: #64748b; padding: 7px 10px; }
+  .agent-panel .panel-input .btn-upload-file:hover { background: #e2e8f0; }
+  .agent-panel .typing { display: flex; gap: 3px; padding: 4px 0; }
+  .agent-panel .typing span { width: 6px; height: 6px; background: #94a3b8; border-radius: 50%; animation: typing 1.4s infinite; }
+  .agent-panel .typing span:nth-child(2) { animation-delay: .2s; }
+  .agent-panel .typing span:nth-child(3) { animation-delay: .4s; }
+
+  @media (max-width: 480px) {
+    .agent-panel { width: calc(100vw - 24px); height: 50vh; bottom: 80px; right: 12px; }
+    .agent-fab { bottom: 16px; right: 16px; width: 48px; height: 48px; font-size: 20px; }
+  }
+
   /* ========== 响应式 ========== */
   @media (max-width: 768px) {
     .app-header { padding: 14px 16px; }
@@ -2924,7 +2989,169 @@ window.addEventListener("resize", function() {
 //  启动
 // ============================================================
 document.addEventListener("DOMContentLoaded", init);
+
+// ============================================================
+//  AI Agent 浮动聊天
+// ============================================================
+
+let agentOpen = false;
+let agentBusy = false;
+
+function toggleAgent() {
+  const panel = document.getElementById('agentPanel');
+  const fab = document.getElementById('agentFab');
+  agentOpen = !agentOpen;
+  panel.classList.toggle('active', agentOpen);
+  fab.classList.toggle('active', agentOpen);
+  if (agentOpen) {
+    document.getElementById('agentInput').focus();
+    checkAgentStatus();
+  }
+}
+
+async function checkAgentStatus() {
+  const dot = document.getElementById('agentDot');
+  const status = document.getElementById('agentStatus');
+  try {
+    const res = await fetch('/api/agent/status');
+    const data = await res.json();
+    if (data.connected) {
+      dot.className = 'status-dot online';
+      status.textContent = data.aiProvider;
+    } else {
+      dot.className = 'status-dot offline';
+      status.textContent = '未配置';
+    }
+  } catch (e) {
+    dot.className = 'status-dot offline';
+    status.textContent = '不可用';
+  }
+}
+
+function agentAddMsg(role, text) {
+  const el = document.getElementById('agentMessages');
+  const div = document.createElement('div');
+  div.className = 'msg-bubble ' + role;
+  if (role === 'assistant') {
+    let html = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/```([\s\S]*?)```/g,'<pre><code>$1</code></pre>')
+      .replace(/`([^`]+)`/g,'<code>$1</code>')
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .replace(/\n/g,'<br>');
+    div.innerHTML = html;
+  } else {
+    div.textContent = text;
+  }
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function agentShowTyping() {
+  const el = document.getElementById('agentMessages');
+  const div = document.createElement('div');
+  div.className = 'msg-bubble assistant';
+  div.id = 'agentTyping';
+  div.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function agentHideTyping() {
+  const el = document.getElementById('agentTyping');
+  if (el) el.remove();
+}
+
+function agentSetLoading(loading) {
+  agentBusy = loading;
+  const btn = document.getElementById('agentSendBtn');
+  btn.disabled = loading;
+  btn.textContent = loading ? '...' : '发送';
+  document.getElementById('agentInput').disabled = loading;
+}
+
+function agentKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    agentSend();
+  }
+  setTimeout(() => {
+    const el = document.getElementById('agentInput');
+    el.style.height = '36px';
+    el.style.height = Math.min(el.scrollHeight, 80) + 'px';
+  }, 0);
+}
+
+async function agentSend() {
+  const input = document.getElementById('agentInput');
+  const msg = input.value.trim();
+  if (!msg || agentBusy) return;
+
+  agentAddMsg('user', msg);
+  input.value = '';
+  input.style.height = '36px';
+  agentSetLoading(true);
+  agentShowTyping();
+
+  try {
+    const res = await fetch('/api/agent/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg })
+    });
+    const data = await res.json();
+    agentHideTyping();
+    if (data.reply) agentAddMsg('assistant', data.reply);
+    else agentAddMsg('system', '❌ ' + (data.error || '请求失败'));
+  } catch (e) {
+    agentHideTyping();
+    agentAddMsg('assistant', '❌ 请求失败: ' + e.message);
+  }
+
+  agentSetLoading(false);
+  input.focus();
+}
+
+async function agentUploadFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+
+  agentAddMsg('user', '📄 上传文件: ' + file.name);
+  agentSetLoading(true);
+  agentShowTyping();
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  try {
+    const res = await fetch('/api/agent/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    agentHideTyping();
+    if (data.reply) agentAddMsg('assistant', data.reply);
+    else agentAddMsg('assistant', '❌ ' + (data.error || '处理失败'));
+  } catch (e) {
+    agentHideTyping();
+    agentAddMsg('assistant', '❌ 上传失败: ' + e.message);
+  }
+
+  agentSetLoading(false);
+}
 </script>
+<!-- ===== AI Agent 浮动聊天 ===== -->
+<button class="agent-fab" id="agentFab" onclick="toggleAgent()">🤖</button>
+<div class="agent-panel" id="agentPanel">
+  <div class="panel-header">
+    <h3>🤖 AI 填表助手 <span class="status-dot" id="agentDot"></span></h3>
+    <span id="agentStatus" style="font-size:11px;opacity:.8;">...</span>
+  </div>
+  <div class="panel-messages" id="agentMessages"></div>
+  <div class="panel-input">
+    <button class="btn-upload-file" onclick="document.getElementById('agentFileInput').click()" title="上传文件">📎</button>
+    <input type="file" id="agentFileInput" accept=".xlsx,.md" style="display:none" onchange="agentUploadFile(event)">
+    <textarea id="agentInput" rows="1" placeholder="输入客户信息..." onkeydown="agentKeydown(event)" style="height:36px;"></textarea>
+    <button class="btn-send-msg" id="agentSendBtn" onclick="agentSend()">发送</button>
+  </div>
+</div>
 <!-- ===== 登录弹窗 ===== -->
 <div class="modal-overlay" id="loginOverlay">
   <div class="modal-box" style="max-width:400px;">

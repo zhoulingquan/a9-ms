@@ -9,6 +9,9 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const multer = require('multer');
+const ExcelJS = require('exceljs');
+const AgentBridge = require('./agent-bridge');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -180,6 +183,10 @@ function requireAdmin(req, res, next) {
 }
 
 app.use(attachUser);
+
+// ---------- AI Agent 初始化 ----------
+let agentBridge = null;
+const agentUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // ---------- 辅助函数 ----------
 
@@ -603,6 +610,89 @@ app.put('/api/pages', (req, res) => {
   }
 });
 
+// ============================================================
+//  AI Agent 智能助手（嵌入页面浮动图标）
+//  需要设置 AI_PROVIDER、OPENAI_API_KEY 等环境变量
+// ============================================================
+
+/**
+ * GET /api/agent/status — Agent 连接状态
+ */
+app.get('/api/agent/status', (req, res) => {
+  const cfg = agentBridge ? agentBridge.config : {};
+  res.json({
+    connected: !!agentBridge,
+    aiProvider: cfg.provider || '未配置',
+    aiModel: cfg.model || '',
+    hint: agentBridge ? '' : '需要设置 AI_PROVIDER 等环境变量'
+  });
+});
+
+/**
+ * POST /api/agent/reset — 重置对话
+ */
+app.post('/api/agent/reset', (req, res) => {
+  if (agentBridge) agentBridge.reset();
+  res.json({ success: true });
+});
+
+/**
+ * POST /api/agent/chat — 发送消息给 AI Agent
+ */
+app.post('/api/agent/chat', (req, res) => {
+  if (!agentBridge) return res.status(503).json({ error: 'Agent 未初始化' });
+  const { message } = req.body;
+  if (!message || !message.trim()) return res.status(400).json({ error: '消息不能为空' });
+  agentBridge.process(message.trim()).then(reply => {
+    res.json({ reply });
+  }).catch(e => {
+    res.status(500).json({ error: e.message });
+  });
+});
+
+/**
+ * POST /api/agent/upload — 上传 Excel/Markdown 文件
+ */
+app.post('/api/agent/upload', agentUpload.single('file'), async (req, res) => {
+  if (!agentBridge) return res.status(503).json({ error: 'Agent 未初始化' });
+  if (!req.file) return res.status(400).json({ error: '请上传文件' });
+
+  const ext = path.extname(req.file.originalname).toLowerCase();
+  let parsed = [];
+
+  try {
+    if (ext === '.xlsx') {
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(req.file.buffer);
+      const ws = wb.worksheets[0];
+      const rows = [];
+      ws.eachRow({ includeEmpty: false }, (row) => {
+        const cells = [];
+        row.eachCell({ includeEmpty: true }, (cell) => {
+          cells.push((cell.value === null || cell.value === undefined) ? '' : String(cell.value).trim());
+        });
+        if (cells.some(c => c)) rows.push(cells);
+      });
+      parsed = rows;
+    } else if (ext === '.md') {
+      const text = req.file.buffer.toString('utf-8');
+      parsed = text.split('\n').filter(l => l.trim() && !l.startsWith('#') && !l.startsWith('>') && !l.startsWith('---')).map(l => [l.trim()]);
+    } else {
+      return res.status(400).json({ error: '仅支持 .xlsx 和 .md 文件' });
+    }
+  } catch (e) {
+    return res.status(400).json({ error: `文件解析失败: ${e.message}` });
+  }
+
+  const fileInfo = `文件名：${req.file.originalname}\n解析出 ${parsed.length} 行数据：\n\`\`\`json\n${JSON.stringify(parsed, null, 2)}\n\`\`\`\n请将这些数据整理并填入系统的对应区域。`;
+  try {
+    const reply = await agentBridge.process(fileInfo);
+    res.json({ reply, rows: parsed.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ---------- 前台页面（SPA 回退） ----------
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {
@@ -637,7 +727,22 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`║  URL: http://localhost:${addr.port}                ║`);
   console.log(`║  API: http://localhost:${addr.port}/api            ║`);
   console.log('║  Status: ✅ Running                        ║');
+  console.log('║  Agent: ✅ 已加载                          ║');
   console.log('╚══════════════════════════════════════════╝');
+
+  // 初始化 AI Agent
+  try {
+    agentBridge = new AgentBridge(db, logChange);
+    if (process.env.AI_PROVIDER) {
+      console.log(`  AI Agent: ${process.env.AI_PROVIDER} / ${process.env.OPENAI_MODEL || process.env.DEEPSEEK_MODEL || process.env.CUSTOM_MODEL || 'gpt-4o'}`);
+    } else {
+      console.log('  AI Agent: 未配置 AI 提供商（需设置 AI_PROVIDER 等环境变量）');
+      console.log('  支持：AI_PROVIDER=openai / deepseek / ollama / custom');
+      console.log('  详情见 agent/.env.example');
+    }
+  } catch (e) {
+    console.error('  AI Agent 初始化失败:', e.message);
+  }
   console.log('');
   console.log('Press Ctrl+C to stop the server.');
 });
