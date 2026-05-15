@@ -3073,11 +3073,11 @@ function onProviderChange() {
   document.getElementById('cfgTemplateRow').style.display = v === 'custom' ? '' : 'none';
   // 预设值
   const apiUrlInput = document.getElementById('cfgApiUrl');
-  if (v === 'opencode') apiUrlInput.value = 'https://opencode.ai/zen/v1';
+  if (v === 'opencode') apiUrlInput.value = 'https://opencode.ai/zen/v1/chat/completions';
   else if (v !== 'custom') apiUrlInput.value = '';
   const modelInput = document.getElementById('cfgModel');
   if (!modelInput.value || modelInput.dataset.auto) {
-    const models = { deepseek: 'deepseek-chat', opencode: 'Big Pickle', ollama: 'qwen2.5', custom: '' };
+    const models = { deepseek: 'deepseek-chat', opencode: 'big-pickle', ollama: 'qwen2.5', custom: '' };
     modelInput.value = models[v] || '';
     modelInput.dataset.auto = '1';
   }
@@ -3247,7 +3247,7 @@ async function agentUploadFile(event) {
         </div>
         <div>
           <label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:4px;">模型名称</label>
-          <input type="text" id="cfgModel" placeholder="deepseek-chat / qwen2.5" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:inherit;">
+          <input type="text" id="cfgModel" placeholder="deepseek-chat / big-pickle / qwen2.5" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:inherit;">
         </div>
         <div id="cfgUrlRow" style="display:none;">
           <label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:4px;">API 地址</label>

@@ -40,7 +40,8 @@ class AgentBridge {
     for (let turn = 0; turn < this.maxTurns; turn++) {
       const response = await this._callAI(this.messages);
       if (response.error) {
-        this.messages.push({ role: 'assistant', content: `请求 AI 失败: ${response.error}` });
+        const errMsg = typeof response.error === 'string' ? response.error : (response.error.message || JSON.stringify(response.error));
+        this.messages.push({ role: 'assistant', content: `请求 AI 失败: ${errMsg}` });
         return this._lastMsg();
       }
       const choice = response.choices && response.choices[0];
@@ -52,7 +53,7 @@ class AgentBridge {
       const msg = choice.message;
 
       if (msg.tool_calls && msg.tool_calls.length > 0) {
-        this.messages.push({ role: 'assistant', content: msg.content || '', tool_calls: msg.tool_calls });
+        this.messages.push({ role: 'assistant', content: msg.content || null, tool_calls: msg.tool_calls, reasoning_content: msg.reasoning_content });
         for (const call of msg.tool_calls) {
           try {
             const args = JSON.parse(call.function.arguments);
@@ -63,7 +64,7 @@ class AgentBridge {
           }
         }
       } else {
-        this.messages.push({ role: 'assistant', content: msg.content || '' });
+        this.messages.push({ role: 'assistant', content: msg.content, reasoning_content: msg.reasoning_content });
         return msg.content || '';
       }
     }
@@ -228,10 +229,10 @@ class AgentBridge {
         break;
       case 'opencode':
         // OpenAI 兼容格式，使用配置的 URL
-        url = apiUrl || 'https://opencode.ai/zen/v1';
+        url = apiUrl || 'https://opencode.ai/zen/v1/chat/completions';
         headers = { 'Content-Type': 'application/json' };
         if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
-        body = JSON.stringify({ model: model || 'Big Pickle', messages: this._buildMessages(messages), tools: toolDefs, tool_choice: 'auto' });
+        body = JSON.stringify({ model: model || 'big-pickle', messages: this._buildMessages(messages), tools: toolDefs, tool_choice: 'auto' });
         break;
       case 'custom':
         url = apiUrl;
@@ -255,16 +256,20 @@ class AgentBridge {
           let chunks = [];
           res.on('data', c => chunks.push(c));
           res.on('end', () => {
-            try { resolve(JSON.parse(Buffer.concat(chunks).toString())); }
-            catch (e) { resolve({ error: `AI 响应解析失败` }); }
+            try {
+              const raw = Buffer.concat(chunks).toString();
+              resolve(JSON.parse(raw));
+            } catch (e) {
+              resolve({ error: `响应解析失败: ${e.message}` });
+            }
           });
         });
-        req.on('error', e => resolve({ error: e.message }));
+        req.on('error', e => resolve({ error: `请求错误: ${e.message}` }));
         req.on('timeout', () => { req.destroy(); resolve({ error: 'AI 请求超时' }); });
-        req.write(body);
+        if (body) req.write(body);
         req.end();
       });
-    } catch (e) { return { error: e.message }; }
+    } catch (e) { return { error: `异常: ${e.message} (provider=${provider}, url=${url})` }; }
   }
 
   _toolDefinitions() {
@@ -283,6 +288,7 @@ class AgentBridge {
   }
 
   _buildMessages(messages) {
+    // 保留 reasoning_content（DeepSeek 需要透传回）
     const system = {
       role: 'system',
       content: `你是 A9 客户管理系统的智能填表助手。你的任务是将用户提供的文字或 Excel 数据中的客户信息，自动整理并填入系统。
