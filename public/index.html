@@ -2821,6 +2821,11 @@ function renderRegionChart(stats) {
 // ============================================================
 async function refreshStats() {
   // 从服务器拉取最新数据（多用户协作同步）
+  const statusEl = document.getElementById('saveStatus');
+  const origText = statusEl.textContent;
+  statusEl.textContent = '⏳ 刷新中...';
+  statusEl.className = 'save-status saving';
+
   try {
     const res = await fetch('/api/data');
     if (res.ok) {
@@ -2834,11 +2839,16 @@ async function refreshStats() {
       selectedRows = {};
       dataOriginalOrder = {};
       sortState = {};
-      // 重新渲染数据表格
       CONFIG.forEach((_, idx) => rerenderSection(idx));
+    } else {
+      throw new Error('HTTP ' + res.status);
     }
   } catch (e) {
     console.warn('刷新数据失败:', e.message);
+    statusEl.textContent = '⚠️ 刷新失败';
+    statusEl.className = 'save-status error';
+    setTimeout(() => { statusEl.textContent = origText; statusEl.className = 'save-status'; }, 3000);
+    return;
   }
 
   // 刷新统计看板
@@ -2847,7 +2857,10 @@ async function refreshStats() {
   renderRegionTable(stats);
   renderMap(stats);
   renderRegionChart(stats);
-  updateSaveStatus('已刷新', 'saved');
+
+  statusEl.textContent = '✅ 数据已成功刷新';
+  statusEl.className = 'save-status saved';
+  setTimeout(() => { statusEl.textContent = '就绪'; statusEl.className = 'save-status'; }, 3000);
 }
 
 // ============================================================
