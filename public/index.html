@@ -3046,7 +3046,7 @@ async function openAgentConfig() {
   try {
     const res = await fetch('/api/agent/config');
     const data = await res.json();
-    document.getElementById('cfgProvider').value = data.provider || 'openai';
+    document.getElementById('cfgProvider').value = data.provider || 'deepseek';
     document.getElementById('cfgApiKey').placeholder = data.hasKey ? '已设置（输入新值覆盖）' : 'sk-...';
     document.getElementById('cfgApiKey').value = '';
     document.getElementById('cfgModel').value = data.model || '';
@@ -3073,7 +3073,7 @@ function onProviderChange() {
   // 预设模型名
   const modelInput = document.getElementById('cfgModel');
   if (!modelInput.value || modelInput.dataset.auto) {
-    const models = { openai: 'gpt-4o', deepseek: 'deepseek-chat', ollama: 'qwen2.5', custom: '' };
+    const models = { deepseek: 'deepseek-chat', ollama: 'qwen2.5', custom: '' };
     modelInput.value = models[v] || '';
     modelInput.dataset.auto = '1';
   }
@@ -3231,7 +3231,6 @@ async function agentUploadFile(event) {
         <div>
           <label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:4px;">AI 提供商</label>
           <select id="cfgProvider" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:inherit;" onchange="onProviderChange()">
-            <option value="openai">OpenAI</option>
             <option value="deepseek">DeepSeek</option>
             <option value="ollama">Ollama（本地）</option>
             <option value="custom">自定义 API</option>
@@ -3243,7 +3242,7 @@ async function agentUploadFile(event) {
         </div>
         <div>
           <label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:4px;">模型名称</label>
-          <input type="text" id="cfgModel" placeholder="gpt-4o / deepseek-chat / qwen2.5" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:inherit;">
+          <input type="text" id="cfgModel" placeholder="deepseek-chat / qwen2.5" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:inherit;">
         </div>
         <div id="cfgUrlRow" style="display:none;">
           <label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:4px;">API 地址</label>

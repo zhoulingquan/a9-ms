@@ -12,9 +12,9 @@ class AgentBridge {
     this.messages = [];
     this.maxTurns = 15;
     this.config = {
-      provider: process.env.AI_PROVIDER || 'openai',
-      apiKey: process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY || process.env.CUSTOM_API_KEY || '',
-      model: process.env.OPENAI_MODEL || process.env.DEEPSEEK_MODEL || process.env.CUSTOM_MODEL || 'gpt-4o',
+      provider: process.env.AI_PROVIDER || 'deepseek',
+      apiKey: process.env.DEEPSEEK_API_KEY || process.env.CUSTOM_API_KEY || '',
+      model: process.env.DEEPSEEK_MODEL || process.env.CUSTOM_MODEL || 'deepseek-chat',
       apiUrl: process.env.CUSTOM_API_URL || '',
       requestTemplate: process.env.CUSTOM_REQUEST_TEMPLATE || ''
     };
