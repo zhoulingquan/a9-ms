@@ -3042,6 +3042,28 @@ async function checkAgentStatus() {
 // ===== Agent 配置弹窗 =====
 
 async function openAgentConfig() {
+  // 如果弹窗已被移除，重新创建
+  if (!document.getElementById('agentConfigOverlay')) {
+    const html = '<div class="modal-overlay" id="agentConfigOverlay" onclick="if(event.target===this)this.classList.remove(\'active\')" style="z-index:10001">' +
+      '<div class="modal-box" style="max-width:500px;">' +
+      '<div class="modal-header"><h2>⚙️ AI Agent 配置</h2><button class="close-btn" onclick="this.closest(\'.modal-overlay\').classList.remove(\'active\')">&times;</button></div>' +
+      '<div class="modal-body"><div style="display:flex;flex-direction:column;gap:14px;">' +
+      '<div><label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:4px;">AI 提供商</label>' +
+      '<select id="cfgProvider" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:inherit;" onchange="onProviderChange()">' +
+      '<option value="deepseek">DeepSeek</option><option value="opencode">OpenCode Zen</option><option value="ollama">Ollama（本地）</option><option value="custom">自定义 API</option></select></div>' +
+      '<div><label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:4px;">API Key</label>' +
+      '<input type="password" id="cfgApiKey" placeholder="sk-..." style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:inherit;"></div>' +
+      '<div><label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:4px;">模型名称</label>' +
+      '<input type="text" id="cfgModel" placeholder="deepseek-chat / big-pickle / qwen2.5" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:inherit;"></div>' +
+      '<div id="cfgUrlRow" style="display:none;"><label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:4px;">API 地址</label>' +
+      '<input type="text" id="cfgApiUrl" placeholder="https://..." style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:inherit;"></div>' +
+      '<div id="cfgTemplateRow" style="display:none;"><label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:4px;">请求体模板</label>' +
+      '<textarea id="cfgRequestTemplate" rows="3" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;font-family:monospace;"></textarea></div></div></div>' +
+      '<div class="modal-footer"><button class="btn-close-modal" onclick="this.closest(\'.modal-overlay\').classList.remove(\'active\')">取消</button>' +
+      '<button class="btn-copy" onclick="saveAgentConfig()">保存</button></div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+  }
+
   // 加载当前配置
   try {
     const res = await fetch('/api/agent/config');
@@ -3057,9 +3079,7 @@ async function openAgentConfig() {
     console.warn('加载配置失败:', e);
   }
 
-  // 移除旧弹窗后显示
-  const old = document.getElementById('agentConfigOverlay');
-  if (old) old.classList.add('active');
+  document.getElementById('agentConfigOverlay').classList.add('active');
 }
 
 function onProviderChange() {
