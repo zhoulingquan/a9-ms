@@ -391,9 +391,9 @@ function agentToolDefs() {
     { name:'list_sections', description:'查看所有区域的数据概览', input_schema:{ type:'object', properties:{}, required:[] } },
     { name:'get_section', description:'查看指定区域的全部客户数据', input_schema:{ type:'object', properties:{ sectionId:e(['beijing','east','south','other','overseas']) }, required:['sectionId'] } },
     { name:'add_customer', description:'在指定区域添加一条客户记录', input_schema:{ type:'object', properties:{ sectionId:e(['beijing','east','south','other','overseas']), name:{ type:'string' }, location:{ type:'string' }, country:{ type:'string' }, industry:{ type:'string' }, rating:e(['','A（战略级）','B（重点级）','C（普通级）']), status:e(['','意向中','洽谈中','已签约','合作中','已暂停','已结束']), coopPoint:{ type:'string' }, contact:{ type:'string' }, phone:{ type:'string' }, startDate:{ type:'string' }, amount:e(['','100万以下','100-500万','500-1000万','1000-5000万','5000万以上']), estimate:{ type:'string' }, activeDate:{ type:'string' }, background:{ type:'string' }, remark:{ type:'string' } }, required:['sectionId','name'] } },
-    { name:'batch_add_customers', description:'批量添加多条客户记录', input_schema:{ type:'object', properties:{ sectionId:e(['beijing','east','south','other','overseas']), customers:{ type:'array', items:{ type:'object', properties:{ name:{ type:'string' }, industry:{ type:'string' }, rating:{ type:'string' }, status:{ type:'string' }, contact:{ type:'string' }, phone:{ type:'string' }, amount:{ type:'string' }, estimate:{ type:'string' } }, required:['name'] } } }, required:['sectionId','customers'] } },
-    { name:'update_customer', description:'修改指定客户的信息', input_schema:{ type:'object', properties:{ sectionId:e(['beijing','east','south','other','overseas']), rowIndex:{ type:'number' } }, required:['sectionId','rowIndex'] } },
-    { name:'delete_customer', description:'删除指定客户', input_schema:{ type:'object', properties:{ sectionId:e(['beijing','east','south','other','overseas']), rowIndex:{ type:'number' } }, required:['sectionId','rowIndex'] } },
+    { name:'batch_add_customers', description:'批量添加多条客户记录（敏感操作，需先询问用户确认）', input_schema:{ type:'object', properties:{ sectionId:e(['beijing','east','south','other','overseas']), confirmed:{ type:'boolean', description:'用户已确认执行' }, customers:{ type:'array', items:{ type:'object', properties:{ name:{ type:'string' }, industry:{ type:'string' }, rating:{ type:'string' }, status:{ type:'string' }, contact:{ type:'string' }, phone:{ type:'string' }, amount:{ type:'string' }, estimate:{ type:'string' } }, required:['name'] } } }, required:['sectionId','customers'] } },
+    { name:'update_customer', description:'修改指定客户的信息（敏感操作，需先询问用户确认）', input_schema:{ type:'object', properties:{ sectionId:e(['beijing','east','south','other','overseas']), rowIndex:{ type:'number' }, confirmed:{ type:'boolean', description:'用户已确认修改' } }, required:['sectionId','rowIndex'] } },
+    { name:'delete_customer', description:'删除指定客户（敏感操作，需先询问用户确认）', input_schema:{ type:'object', properties:{ sectionId:e(['beijing','east','south','other','overseas']), rowIndex:{ type:'number' }, confirmed:{ type:'boolean', description:'用户已确认删除' } }, required:['sectionId','rowIndex'] } },
     { name:'search_customers', description:'搜索客户', input_schema:{ type:'object', properties:{ keyword:{ type:'string' } }, required:['keyword'] } },
     { name:'get_stats', description:'获取统计数据', input_schema:{ type:'object', properties:{}, required:[] } }
   ];
@@ -416,6 +416,7 @@ async function agentExecTool(env, auth, name, args) {
       return JSON.stringify({ success: true, rowIndex: rows.length - 1, name: args.name || '' });
     }
     case 'batch_add_customers': {
+      if (!args.confirmed) return JSON.stringify({ requiresApproval: true, message: `需要批量添加 ${(args.customers||[]).length} 条客户记录到「${args.sectionId}」，请确认？` });
       const rows = getRows(args.sectionId); let added = 0;
       for (const c of (args.customers||[])) { const nr = {}; allKeys.forEach(k => nr[k] = c[k] || ''); rows.push(nr); added++; }
       saveRows(args.sectionId, rows); await kvPut(env, KV_KEYS.sections, sections);
@@ -423,14 +424,17 @@ async function agentExecTool(env, auth, name, args) {
       return JSON.stringify({ success: true, added });
     }
     case 'update_customer': {
-      const rows = getRows(args.sectionId);
-      if (args.rowIndex < 0 || args.rowIndex >= rows.length) return JSON.stringify({ error: '行号超出范围' });
-      Object.assign(rows[args.rowIndex], args); saveRows(args.sectionId, rows); await kvPut(env, KV_KEYS.sections, sections);
+      const { sectionId, rowIndex, confirmed, ...fields } = args;
+      const rows = getRows(sectionId);
+      if (rowIndex < 0 || rowIndex >= rows.length) return JSON.stringify({ error: '行号超出范围' });
+      if (!confirmed) return JSON.stringify({ requiresApproval: true, message: `要修改「${rows[rowIndex].name||'未命名'}」的信息吗？请确认。` });
+      Object.assign(rows[rowIndex], fields); saveRows(sectionId, rows); await kvPut(env, KV_KEYS.sections, sections);
       return JSON.stringify({ success: true });
     }
     case 'delete_customer': {
       const rows = getRows(args.sectionId);
       if (args.rowIndex < 0 || args.rowIndex >= rows.length) return JSON.stringify({ error: '行号超出范围' });
+      if (!args.confirmed) return JSON.stringify({ requiresApproval: true, message: `要删除客户「${rows[args.rowIndex].name||'未命名'}」吗？此操作不可撤销，请确认。` });
       rows.splice(args.rowIndex, 1); saveRows(args.sectionId, rows); await kvPut(env, KV_KEYS.sections, sections);
       return JSON.stringify({ success: true });
     }
@@ -461,7 +465,7 @@ async function agentCallAI(env, messages) {
   if (!provider || !apiKey) return { error: 'Agent 未配置，请先点击 ⚙️ 设置 API' };
 
   const toolDefs = agentToolDefs().map(t => ({ type:'function', function:{ name:t.name, description:t.description, parameters:t.input_schema } }));
-  const systemMsg = { role:'system', content:'你是 A9 客户管理系统的智能填表助手。系统有5个区域：beijing/east/south/other/overseas。字段：name（必填）、industry、rating[A/B/C]、status[意向中/洽谈中/已签约/合作中/已暂停/已结束]、coopPoint、contact、phone、startDate、amount[100万以下/100-500万/500-1000万/1000-5000万/5000万以上]、estimate、activeDate、background、remark、location、country。流程：1.分析→2.确定区域→3.调工具→4.汇总报告' };
+  const systemMsg = { role:'system', content:'你是 A9 客户管理系统的智能填表助手。系统有5个区域：beijing/east/south/other/overseas。字段：name（必填）、industry、rating[A/B/C]、status[意向中/洽谈中/已签约/合作中/已暂停/已结束]、coopPoint、contact、phone、startDate、amount[100万以下/100-500万/500-1000万/1000-5000万/5000万以上]、estimate、activeDate、background、remark、location、country。流程：1.分析→2.确定区域→3.调工具→4.汇总报告。⚠️ 修改、删除、批量添加必须先问用户确认，confirmed设为false，确认后再调用' };
 
   let url, reqBody;
   switch (provider) {

@@ -147,9 +147,9 @@ class AgentBridge {
       case 'list_sections': return this._listSections();
       case 'get_section': return this._getSection(args.sectionId);
       case 'add_customer': return this._addCustomer(args);
-      case 'batch_add_customers': return this._batchAdd(args.sectionId, args.customers);
+      case 'batch_add_customers': return this._batchAdd(args.sectionId, args.customers, args.confirmed);
       case 'update_customer': return this._updateCustomer(args);
-      case 'delete_customer': return this._deleteCustomer(args.sectionId, args.rowIndex);
+      case 'delete_customer': return this._deleteCustomer(args.sectionId, args.rowIndex, args.confirmed);
       case 'search_customers': return this._search(args.keyword);
       case 'get_stats': return this._stats();
       case 'list_users': return this._listUsers();
@@ -193,7 +193,8 @@ class AgentBridge {
     return JSON.stringify({ success: true, rowIndex: rows.length - 1, name: fields.name || '' });
   }
 
-  async _batchAdd(sectionId, customers) {
+  async _batchAdd(sectionId, customers, confirmed) {
+    if (!confirmed) return JSON.stringify({ requiresApproval: true, message: `需要批量添加 ${customers?.length || 0} 条客户记录到「${sectionId}」，请确认是否执行？` });
     if (!customers || !Array.isArray(customers)) return JSON.stringify({ error: '缺少客户数据' });
     const rows = this._getSectionData(sectionId);
     const allKeys = ['name','location','country','industry','rating','status','coopPoint','contact','phone','startDate','amount','estimate','activeDate','background','remark'];
@@ -210,7 +211,13 @@ class AgentBridge {
   }
 
   async _updateCustomer(args) {
-    const { sectionId, rowIndex, ...fields } = args;
+    const { sectionId, rowIndex, confirmed, ...fields } = args;
+    if (!confirmed) {
+      const rows = this._getSectionData(sectionId);
+      const target = rows[rowIndex];
+      if (!target) return JSON.stringify({ error: '行号超出范围' });
+      return JSON.stringify({ requiresApproval: true, message: `要修改「${target.name || '未命名'}」的信息吗？请确认。` });
+    }
     const rows = this._getSectionData(sectionId);
     if (rowIndex < 0 || rowIndex >= rows.length) return JSON.stringify({ error: '行号超出范围' });
     Object.assign(rows[rowIndex], fields);
@@ -219,7 +226,13 @@ class AgentBridge {
     return JSON.stringify({ success: true });
   }
 
-  async _deleteCustomer(sectionId, rowIndex) {
+  async _deleteCustomer(sectionId, rowIndex, confirmed) {
+    if (!confirmed) {
+      const rows = this._getSectionData(sectionId);
+      const target = rows[rowIndex];
+      if (!target) return JSON.stringify({ error: '行号超出范围' });
+      return JSON.stringify({ requiresApproval: true, message: `要删除客户「${target.name || '未命名'}」吗？此操作不可撤销，请确认。` });
+    }
     const rows = this._getSectionData(sectionId);
     if (rowIndex < 0 || rowIndex >= rows.length) return JSON.stringify({ error: '行号超出范围' });
     const removed = rows.splice(rowIndex, 1);
@@ -339,9 +352,9 @@ class AgentBridge {
       { name: 'list_sections', description: '查看所有区域的数据概览', input_schema: { type: 'object', properties: {}, required: [] } },
       { name: 'get_section', description: '查看指定区域的全部客户数据', input_schema: { type: 'object', properties: { sectionId: enumStr(['beijing','east','south','other','overseas']) }, required: ['sectionId'] } },
       { name: 'add_customer', description: '在指定区域添加一条客户记录', input_schema: { type: 'object', properties: { sectionId: enumStr(['beijing','east','south','other','overseas']), name: { type:'string' }, location: { type:'string' }, country: { type:'string' }, industry: { type:'string' }, rating: enumStr(['','A（战略级）','B（重点级）','C（普通级）']), status: enumStr(['','意向中','洽谈中','已签约','合作中','已暂停','已结束']), coopPoint: { type:'string' }, contact: { type:'string' }, phone: { type:'string' }, startDate: { type:'string' }, amount: enumStr(['','100万以下','100-500万','500-1000万','1000-5000万','5000万以上']), estimate: { type:'string' }, activeDate: { type:'string' }, background: { type:'string' }, remark: { type:'string' } }, required: ['sectionId','name'] } },
-      { name: 'batch_add_customers', description: '批量添加多条客户记录', input_schema: { type: 'object', properties: { sectionId: enumStr(['beijing','east','south','other','overseas']), customers: { type:'array', items: { type:'object', properties: { name:{ type:'string' }, industry:{ type:'string' }, rating:{ type:'string' }, status:{ type:'string' }, contact:{ type:'string' }, phone:{ type:'string' }, amount:{ type:'string' }, estimate:{ type:'string' } }, required:['name'] } } }, required: ['sectionId','customers'] } },
-      { name: 'update_customer', description: '修改指定客户的信息', input_schema: { type: 'object', properties: { sectionId: enumStr(['beijing','east','south','other','overseas']), rowIndex: { type:'number' } }, required: ['sectionId','rowIndex'] } },
-      { name: 'delete_customer', description: '删除指定客户', input_schema: { type: 'object', properties: { sectionId: enumStr(['beijing','east','south','other','overseas']), rowIndex: { type:'number' } }, required: ['sectionId','rowIndex'] } },
+      { name: 'batch_add_customers', description: '批量添加多条客户记录（敏感操作，需先询问用户确认）', input_schema: { type: 'object', properties: { sectionId: enumStr(['beijing','east','south','other','overseas']), confirmed: { type:'boolean', description:'用户已确认执行' }, customers: { type:'array', items: { type:'object', properties: { name:{ type:'string' }, industry:{ type:'string' }, rating:{ type:'string' }, status:{ type:'string' }, contact:{ type:'string' }, phone:{ type:'string' }, amount:{ type:'string' }, estimate:{ type:'string' } }, required:['name'] } } }, required: ['sectionId','customers'] } },
+      { name: 'update_customer', description: '修改指定客户的信息（敏感操作，需先询问用户确认）', input_schema: { type: 'object', properties: { sectionId: enumStr(['beijing','east','south','other','overseas']), rowIndex: { type:'number' }, confirmed: { type:'boolean', description:'用户已确认修改' } }, required: ['sectionId','rowIndex'] } },
+      { name: 'delete_customer', description: '删除指定客户（敏感操作，需先询问用户确认）', input_schema: { type: 'object', properties: { sectionId: enumStr(['beijing','east','south','other','overseas']), rowIndex: { type:'number' }, confirmed: { type:'boolean', description:'用户已确认删除' } }, required: ['sectionId','rowIndex'] } },
       { name: 'search_customers', description: '搜索客户', input_schema: { type: 'object', properties: { keyword: { type:'string' } }, required: ['keyword'] } },
       { name: 'get_stats', description: '获取统计数据', input_schema: { type: 'object', properties: {}, required: [] } },
       { name: 'list_users', description: '查看用户列表', input_schema: { type: 'object', properties: {}, required: [] } }
@@ -358,7 +371,9 @@ class AgentBridge {
 
 字段：name（必填）、industry、rating[A/ B/ C]、status[意向中/洽谈中/已签约/合作中/已暂停/已结束]、coopPoint、contact、phone、startDate、amount[100万以下/100-500万/500-1000万/1000-5000万/5000万以上]、estimate、activeDate、background、remark、location、country
 
-工作流程：1.分析内容→2.确定区域→3.调用工具填入→4.汇总报告结果`
+工作流程：1.分析内容→2.确定区域→3.调用工具填入→4.汇总报告结果
+
+⚠️ 重要规则：修改、删除、批量添加数据的操作必须先询问用户确认。调用这些工具时需将 confirmed 设为 false，等用户确认后再重新调用。`
     };
     return [system, ...messages];
   }
