@@ -226,6 +226,13 @@ class AgentBridge {
         headers = { 'Content-Type': 'application/json' };
         body = JSON.stringify({ model: model || 'qwen2.5', messages: this._buildMessages(messages), tools: toolDefs });
         break;
+      case 'opencode':
+        // OpenAI 兼容格式，使用配置的 URL
+        url = apiUrl || 'https://opencode.ai/zen/v1';
+        headers = { 'Content-Type': 'application/json' };
+        if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+        body = JSON.stringify({ model: model || 'Big Pickle', messages: this._buildMessages(messages), tools: toolDefs, tool_choice: 'auto' });
+        break;
       case 'custom':
         url = apiUrl;
         headers = { 'Content-Type': 'application/json' };

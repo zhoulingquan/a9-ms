@@ -3067,13 +3067,17 @@ function onProviderChange() {
   // Ollama 不需要 API Key
   document.getElementById('cfgApiKey').disabled = v === 'ollama';
   document.getElementById('cfgApiKey').placeholder = v === 'ollama' ? '本地模型不需要 API Key' : 'sk-...';
-  // 自定义 API 显示额外字段
-  document.getElementById('cfgUrlRow').style.display = v === 'custom' ? '' : 'none';
+  // 显示/隐藏 URL 和模板字段
+  const showUrl = v === 'custom' || v === 'opencode';
+  document.getElementById('cfgUrlRow').style.display = showUrl ? '' : 'none';
   document.getElementById('cfgTemplateRow').style.display = v === 'custom' ? '' : 'none';
-  // 预设模型名
+  // 预设值
+  const apiUrlInput = document.getElementById('cfgApiUrl');
+  if (v === 'opencode') apiUrlInput.value = 'https://opencode.ai/zen/v1';
+  else if (v !== 'custom') apiUrlInput.value = '';
   const modelInput = document.getElementById('cfgModel');
   if (!modelInput.value || modelInput.dataset.auto) {
-    const models = { deepseek: 'deepseek-chat', ollama: 'qwen2.5', custom: '' };
+    const models = { deepseek: 'deepseek-chat', opencode: 'Big Pickle', ollama: 'qwen2.5', custom: '' };
     modelInput.value = models[v] || '';
     modelInput.dataset.auto = '1';
   }
@@ -3220,7 +3224,7 @@ async function agentUploadFile(event) {
 }
 </script>
 <!-- ===== AI Agent 配置弹窗 ===== -->
-<div class="modal-overlay" id="agentConfigOverlay" onclick="if(event.target===this)closeModalById('agentConfigOverlay')">
+<div class="modal-overlay" id="agentConfigOverlay" onclick="if(event.target===this)closeModalById('agentConfigOverlay')" style="z-index:10001">
   <div class="modal-box" style="max-width:500px;">
     <div class="modal-header">
       <h2>⚙️ AI Agent 配置</h2>
@@ -3232,6 +3236,7 @@ async function agentUploadFile(event) {
           <label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:4px;">AI 提供商</label>
           <select id="cfgProvider" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:inherit;" onchange="onProviderChange()">
             <option value="deepseek">DeepSeek</option>
+            <option value="opencode">OpenCode Zen</option>
             <option value="ollama">Ollama（本地）</option>
             <option value="custom">自定义 API</option>
           </select>
