@@ -1,4 +1,3 @@
-import { getAssetFromKV } from '@cloudflare/kv-asset-handler';
 
 // ============================================================
 //  A9 Marketing System — Cloudflare Workers
@@ -380,23 +379,6 @@ async function handleDeleteUser(request, env, auth, userId) {
 
 // ---------- 静态文件服务 ----------
 
-async function serveStatic(request, env, ctx) {
-  try {
-    const response = await getAssetFromKV({ request, waitUntil: ctx.waitUntil }, {
-      ASSET_NAMESPACE: env.__STATIC__,
-      ASSET_MANIFEST: typeof __STATIC_CONTENT_MANIFEST !== 'undefined' ? JSON.parse(__STATIC_CONTENT_MANIFEST) : undefined,
-      defaultDocument: 'index.html'
-    });
-    const mod = new Response(response.body, response);
-    mod.headers.set('Cache-Control', 'public, max-age=86400');
-    mod.headers.set('X-Robots-Tag', 'noindex');
-    return mod;
-  } catch (e) {
-    if (e.status === 404) return new Response('Not Found', { status: 404 });
-    return new Response('Internal Error', { status: 500 });
-  }
-}
-
 // ============================================================
 //  路由分发
 // ============================================================
@@ -414,7 +396,6 @@ async function routeApi(request, env, auth) {
 
   // 以下需要登录
   if (!auth) {
-    // /api/auth/me 已提前处理，不会走到这里；其他路径未登录则返回 401
     if (pathname.startsWith('/api/')) {
       return jsonResponse({ error: '未登录', code: 'AUTH_REQUIRED' }, 401);
     }
@@ -476,11 +457,19 @@ export default {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
+    // API 路由交给 Worker 处理
     if (pathname.startsWith('/api/')) {
       const auth = await authenticate(request, env);
       return routeApi(request, env, auth);
     }
 
-    return serveStatic(request, env, ctx);
+    // 静态文件由 assets 自动处理，不会走到这里
+    // 如果走到这里（404 等），尝试返回 SPA 入口
+    try {
+      const index = await env.ASSETS.fetch(new Request(new URL('/index.html', request.url), request));
+      return index;
+    } catch (e) {
+      return new Response('Not Found', { status: 404 });
+    }
   }
 };
