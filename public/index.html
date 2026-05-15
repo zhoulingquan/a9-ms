@@ -1058,6 +1058,11 @@ async function doLogout() {
   document.getElementById('tableContainer').innerHTML = '';
   document.getElementById('tabNav').innerHTML = '';
   document.querySelector('.stats-container').classList.remove('active');
+  // 关闭 Agent 面板
+  const agentPanel = document.getElementById('agentPanel');
+  if (agentPanel) agentPanel.classList.remove('active');
+  const agentFab = document.getElementById('agentFab');
+  if (agentFab) { agentFab.style.display = 'none'; agentFab.classList.remove('active'); }
   showLogin();
 }
 
@@ -1065,13 +1070,16 @@ function updateHeaderUser() {
   const infoEl = document.getElementById('userInfo');
   const displayEl = document.getElementById('userDisplay');
   const adminBtn = document.getElementById('userMgmtBtn');
+  const agentFab = document.getElementById('agentFab');
   if (!infoEl || !displayEl) return;
   if (currentUser) {
     infoEl.style.display = 'flex';
     displayEl.textContent = '👤 ' + (currentUser.displayName || currentUser.username);
     adminBtn.style.display = currentUser.isAdmin ? 'inline-block' : 'none';
+    if (agentFab) agentFab.style.display = 'flex';
   } else {
     infoEl.style.display = 'none';
+    if (agentFab) agentFab.style.display = 'none';
   }
 }
 
@@ -3255,7 +3263,7 @@ async function agentUploadFile(event) {
 </div>
 
 <!-- ===== AI Agent 浮动聊天 ===== -->
-<button class="agent-fab" id="agentFab" onclick="toggleAgent()">🤖</button>
+<button class="agent-fab" id="agentFab" onclick="toggleAgent()" style="display:none">🤖</button>
 <div class="agent-panel" id="agentPanel">
   <div class="panel-header">
     <h3>🤖 AI 填表助手 <span class="status-dot" id="agentDot"></span></h3>
