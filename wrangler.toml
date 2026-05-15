@@ -1,0 +1,28 @@
+name = "a9-ms"
+main = "worker.js"
+compatibility_date = "2024-12-01"
+
+# 静态文件托管
+site = { bucket = "./public" }
+
+# 业务数据 KV
+[[kv_namespaces]]
+binding = "A9_MS_KV"
+id = "REPLACE_WITH_KV_ID"
+preview_id = "REPLACE_WITH_PREVIEW_KV_ID"
+
+# 用户账号 KV
+[[kv_namespaces]]
+binding = "A9_MS_USERS"
+id = "REPLACE_WITH_USERS_KV_ID"
+preview_id = "REPLACE_WITH_USERS_PREVIEW_KV_ID"
+
+# 会话 KV
+[[kv_namespaces]]
+binding = "A9_MS_SESSIONS"
+id = "REPLACE_WITH_SESSIONS_KV_ID"
+preview_id = "REPLACE_WITH_SESSIONS_PREVIEW_KV_ID"
+
+# 定时唤醒，减少冷启动
+[triggers]
+crons = ["*/5 * * * *"]

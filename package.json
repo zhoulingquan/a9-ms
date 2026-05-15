@@ -7,7 +7,7 @@
     "start": "node server.js",
     "stop": "taskkill /f /im node.exe 2>nul || true",
     "dev": "wrangler dev",
-    "deploy": "wrangler publish"
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "@cloudflare/kv-asset-handler": "^0.5.0",
