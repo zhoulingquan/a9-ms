@@ -2819,12 +2819,35 @@ function renderRegionChart(stats) {
 // ============================================================
 //  统计看板：刷新
 // ============================================================
-function refreshStats() {
+async function refreshStats() {
+  // 从服务器拉取最新数据（多用户协作同步）
+  try {
+    const res = await fetch('/api/data');
+    if (res.ok) {
+      const serverData = await res.json();
+      CONFIG.forEach((sec, idx) => {
+        const entry = serverData[sec.id];
+        if (entry && Array.isArray(entry.rows)) {
+          data[idx] = entry.rows;
+        }
+      });
+      selectedRows = {};
+      dataOriginalOrder = {};
+      sortState = {};
+      // 重新渲染数据表格
+      CONFIG.forEach((_, idx) => rerenderSection(idx));
+    }
+  } catch (e) {
+    console.warn('刷新数据失败:', e.message);
+  }
+
+  // 刷新统计看板
   const stats = computeStats();
   renderStatsCards(stats);
   renderRegionTable(stats);
   renderMap(stats);
   renderRegionChart(stats);
+  updateSaveStatus('已刷新', 'saved');
 }
 
 // ============================================================
