@@ -9,9 +9,6 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const multer = require('multer');
-const ExcelJS = require('exceljs');
-const AgentBridge = require('./agent-bridge');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -96,27 +93,7 @@ if (userCount.count === 0) {
   console.log('Default admin account created: admin / admin123');
 }
 
-// 创建 Agent 记忆表
-db.exec(`
-  CREATE TABLE IF NOT EXISTS agent_conversations (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL DEFAULT '',
-    tags TEXT NOT NULL DEFAULT '[]',
-    username TEXT NOT NULL DEFAULT '',
-    messages TEXT NOT NULL DEFAULT '[]',
-    created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
-  )
-`);
-db.exec(`
-  CREATE TABLE IF NOT EXISTS agent_memories (
-    id TEXT PRIMARY KEY,
-    content TEXT NOT NULL,
-    tags TEXT NOT NULL DEFAULT '[]',
-    username TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
-  )
-`);
+
 
 // ---------- 自定义 SQLite 会话存储 ----------
 class SQLiteSessionStore extends session.Store {
@@ -206,10 +183,7 @@ function requireAdmin(req, res, next) {
 
 app.use(attachUser);
 
-// ---------- AI Agent 初始化 ----------
-let agentBridge = null;
-const agentUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
-const agentConfigPath = path.join(dbDir, 'agent-config.json');
+
 
 // ---------- 辅助函数 ----------
 
@@ -633,188 +607,7 @@ app.put('/api/pages', (req, res) => {
   }
 });
 
-// ============================================================
-//  AI Agent 智能助手（嵌入页面浮动图标）
-//  需要设置 AI_PROVIDER、OPENAI_API_KEY 等环境变量
-// ============================================================
 
-/**
- * GET /api/agent/status — Agent 连接状态
- */
-app.get('/api/agent/status', (req, res) => {
-  if (!agentBridge) return res.json({ connected: false });
-  const cfg = agentBridge.getConfig();
-  res.json({
-    connected: true,
-    configured: !!(cfg.provider && cfg.apiKey),
-    aiProvider: cfg.provider || '未配置',
-    aiModel: cfg.model || ''
-  });
-});
-
-/**
- * GET /api/agent/config — 获取 Agent 配置（API Key 脱敏）
- */
-app.get('/api/agent/config', (req, res) => {
-  if (!agentBridge) return res.status(503).json({ error: 'Agent 未初始化' });
-  const cfg = agentBridge.getConfig();
-  // API Key 脱敏
-  const maskedKey = cfg.apiKey ? cfg.apiKey.slice(0, 4) + '****' + cfg.apiKey.slice(-4) : '';
-  res.json({
-    provider: cfg.provider,
-    apiKey: maskedKey,
-    model: cfg.model,
-    apiUrl: cfg.apiUrl,
-    hasKey: !!cfg.apiKey,
-    requestTemplate: cfg.requestTemplate
-  });
-});
-
-/**
- * PUT /api/agent/config — 更新 Agent 配置
- */
-app.put('/api/agent/config', (req, res) => {
-  if (!agentBridge) return res.status(503).json({ error: 'Agent 未初始化' });
-  try {
-    const { provider, apiKey, model, apiUrl, requestTemplate } = req.body;
-    const newConfig = {};
-    if (provider) newConfig.provider = provider;
-    if (apiKey !== undefined) newConfig.apiKey = apiKey;
-    if (model) newConfig.model = model;
-    if (apiUrl !== undefined) newConfig.apiUrl = apiUrl;
-    if (requestTemplate !== undefined) newConfig.requestTemplate = requestTemplate;
-
-    agentBridge.reconfigure(newConfig);
-    // 持久化保存
-    fs.writeFileSync(agentConfigPath, JSON.stringify(agentBridge.getConfig(), null, 2));
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-/**
- * POST /api/agent/reset — 重置对话
- */
-app.post('/api/agent/reset', (req, res) => {
-  if (agentBridge) agentBridge.reset();
-  res.json({ success: true });
-});
-
-/**
- * POST /api/agent/chat — 发送消息给 AI Agent
- */
-app.post('/api/agent/chat', (req, res) => {
-  if (!agentBridge) return res.status(503).json({ error: 'Agent 未初始化' });
-  const { message, convId } = req.body;
-  if (!message || !message.trim()) return res.status(400).json({ error: '消息不能为空' });
-  agentBridge.setUser(req.currentUser.username);
-  if (convId) agentBridge.loadConversation(convId);
-  agentBridge.process(message.trim()).then(reply => {
-    res.json({ reply, convId: agentBridge.convId });
-  }).catch(e => {
-    res.status(500).json({ error: e.message });
-  });
-});
-
-/**
- * GET /api/agent/conversations — 获取对话列表
- */
-app.get('/api/agent/conversations', (req, res) => {
-  try {
-    const list = db.prepare(
-      "SELECT id, title, tags, username, created_at, updated_at FROM agent_conversations WHERE username = ? ORDER BY updated_at DESC LIMIT 50"
-    ).all(req.currentUser.username);
-    res.json(list.map(c => ({ id: c.id, title: c.title, tags: JSON.parse(c.tags || '[]'), createdAt: c.created_at, updatedAt: c.updated_at })));
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-/**
- * GET /api/agent/conversations/:id — 获取单条对话
- */
-app.get('/api/agent/conversations/:id', (req, res) => {
-  try {
-    const row = db.prepare('SELECT * FROM agent_conversations WHERE id = ? AND username = ?').get(req.params.id, req.currentUser.username);
-    if (!row) return res.status(404).json({ error: '对话不存在' });
-    res.json({ id: row.id, title: row.title, tags: JSON.parse(row.tags || '[]'), messages: JSON.parse(row.messages || '[]'), createdAt: row.created_at });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-/**
- * PUT /api/agent/conversations/:id/tags — 更新对话标签
- */
-app.put('/api/agent/conversations/:id/tags', (req, res) => {
-  try {
-    const { tags } = req.body;
-    db.prepare('UPDATE agent_conversations SET tags = ? WHERE id = ? AND username = ?').run(JSON.stringify(tags || []), req.params.id, req.currentUser.username);
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-/**
- * POST /api/agent/memories — 添加记忆
- */
-app.post('/api/agent/memories', (req, res) => {
-  if (!agentBridge) return res.status(503).json({ error: 'Agent 未初始化' });
-  const { content, tags } = req.body;
-  if (!content) return res.status(400).json({ error: '内容不能为空' });
-  agentBridge.setUser(req.currentUser.username);
-  agentBridge.addMemory(content, tags || []);
-  res.json({ success: true });
-});
-
-/**
- * GET /api/agent/memories — 搜索记忆
- */
-app.get('/api/agent/memories', (req, res) => {
-  if (!agentBridge) return res.status(503).json({ error: 'Agent 未初始化' });
-  const keyword = req.query.q || '';
-  const results = agentBridge.searchMemories(keyword);
-  res.json(results);
-});
-
-/**
- * POST /api/agent/upload — 上传 Excel/Markdown 文件
- */
-app.post('/api/agent/upload', agentUpload.single('file'), async (req, res) => {
-  if (!agentBridge) return res.status(503).json({ error: 'Agent 未初始化' });
-  if (!req.file) return res.status(400).json({ error: '请上传文件' });
-
-  const ext = path.extname(req.file.originalname).toLowerCase();
-  let parsed = [];
-
-  try {
-    if (ext === '.xlsx') {
-      const wb = new ExcelJS.Workbook();
-      await wb.xlsx.load(req.file.buffer);
-      const ws = wb.worksheets[0];
-      const rows = [];
-      ws.eachRow({ includeEmpty: false }, (row) => {
-        const cells = [];
-        row.eachCell({ includeEmpty: true }, (cell) => {
-          cells.push((cell.value === null || cell.value === undefined) ? '' : String(cell.value).trim());
-        });
-        if (cells.some(c => c)) rows.push(cells);
-      });
-      parsed = rows;
-    } else if (ext === '.md') {
-      const text = req.file.buffer.toString('utf-8');
-      parsed = text.split('\n').filter(l => l.trim() && !l.startsWith('#') && !l.startsWith('>') && !l.startsWith('---')).map(l => [l.trim()]);
-    } else {
-      return res.status(400).json({ error: '仅支持 .xlsx 和 .md 文件' });
-    }
-  } catch (e) {
-    return res.status(400).json({ error: `文件解析失败: ${e.message}` });
-  }
-
-  const fileInfo = `文件名：${req.file.originalname}\n解析出 ${parsed.length} 行数据：\n\`\`\`json\n${JSON.stringify(parsed, null, 2)}\n\`\`\`\n请将这些数据整理并填入系统的对应区域。`;
-  try {
-    const reply = await agentBridge.process(fileInfo);
-    res.json({ reply, rows: parsed.length });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
 
 // ---------- 前台页面（SPA 回退） ----------
 app.get('*', (req, res) => {
@@ -850,28 +643,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`║  URL: http://localhost:${addr.port}                ║`);
   console.log(`║  API: http://localhost:${addr.port}/api            ║`);
   console.log('║  Status: ✅ Running                        ║');
-  console.log('║  Agent: ✅ 已加载                          ║');
   console.log('╚══════════════════════════════════════════╝');
-
-  // 初始化 AI Agent
-  try {
-    agentBridge = new AgentBridge(db, logChange);
-    // 从持久化配置文件中加载覆盖
-    try {
-      if (fs.existsSync(agentConfigPath)) {
-        const saved = JSON.parse(fs.readFileSync(agentConfigPath, 'utf-8'));
-        agentBridge.reconfigure(saved);
-      }
-    } catch (e) { /* ignore config load errors */ }
-    const c = agentBridge.getConfig();
-    if (c.provider && c.apiKey) {
-      console.log(`  AI Agent: ${c.provider} / ${c.model}`);
-    } else {
-      console.log('  AI Agent: 未配置（点击页面右下角 🤖 → ⚙️ 设置 API）');
-    }
-  } catch (e) {
-    console.error('  AI Agent 初始化失败:', e.message);
-  }
   console.log('');
   console.log('Press Ctrl+C to stop the server.');
 });
