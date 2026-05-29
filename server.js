@@ -1,6 +1,6 @@
 // ============================================================
 //  A9 Marketing System 服务端
-//  Express + SQLite 后端
+//  Express + SQLite 后端 + A9Bot AI 引擎
 // ============================================================
 const express = require('express');
 const session = require('express-session');
@@ -9,6 +9,62 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const httpProxy = require('http-proxy');
+const { spawn } = require('child_process');
+
+const A9BOT_DIR = path.resolve(__dirname, '..', '..', 'A9_Bot');
+const A9BOT_WEB_DIST = path.join(A9BOT_DIR, 'a9bot', 'web', 'dist');
+const A9BOT_WS_PORT = 8765;  // A9Bot WebSocket/WebUI 服务端口
+const A9BOT_GATEWAY_PORT = 18790;  // 健康检查端口
+const A9BOT_SERVICE_TOKEN = process.env.A9BOT_SERVICE_TOKEN || crypto.randomBytes(32).toString('hex');
+process.env.A9BOT_SERVICE_TOKEN = A9BOT_SERVICE_TOKEN;
+
+// ---------- A9Bot Gateway 子进程 ----------
+/** A9Bot AI 引擎网关进程的引用 */
+let a9botGateway = null;
+
+function startA9BotGateway() {
+  const a9botCfg = path.join(__dirname, 'data', 'a9bot-config.json');
+  a9botGateway = spawn('python', ['-m', 'a9bot', 'gateway', '--port', String(A9BOT_GATEWAY_PORT), '--config', a9botCfg], {
+    cwd: A9BOT_DIR,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env },
+  });
+  a9botGateway.stdout.on('data', (d) => process.stdout.write(`[A9Bot] ${d}`));
+  a9botGateway.stderr.on('data', (d) => process.stderr.write(`[A9Bot] ${d}`));
+  a9botGateway.on('exit', (code) => {
+    console.log(`A9Bot gateway exited (code ${code})`);
+    a9botGateway = null;
+  });
+  console.log(`A9Bot gateway started (PID ${a9botGateway.pid})`);
+}
+
+function stopA9BotGateway() {
+  if (a9botGateway) {
+    a9botGateway.kill('SIGTERM');
+    setTimeout(() => { if (a9botGateway) a9botGateway.kill('SIGKILL'); }, 5000);
+  }
+}
+
+// ---------- HTTP / WebSocket 代理 ----------
+const proxy = httpProxy.createProxyServer({
+  target: `http://127.0.0.1:${A9BOT_WS_PORT}`,
+  ws: true,
+});
+
+proxy.on('error', (err) => {
+  if (err.code !== 'ECONNRESET') console.error('[A9Bot Proxy]', err.message);
+});
+
+function proxyA9BotHttp(req, res) {
+  const mountedUrl = req.url;
+  req.url = req.originalUrl || req.url;
+  proxy.web(req, res, {}, (err) => {
+    req.url = mountedUrl;
+    console.error('[A9Bot Proxy Error]', err.message);
+    res.status(502).json({ error: 'A9Bot gateway unavailable' });
+  });
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -181,8 +237,107 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+function bearerToken(req) {
+  const raw = req.get('authorization') || '';
+  if (!raw.toLowerCase().startsWith('bearer ')) return '';
+  return raw.slice(7).trim();
+}
+
+function safeTokenEqual(a, b) {
+  if (!a || !b) return false;
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
+function requireA9BotReadAccess(req, res, next) {
+  if (req.currentUser) return next();
+  const token = bearerToken(req);
+  if (safeTokenEqual(token, A9BOT_SERVICE_TOKEN)) {
+    req.currentUser = {
+      id: 0,
+      username: 'a9bot-service',
+      displayName: 'A9Bot Service',
+      isAdmin: true
+    };
+    return next();
+  }
+  return res.status(401).json({ error: '未登录', code: 'AUTH_REQUIRED' });
+}
+
 app.use(attachUser);
 
+// ---------- A9Bot WebUI / API / WebSocket 代理 ----------
+if (fs.existsSync(A9BOT_WEB_DIST)) {
+  app.use('/chat', requireAuth, express.static(A9BOT_WEB_DIST));
+  app.use('/assets', requireAuth, express.static(path.join(A9BOT_WEB_DIST, 'assets')));
+  app.use('/brand', requireAuth, express.static(path.join(A9BOT_WEB_DIST, 'brand')));
+  // SPA fallback: /chat/* 路由都返回 index.html
+  app.get('/chat/*', requireAuth, (req, res) => {
+    res.sendFile(path.join(A9BOT_WEB_DIST, 'index.html'));
+  });
+  console.log(`A9Bot WebUI mounted at /chat/`);
+} else {
+  console.warn(`A9Bot WebUI dist not found at ${A9BOT_WEB_DIST}`);
+}
+
+app.get('/api/a9bot/status', requireAuth, (req, res) => {
+  res.json({
+    webuiMounted: fs.existsSync(A9BOT_WEB_DIST),
+    gatewayRunning: !!a9botGateway,
+    gatewayPort: A9BOT_GATEWAY_PORT,
+    websocketPort: A9BOT_WS_PORT
+  });
+});
+
+app.get('/api/a9bot/ledger/sections', requireA9BotReadAccess, (req, res) => {
+  try {
+    res.json({ sections: readLedgerSections() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/a9bot/ledger/sections/:sectionId', requireA9BotReadAccess, (req, res) => {
+  try {
+    const section = readLedgerSection(req.params.sectionId);
+    if (!section) return res.status(404).json({ error: '分区不存在' });
+    res.json(section);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/a9bot/ledger/search', requireA9BotReadAccess, (req, res) => {
+  try {
+    res.json(searchLedger(req.query.q || '', req.query.limit));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/a9bot/ledger/analyze', requireA9BotReadAccess, (req, res) => {
+  try {
+    res.json(analyzeLedger());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.use('/webui', requireAuth, proxyA9BotHttp);
+
+const A9BOT_API_PREFIXES = [
+  '/api/sessions',
+  '/api/settings',
+  '/api/commands',
+  '/api/webui',
+  '/api/skills',
+  '/api/media',
+];
+
+A9BOT_API_PREFIXES.forEach((prefix) => {
+  app.use(prefix, requireAuth, proxyA9BotHttp);
+});
 
 
 // ---------- 辅助函数 ----------
@@ -197,6 +352,135 @@ function logChange(sectionId, action, detail = '', username = '') {
     db.prepare('INSERT INTO change_log (section_id, action, detail, username) VALUES (?, ?, ?, ?)')
       .run(sectionId, action, detail, username);
   } catch (e) { /* ignore log errors */ }
+}
+
+function rowHasContent(row) {
+  if (!row || typeof row !== 'object') return false;
+  return Object.values(row).some(v => (v || '').toString().trim() !== '');
+}
+
+function readLedgerSections() {
+  const rows = db.prepare('SELECT id, label, data_json, updated_at FROM sections ORDER BY id').all();
+  return rows.map(row => {
+    const ledgerRows = safeJsonParse(row.data_json);
+    const normalizedRows = Array.isArray(ledgerRows) ? ledgerRows : [];
+    return {
+      id: row.id,
+      label: row.label || row.id,
+      row_count: normalizedRows.length,
+      filled_row_count: normalizedRows.filter(rowHasContent).length,
+      updated_at: row.updated_at
+    };
+  });
+}
+
+function readLedgerSection(sectionId) {
+  const row = db.prepare('SELECT id, label, data_json, updated_at FROM sections WHERE id = ?').get(sectionId);
+  if (!row) return null;
+  const ledgerRows = safeJsonParse(row.data_json);
+  const normalizedRows = Array.isArray(ledgerRows) ? ledgerRows : [];
+  return {
+    section: {
+      id: row.id,
+      label: row.label || row.id,
+      row_count: normalizedRows.length,
+      filled_row_count: normalizedRows.filter(rowHasContent).length,
+      updated_at: row.updated_at
+    },
+    rows: normalizedRows
+  };
+}
+
+function rowSearchText(section, row) {
+  const rowText = Object.values(row || {}).map(v => (v || '').toString()).join(' ');
+  return `${section.id} ${section.label || ''} ${rowText}`.toLowerCase();
+}
+
+function searchLedger(query, rawLimit) {
+  const q = (query || '').toString().trim().toLowerCase();
+  const limit = Math.max(1, Math.min(parseInt(rawLimit) || 20, 100));
+  if (!q) return { query: '', matches: [] };
+
+  const matches = [];
+  const sections = db.prepare('SELECT id, label, data_json, updated_at FROM sections ORDER BY id').all();
+  for (const section of sections) {
+    const rows = safeJsonParse(section.data_json);
+    const normalizedRows = Array.isArray(rows) ? rows : [];
+    for (let i = 0; i < normalizedRows.length; i++) {
+      const row = normalizedRows[i];
+      if (!rowHasContent(row)) continue;
+      if (!rowSearchText(section, row).includes(q)) continue;
+      matches.push({
+        section_id: section.id,
+        section_label: section.label || section.id,
+        row_index: i,
+        row
+      });
+      if (matches.length >= limit) {
+        return { query, limit, matches };
+      }
+    }
+  }
+  return { query, limit, matches };
+}
+
+function bumpCounter(target, key) {
+  const normalized = (key || '').toString().trim() || '未填写';
+  target[normalized] = (target[normalized] || 0) + 1;
+}
+
+function analyzeLedger() {
+  const result = {
+    generated_at: new Date().toISOString(),
+    totals: {
+      sections: 0,
+      rows: 0,
+      filled_rows: 0,
+      missing_name_rows: 0
+    },
+    by_section: {},
+    by_status: {},
+    by_rating: {},
+    by_amount: {}
+  };
+
+  const sections = db.prepare('SELECT id, label, data_json, updated_at FROM sections ORDER BY id').all();
+  result.totals.sections = sections.length;
+
+  for (const section of sections) {
+    const rows = safeJsonParse(section.data_json);
+    const normalizedRows = Array.isArray(rows) ? rows : [];
+    const sectionStats = {
+      label: section.label || section.id,
+      rows: normalizedRows.length,
+      filled_rows: 0,
+      by_status: {},
+      by_rating: {},
+      by_amount: {},
+      updated_at: section.updated_at
+    };
+
+    result.totals.rows += normalizedRows.length;
+
+    for (const row of normalizedRows) {
+      if (!rowHasContent(row)) continue;
+      result.totals.filled_rows += 1;
+      sectionStats.filled_rows += 1;
+      if (!(row.name || '').toString().trim()) {
+        result.totals.missing_name_rows += 1;
+      }
+      bumpCounter(sectionStats.by_status, row.status);
+      bumpCounter(sectionStats.by_rating, row.rating);
+      bumpCounter(sectionStats.by_amount, row.amount);
+      bumpCounter(result.by_status, row.status);
+      bumpCounter(result.by_rating, row.rating);
+      bumpCounter(result.by_amount, row.amount);
+    }
+
+    result.by_section[section.id] = sectionStats;
+  }
+
+  return result;
 }
 
 // ---------- 公开 API（无需登录） ----------
@@ -620,6 +904,7 @@ app.get('*', (req, res) => {
 // ---------- 优雅退出 ----------
 function shutdown(signal) {
   console.log(`\n收到 ${signal} 信号，正在关闭服务器...`);
+  stopA9BotGateway();
   server.close(() => {
     try {
       db.close();
@@ -638,12 +923,35 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   const addr = server.address();
   console.log('');
   console.log('╔══════════════════════════════════════════╗');
-  console.log('║           A9 Marketing System            ║');
+  console.log('║       A9 Marketing System v2.0           ║');
   console.log('╠══════════════════════════════════════════╣');
   console.log(`║  URL: http://localhost:${addr.port}                ║`);
   console.log(`║  API: http://localhost:${addr.port}/api            ║`);
+  console.log(`║  AI:  http://localhost:${addr.port}/chat            ║`);
   console.log('║  Status: ✅ Running                        ║');
   console.log('╚══════════════════════════════════════════╝');
   console.log('');
   console.log('Press Ctrl+C to stop the server.');
 });
+
+// ---------- WebSocket 代理升级 ----------
+server.on('upgrade', (req, socket, head) => {
+  socket.on('error', (err) => {
+    if (err.code !== 'ECONNRESET') console.error('[A9Bot WS Socket]', err.message);
+  });
+  if (req.url.startsWith('/ws') || req.url.startsWith('/webui')) {
+    proxy.ws(req, socket, head, {}, (err) => {
+      if (err && err.code !== 'ECONNRESET') console.error('[A9Bot WS Proxy]', err.message);
+      socket.destroy();
+    });
+  } else {
+    socket.destroy();
+  }
+});
+
+// ---------- 启动 A9Bot AI 引擎 ----------
+if (fs.existsSync(path.join(A9BOT_DIR, 'pyproject.toml'))) {
+  startA9BotGateway();
+} else {
+  console.warn('A9Bot project not found — AI gateway disabled');
+}
