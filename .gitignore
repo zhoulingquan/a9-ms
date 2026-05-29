@@ -1,5 +1,8 @@
 node_modules/
 data/
+a9_bot/**/__pycache__/
+a9_bot/**/*.pyc
+a9_bot/.pytest_cache/
 .claude/
 .wrangler/
 *.log

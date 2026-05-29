@@ -12,7 +12,7 @@ const crypto = require('crypto');
 const httpProxy = require('http-proxy');
 const { spawn } = require('child_process');
 
-const A9BOT_DIR = path.resolve(__dirname, '..', '..', 'A9_Bot');
+const A9BOT_DIR = path.join(__dirname, 'a9_bot');
 const A9BOT_WEB_DIST = path.join(A9BOT_DIR, 'a9bot', 'web', 'dist');
 const A9BOT_WS_PORT = 8765;  // A9Bot WebSocket/WebUI 服务端口
 const A9BOT_GATEWAY_PORT = 18790;  // 健康检查端口
