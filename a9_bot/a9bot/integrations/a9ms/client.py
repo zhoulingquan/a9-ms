@@ -1,4 +1,4 @@
-"""Small HTTP client for A9MS business APIs."""
+"""HTTP client for A9MS v3.0 — Grist-backed APIs."""
 
 from __future__ import annotations
 
@@ -11,7 +11,10 @@ import httpx
 
 @dataclass(slots=True)
 class A9MSClient:
-    """Typed wrapper around the A9MS HTTP API used by A9Bot tools."""
+    """Typed wrapper around the A9MS HTTP API used by A9Bot tools.
+
+    v3.0: Reads from Grist-backed endpoints (/api/stats, /api/customers, /api/regions).
+    """
 
     base_url: str
     session_cookie: str = ""
@@ -47,26 +50,33 @@ class A9MSClient:
         response.raise_for_status()
         return response.json()
 
-    async def get_sections(self) -> Any:
-        return await self.get_json("/api/a9bot/ledger/sections")
+    # ---------- v3.0 Grist-backed API ----------
 
-    async def get_section_data(self, section_id: str) -> Any:
-        encoded = quote(str(section_id).strip(), safe="")
-        return await self.get_json(f"/api/a9bot/ledger/sections/{encoded}")
+    async def get_stats(self) -> Any:
+        """获取聚合统计数据（看板数据源）。"""
+        return await self.get_json("/api/stats")
 
-    async def search_ledger(self, query: str, limit: int = 20) -> Any:
-        encoded_query = quote(str(query).strip(), safe="")
-        safe_limit = max(1, min(int(limit or 20), 100))
-        return await self.get_json(f"/api/a9bot/ledger/search?q={encoded_query}&limit={safe_limit}")
+    async def get_customers(self, limit: int = 100, offset: int = 0, filter_str: str = "") -> Any:
+        """获取客户列表，支持分页和筛选。"""
+        params = f"limit={limit}&offset={offset}"
+        if filter_str:
+            params += f"&filter={quote(filter_str)}"
+        return await self.get_json(f"/api/customers?{params}")
 
-    async def analyze_ledger(self) -> Any:
-        return await self.get_json("/api/a9bot/ledger/analyze")
+    async def get_regions(self) -> Any:
+        """获取区域配置列表。"""
+        return await self.get_json("/api/regions")
 
-    async def put_json(self, path: str, payload: Any) -> Any:
-        client = await self._http()
-        response = await client.put(self.url(path), json=payload)
-        response.raise_for_status()
-        return response.json()
+    async def get_logs(self, limit: int = 50, username: str = "") -> Any:
+        """获取操作日志。"""
+        params = f"limit={limit}"
+        if username:
+            params += f"&username={quote(username)}"
+        return await self.get_json(f"/api/logs?{params}")
+
+    async def get_tables(self) -> Any:
+        """获取 Grist 表列表。"""
+        return await self.get_json("/api/tables")
 
     async def aclose(self) -> None:
         if self._client is not None:

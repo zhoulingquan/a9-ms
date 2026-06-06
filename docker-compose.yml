@@ -1,0 +1,54 @@
+# ============================================================
+#  A9 Marketing System — Docker Compose
+#  Grist (SQLite) + Express 网关
+# ============================================================
+
+services:
+  # ---------- Grist 多维表格引擎 ----------
+  grist:
+    image: gristlabs/grist-ee:latest
+    restart: unless-stopped
+    volumes:
+      - grist_data:/persist
+    ports:
+      - "${GRIST_PORT:-8484}:8484"
+    environment:
+      GRIST_SINGLE_ORG: "a9ms"
+      APP_HOME: /persist
+      GRIST_SANDBOX_FLAVOR: unsandboxed
+      GRIST_DEFAULT_EMAIL: ${GRIST_DEFAULT_EMAIL:-admin@a9.com}
+      GRIST_FORCE_ENABLE_ENTERPRISE: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8484/status || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ---------- A9 App (Express 网关) ----------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      grist:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      GRIST_URL: http://grist:8484
+      GRIST_EXTERNAL_URL: ${GRIST_EXTERNAL_URL:-http://localhost:8484}
+      GRIST_API_KEY: ${GRIST_API_KEY:-}
+      GRIST_DOC_ID: ${GRIST_DOC_ID:-}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      SESSION_DIR: /app/data/sessions
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      A9BOT_ENABLED: ${A9BOT_ENABLED:-false}
+      A9BOT_SERVICE_TOKEN: ${A9BOT_SERVICE_TOKEN:-}
+    volumes:
+      - app_data:/app/data
+
+volumes:
+  grist_data:
+  app_data:

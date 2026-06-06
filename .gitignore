@@ -4,9 +4,14 @@ a9_bot/**/__pycache__/
 a9_bot/**/*.pyc
 a9_bot/.pytest_cache/
 .claude/
-.wrangler/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .DS_Store
+
+# Docker
+.env
+
+# Grist
+grist_data/

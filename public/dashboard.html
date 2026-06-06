@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A9 Marketing System</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ========== Grist Light Theme (default) ========== */
+  :root, [data-theme="light"] {
+    --g-primary: #16b378;
+    --g-primary-dark: #009058;
+    --g-primary-dim: #007548;
+    --g-primary-light: rgba(22,179,120,0.15);
+    --g-primary-emphasis: #b1ffe2;
+    --g-body: #262633;
+    --g-medium-text: #494949;
+    --g-light-text: #929299;
+    --g-bg: #ffffff;
+    --g-bg-secondary: #f7f7f7;
+    --g-bg-tertiary: rgba(217,217,217,0.6);
+    --g-border: #d9d9d9;
+    --g-border-light: #e8e8e8;
+    --g-error: #d0021b;
+    --g-warning: #dd962c;
+    --g-info: #3b82f6;
+    --g-selection: rgba(22,179,120,0.15);
+    --g-overlay-bg: rgba(38,38,51,0.5);
+    --g-map-marker: #16b378;
+    --g-chart-axis: #494949;
+    --g-chart-split: #e8e8e8;
+    --g-badge-a: #d0021b;
+    --g-badge-b: #dd962c;
+    --g-badge-c: #3b82f6;
+    --g-badge-active: #16b378;
+    --g-badge-signed: #009058;
+    --g-badge-negotiating: #929299;
+    --g-badge-ended: #b0b0b0;
+    --g-login-shadow: 0 8px 32px rgba(38,38,51,0.24);
+    --g-popup-bg: #ffffff;
+    --g-popup-border: #e8e8e8;
+  }
+
+  /* ========== Grist Dark Theme ========== */
+  [data-theme="dark"] {
+    --g-primary: #17b378;
+    --g-primary-dark: #1da270;
+    --g-primary-dim: #157a54;
+    --g-primary-light: rgba(22,179,120,0.2);
+    --g-primary-emphasis: #13d78d;
+    --g-body: #efefef;
+    --g-medium-text: #d5d5d5;
+    --g-light-text: #a4a4b1;
+    --g-bg: #32323f;
+    --g-bg-secondary: #262633;
+    --g-bg-tertiary: rgba(111,111,125,0.6);
+    --g-border: #70707d;
+    --g-border-light: #60606d;
+    --g-error: #e63946;
+    --g-warning: #dd962c;
+    --g-info: #3b82f6;
+    --g-selection: rgba(22,179,120,0.2);
+    --g-overlay-bg: rgba(0,0,0,0.6);
+    --g-map-marker: #17b378;
+    --g-chart-axis: #d5d5d5;
+    --g-chart-split: #60606d;
+    --g-badge-a: #e63946;
+    --g-badge-b: #dd962c;
+    --g-badge-c: #3b82f6;
+    --g-badge-active: #17b378;
+    --g-badge-signed: #1da270;
+    --g-badge-negotiating: #a4a4b1;
+    --g-badge-ended: #70707d;
+    --g-login-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    --g-popup-bg: #32323f;
+    --g-popup-border: #60606d;
+  }
+
+  html { font-size: 14px; }
+  body {
+    font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Liberation Sans,Helvetica,Arial,sans-serif;
+    background: var(--g-bg-secondary); color: var(--g-body); line-height: 1.5;
+    transition: background .2s, color .2s;
+  }
+
+  /* ---- Header ---- */
+  .header {
+    background: var(--g-bg); border-bottom: 1px solid var(--g-border-light);
+    padding: 0 20px; display: flex; align-items: center; justify-content: space-between;
+    height: 48px; position: sticky; top: 0; z-index: 100;
+    transition: background .2s, border-color .2s;
+  }
+  .header h1 { font-size: 15px; font-weight: 600; color: var(--g-body); }
+  .header nav { display: flex; gap: 8px; align-items: center; }
+  .btn-grist {
+    background: var(--g-primary); color: #fff; padding: 5px 14px; border-radius: 4px;
+    cursor: pointer; font-size: 13px; font-weight: 500; transition: background .15s;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 5px; border: none;
+  }
+  .btn-grist:hover { background: var(--g-primary-dark); color: #fff; }
+  .btn-refresh {
+    background: var(--g-bg); color: var(--g-medium-text); padding: 5px 14px;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;
+    border: 1px solid var(--g-border); transition: all .15s;
+  }
+  .btn-refresh:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
+  .btn-refresh.loading { opacity: .6; pointer-events: none; }
+  .user-info { display: flex; align-items: center; gap: 8px; margin-left: 4px; padding-left: 12px; border-left: 1px solid var(--g-border-light); }
+  .user-display { font-size: 13px; font-weight: 500; color: var(--g-medium-text); }
+  .btn-logout {
+    padding: 4px 10px; border: 1px solid var(--g-border); border-radius: 4px;
+    background: var(--g-bg); color: var(--g-light-text); font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all .15s; font-family: inherit;
+  }
+  .btn-logout:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
+
+  /* ---- Theme Switcher ---- */
+  .theme-switcher {
+    position: relative; display: inline-flex;
+  }
+  .theme-btn {
+    background: var(--g-bg); color: var(--g-medium-text); padding: 5px 10px;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;
+    border: 1px solid var(--g-border); transition: all .15s; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .theme-btn:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
+  .theme-dropdown {
+    display: none; position: absolute; top: calc(100% + 4px); right: 0;
+    background: var(--g-popup-bg); border: 1px solid var(--g-popup-border);
+    border-radius: 4px; box-shadow: var(--g-login-shadow); min-width: 160px;
+    z-index: 200; overflow: hidden;
+  }
+  .theme-dropdown.open { display: block; }
+  .theme-option {
+    display: flex; align-items: center; gap: 8px; padding: 8px 14px;
+    cursor: pointer; font-size: 13px; color: var(--g-medium-text); transition: background .1s;
+    border: none; background: none; width: 100%; text-align: left; font-family: inherit;
+  }
+  .theme-option:hover { background: var(--g-selection); }
+  .theme-option.active { color: var(--g-primary-dark); font-weight: 600; }
+  .theme-option .check { width: 16px; text-align: center; }
+
+  /* ---- Container ---- */
+  .container { max-width: 1400px; margin: 0 auto; padding: 16px 20px; }
+
+  /* ---- Stats Cards ---- */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px;
+  }
+  .stat-card {
+    background: var(--g-bg); border-radius: 4px; padding: 14px 16px;
+    border: 1px solid var(--g-border-light); transition: border-color .15s, background .2s;
+  }
+  .stat-card:hover { border-color: var(--g-primary); }
+  .stat-card .label { font-size: 12px; color: var(--g-light-text); margin-bottom: 4px; font-weight: 500; }
+  .stat-card .value { font-size: 1.6rem; font-weight: 700; color: var(--g-body); }
+  .stat-card.accent { border-left: 3px solid var(--g-primary); }
+  .stat-card.red    { border-left: 3px solid var(--g-error); }
+  .stat-card.orange { border-left: 3px solid var(--g-warning); }
+  .stat-card.blue   { border-left: 3px solid var(--g-info); }
+  .stat-card.green  { border-left: 3px solid var(--g-primary); }
+  .stat-card.gray   { border-left: 3px solid var(--g-light-text); }
+
+  /* ---- Panels ---- */
+  .panel {
+    background: var(--g-bg); border-radius: 4px; margin-bottom: 16px;
+    border: 1px solid var(--g-border-light); overflow: hidden; transition: background .2s, border-color .2s;
+  }
+  .panel-header {
+    background: var(--g-bg); padding: 10px 16px; font-size: 13px; font-weight: 600;
+    color: var(--g-medium-text); display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--g-border-light); transition: background .2s, border-color .2s;
+  }
+  .panel-body { padding: 16px; }
+
+  /* ---- Map ---- */
+  #map { height: 480px; width: 100%; }
+  .map-basemap-select {
+    background: var(--g-bg); border: 1px solid var(--g-border); color: var(--g-medium-text);
+    padding: 3px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;
+  }
+  .map-basemap-select option { color: #333; }
+  .btn-fullscreen {
+    background: var(--g-bg); border: 1px solid var(--g-border); color: var(--g-medium-text);
+    padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 6px;
+  }
+  .btn-fullscreen:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
+
+  /* ---- Chart ---- */
+  #chart { height: 400px; width: 100%; }
+
+  /* ---- Table ---- */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead { background: var(--g-bg-secondary); }
+  th, td { padding: 8px 12px; text-align: center; border-bottom: 1px solid var(--g-border-light); white-space: nowrap; }
+  th { font-weight: 600; color: var(--g-light-text); text-transform: uppercase; font-size: 11px; letter-spacing: .3px; }
+  td:first-child { text-align: left; font-weight: 500; }
+  tbody tr:hover { background: var(--g-selection); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; color: #fff; }
+  .badge-a { background: var(--g-badge-a); }
+  .badge-b { background: var(--g-badge-b); }
+  .badge-c { background: var(--g-badge-c); }
+  .badge-active { background: var(--g-badge-active); }
+  .badge-signed { background: var(--g-badge-signed); }
+  .badge-negotiating { background: var(--g-badge-negotiating); }
+  .badge-ended { background: var(--g-badge-ended); }
+
+  /* ---- Footer ---- */
+  .footer { text-align: center; padding: 12px; color: var(--g-light-text); font-size: 12px; }
+
+  /* ---- Login Overlay ---- */
+  .login-overlay {
+    display: none; position: fixed; inset: 0; z-index: 1000;
+    background: var(--g-overlay-bg); justify-content: center; align-items: center;
+    padding: 20px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  .login-overlay.active { display: flex; }
+  body.login-active .header,
+  body.login-active .container { filter: blur(4px); pointer-events: none; user-select: none; transition: filter .3s; }
+  .login-box {
+    background: var(--g-bg); border-radius: 6px; width: 100%; max-width: 380px;
+    box-shadow: var(--g-login-shadow); border: 1px solid var(--g-border-light);
+    transition: background .2s, border-color .2s;
+  }
+  .login-header { display: flex; justify-content: center; align-items: center; padding: 20px 24px 12px; }
+  .login-header h2 { font-size: 18px; color: var(--g-body); font-weight: 600; }
+  .login-body { padding: 12px 24px 8px; }
+  .login-footer { display: flex; justify-content: center; padding: 12px 24px 20px; }
+  .login-form .form-group { margin-bottom: 14px; }
+  .login-form label { display: block; font-size: 13px; font-weight: 500; color: var(--g-medium-text); margin-bottom: 4px; }
+  .login-form input {
+    width: 100%; padding: 8px 12px; border: 1px solid var(--g-border);
+    border-radius: 4px; font-size: 14px; font-family: inherit;
+    outline: none; transition: border-color .15s, box-shadow .15s; box-sizing: border-box;
+    color: var(--g-body); background: var(--g-bg);
+  }
+  .login-form input:focus { border-color: var(--g-primary); box-shadow: 0 0 0 2px var(--g-primary-light); }
+  .login-form input::placeholder { color: var(--g-light-text); }
+  .login-error { color: var(--g-error); font-size: 12px; text-align: center; min-height: 18px; margin-top: 4px; }
+  .btn-login {
+    padding: 8px 32px; border: none; border-radius: 4px;
+    background: var(--g-primary); color: #fff; font-size: 14px;
+    font-weight: 500; cursor: pointer; transition: background .15s; font-family: inherit;
+  }
+  .btn-login:hover { background: var(--g-primary-dark); }
+  .btn-login:disabled { opacity: .6; cursor: not-allowed; }
+
+  /* ---- Print ---- */
+  @media print {
+    .header, .btn-refresh, .btn-fullscreen, .map-basemap-select, .footer, .theme-switcher { display: none !important; }
+    .panel { box-shadow: none; border: 1px solid #ddd; page-break-inside: avoid; }
+    .stat-card { box-shadow: none; border: 1px solid #ddd; }
+    #map { height: 400px; }
+    body { background: #fff; }
+  }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 768px) {
+    .stats-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+    .stat-card .value { font-size: 1.3rem; }
+    #map { height: 320px; }
+    #chart { height: 300px; }
+    .header { padding: 0 12px; }
+    .container { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1>A9 Marketing System</h1>
+  <nav>
+    <a class="btn-grist" id="gristBtn" href="/grist/" target="_blank">📊 多维表格</a>
+    <button class="btn-refresh" id="btnRefresh" onclick="loadStats()">🔄 刷新</button>
+    <div class="theme-switcher">
+      <button class="theme-btn" id="themeBtn" onclick="toggleThemeMenu()">🌓 <span id="themeLabel">亮色</span></button>
+      <div class="theme-dropdown" id="themeDropdown">
+        <button class="theme-option" data-theme="light" onclick="setTheme('light')">
+          <span class="check" id="check-light"></span> ☀️ 亮色
+        </button>
+        <button class="theme-option" data-theme="dark" onclick="setTheme('dark')">
+          <span class="check" id="check-dark"></span> 🌙 暗色
+        </button>
+        <button class="theme-option" data-theme="system" onclick="setTheme('system')">
+          <span class="check" id="check-system"></span> 💻 跟随系统
+        </button>
+      </div>
+    </div>
+    <div class="user-info" id="userInfo" style="display:none;">
+      <span class="user-display" id="userDisplay"></span>
+      <button class="btn-logout" onclick="doLogout()">退出</button>
+    </div>
+  </nav>
+</div>
+
+<!-- Main Content -->
+<div class="container">
+
+  <!-- Stats Cards -->
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card accent"><div class="label">客户总数</div><div class="value" id="vTotal">-</div></div>
+    <div class="stat-card red"><div class="label">A（战略级）</div><div class="value" id="vA">-</div></div>
+    <div class="stat-card orange"><div class="label">B（重点级）</div><div class="value" id="vB">-</div></div>
+    <div class="stat-card blue"><div class="label">C（普通级）</div><div class="value" id="vC">-</div></div>
+    <div class="stat-card green"><div class="label">合作中 / 已签约</div><div class="value" id="vActiveSigned">-</div></div>
+    <div class="stat-card gray"><div class="label">洽谈中 / 意向中</div><div class="value" id="vNegotiating">-</div></div>
+    <div class="stat-card accent"><div class="label">预计年度贡献（万元）</div><div class="value" id="vEstimate">-</div></div>
+  </div>
+
+  <!-- Map Panel -->
+  <div class="panel" id="mapPanel">
+    <div class="panel-header">
+      <span>🗺️ 客户地域分布</span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <select class="map-basemap-select" id="basemapSelect" onchange="switchBasemap(this.value)">
+          <option value="positron">CartoDB Positron</option>
+          <option value="dark">CartoDB DarkMatter</option>
+        </select>
+        <button class="btn-fullscreen" id="btnFullscreen" onclick="toggleFullscreen()">⛶ 全屏</button>
+      </div>
+    </div>
+    <div id="map"></div>
+  </div>
+
+  <!-- Chart Panel -->
+  <div class="panel">
+    <div class="panel-header"><span>📊 各区域客户评级分布</span></div>
+    <div class="panel-body">
+      <div id="chart"></div>
+    </div>
+  </div>
+
+  <!-- Region Table Panel -->
+  <div class="panel">
+    <div class="panel-header"><span>📋 区域明细表</span></div>
+    <div class="panel-body table-wrap">
+      <table id="regionTable">
+        <thead>
+          <tr>
+            <th>区域</th><th>总数</th><th>A（战略级）</th><th>B（重点级）</th><th>C（普通级）</th>
+            <th>合作中</th><th>已签约</th><th>洽谈中</th><th>已终止</th>
+          </tr>
+        </thead>
+        <tbody id="regionBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer" id="footerInfo">数据加载中…</div>
+</div>
+
+<!-- Login Overlay -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-header">
+      <h2>A9 Marketing System</h2>
+    </div>
+    <div class="login-body">
+      <p style="text-align:center;color:var(--g-light-text);margin:0 0 14px;font-size:13px;">请登录以继续</p>
+      <div class="login-form">
+        <div class="form-group">
+          <label for="loginEmail">邮箱</label>
+          <input type="email" id="loginEmail" placeholder="请输入邮箱" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">密码</label>
+          <input type="password" id="loginPassword" placeholder="请输入密码" autocomplete="current-password">
+        </div>
+        <div class="login-error" id="loginError"></div>
+      </div>
+    </div>
+    <div class="login-footer">
+      <button class="btn-login" id="loginBtn" onclick="doLogin()">登 录</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  /* ============================================================
+   *  Theme System — 与 Grist 保持一致
+   * ============================================================ */
+  const THEME_KEY = 'a9-theme';       // localStorage key
+  const GRIST_THEME_KEY = 'grist-theme'; // Grist 在 localStorage 中使用的 key
+  let currentThemeMode = 'system';     // 'light' | 'dark' | 'system'
+
+  // 解析 Grist 的主题偏好（Grist 存储格式: {"appearance":"light","syncWithOS":true,...}）
+  function parseGristThemePref(value) {
+    if (!value) return null;
+    try {
+      const pref = JSON.parse(value);
+      if (pref && pref.appearance) return pref.appearance; // 'light' | 'dark'
+    } catch (e) {}
+    return null;
+  }
+
+  // 检测系统是否偏好暗色
+  function systemPrefersDark() {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  // 解析主题模式为实际的 light/dark
+  function resolveTheme(mode) {
+    if (mode === 'system') return systemPrefersDark() ? 'dark' : 'light';
+    return mode;
+  }
+
+  // 应用主题到 DOM
+  function applyTheme(resolvedTheme) {
+    document.documentElement.setAttribute('data-theme', resolvedTheme);
+    // 更新 Leaflet 地图瓦片（暗色主题用 dark 瓦片）
+    if (typeof switchBasemap === 'function') {
+      const mapSelect = document.getElementById('basemapSelect');
+      if (mapSelect) {
+        const currentBasemap = mapSelect.value;
+        // 只在用户没有手动切换过底图时自动切换
+        if (!window._userPickedBasemap) {
+          const autoBasemap = resolvedTheme === 'dark' ? 'dark' : 'positron';
+          switchBasemap(autoBasemap);
+          mapSelect.value = autoBasemap;
+        }
+      }
+    }
+    // 更新 ECharts 背景
+    if (window._chartInstance) {
+      window._chartInstance.setOption({
+        backgroundColor: 'transparent'
+      });
+    }
+  }
+
+  // 设置主题模式
+  window.setTheme = function(mode) {
+    currentThemeMode = mode;
+    localStorage.setItem(THEME_KEY, mode);
+    const resolved = resolveTheme(mode);
+    // 写入共享 cookie，Grist 页面也能读取
+    setThemeCookie(resolved);
+    applyTheme(resolved);
+    updateThemeUI(mode);
+    closeThemeMenu();
+  };
+
+  // 更新主题切换按钮的 UI
+  function updateThemeUI(mode) {
+    const label = document.getElementById('themeLabel');
+    const labels = { light: '亮色', dark: '暗色', system: '跟随系统' };
+    if (label) label.textContent = labels[mode] || '跟随系统';
+
+    // 更新选中标记
+    ['light', 'dark', 'system'].forEach(t => {
+      const el = document.getElementById('check-' + t);
+      if (el) el.textContent = (t === mode) ? '✓' : '';
+    });
+
+    // 更新选项高亮
+    document.querySelectorAll('.theme-option').forEach(opt => {
+      opt.classList.toggle('active', opt.dataset.theme === mode);
+    });
+  }
+
+  // 切换主题下拉菜单
+  window.toggleThemeMenu = function() {
+    const dd = document.getElementById('themeDropdown');
+    if (dd) dd.classList.toggle('open');
+  };
+
+  function closeThemeMenu() {
+    const dd = document.getElementById('themeDropdown');
+    if (dd) dd.classList.remove('open');
+  }
+
+  // 点击外部关闭菜单
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.theme-switcher')) closeThemeMenu();
+  });
+
+  // 读取共享 cookie 中的 Grist 主题
+  function getThemeCookie() {
+    const match = document.cookie.match(/(?:^|;\s*)a9-theme-sync=([^;]*)/);
+    return match ? match[1] : null;
+  }
+
+  // 设置共享 cookie（当我们在前端切换主题时，Grist 也能读到）
+  function setThemeCookie(theme) {
+    document.cookie = 'a9-theme-sync=' + theme + ';path=/;max-age=' + (365 * 24 * 60 * 60) + ';SameSite=Lax';
+  }
+
+  // 初始化主题
+  function initTheme() {
+    // 1. 优先读取自己的 localStorage
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved && ['light', 'dark', 'system'].includes(saved)) {
+      currentThemeMode = saved;
+    } else {
+      // 2. 尝试读取共享 cookie（Grist 设置的）
+      const cookieTheme = getThemeCookie();
+      if (cookieTheme === 'dark' || cookieTheme === 'light') {
+        currentThemeMode = cookieTheme;
+      }
+    }
+
+    const resolved = resolveTheme(currentThemeMode);
+    applyTheme(resolved);
+    updateThemeUI(currentThemeMode);
+
+    // 监听系统主题变化
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+      if (currentThemeMode === 'system') {
+        applyTheme(resolveTheme('system'));
+      }
+    });
+
+    // 监听 Grist 主题变化（BroadcastChannel — 同源时有效）
+    try {
+      const bc = new BroadcastChannel('grist-theme-channel');
+      bc.onmessage = function(e) {
+        if (e.data && e.data.type === 'theme-change' && e.data.appearance) {
+          currentThemeMode = e.data.appearance;
+          localStorage.setItem(THEME_KEY, e.data.appearance);
+          applyTheme(e.data.appearance);
+          updateThemeUI(e.data.appearance);
+        }
+      };
+    } catch (e) {}
+
+    // 轮询检查共享 cookie（Grist 代理页面写入的主题）
+    let _lastCookieTheme = getThemeCookie();
+    setInterval(function() {
+      const current = getThemeCookie();
+      if (current && current !== _lastCookieTheme) {
+        _lastCookieTheme = current;
+        if (current === 'dark' || current === 'light') {
+          currentThemeMode = current;
+          localStorage.setItem(THEME_KEY, current);
+          applyTheme(current);
+          updateThemeUI(current);
+        }
+      }
+    }, 1000);
+  }
+
+  // 页面加载时立即初始化主题（避免闪烁）
+  initTheme();
+
+  /* ============================================================
+   *  Dashboard Logic
+   * ============================================================ */
+  let map, markersLayer, currentBasemapLayer;
+  let chartInstance;
+  let isFullscreen = false;
+  let currentUser = null;
+  window._userPickedBasemap = false;
+
+  const basemaps = {
+    positron: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; CartoDB', maxZoom: 18
+    }),
+    dark: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; CartoDB', maxZoom: 18
+    })
+  };
+
+  function initMap() {
+    map = L.map('map', { center: [35.8, 104.5], zoom: 4, zoomControl: true });
+    const resolved = resolveTheme(currentThemeMode);
+    const defaultBasemap = resolved === 'dark' ? 'dark' : 'positron';
+    currentBasemapLayer = basemaps[defaultBasemap]();
+    currentBasemapLayer.addTo(map);
+    const mapSelect = document.getElementById('basemapSelect');
+    if (mapSelect) mapSelect.value = defaultBasemap;
+    markersLayer = L.layerGroup().addTo(map);
+  }
+
+  window.switchBasemap = function(key) {
+    if (currentBasemapLayer) map.removeLayer(currentBasemapLayer);
+    currentBasemapLayer = basemaps[key]();
+    currentBasemapLayer.addTo(map);
+    window._userPickedBasemap = true;
+  };
+
+  window.toggleFullscreen = function() {
+    isFullscreen = !isFullscreen;
+    const panel = document.getElementById('mapPanel');
+    if (isFullscreen) {
+      panel.style.position = 'fixed';
+      panel.style.top = '0';
+      panel.style.left = '0';
+      panel.style.right = '0';
+      panel.style.bottom = '0';
+      panel.style.zIndex = '9999';
+      panel.style.borderRadius = '0';
+      panel.style.border = 'none';
+      document.getElementById('btnFullscreen').textContent = '✕ 退出';
+    } else {
+      panel.style.position = '';
+      panel.style.top = '';
+      panel.style.left = '';
+      panel.style.right = '';
+      panel.style.bottom = '';
+      panel.style.zIndex = '';
+      panel.style.borderRadius = '';
+      panel.style.border = '';
+      document.getElementById('btnFullscreen').textContent = '⛶ 全屏';
+    }
+    setTimeout(() => map.invalidateSize(), 100);
+  };
+
+  function updateMap(byRegion) {
+    markersLayer.clearLayers();
+    if (!byRegion || !byRegion.length) return;
+    byRegion.forEach(r => {
+      if (r.coord_lat == null || r.coord_lng == null) return;
+      const radius = Math.max(8, Math.min(40, Math.sqrt(r.total) * 6));
+      const marker = L.circleMarker([r.coord_lat, r.coord_lng], {
+        radius: radius,
+        fillColor: r.color || getComputedStyle(document.documentElement).getPropertyValue('--g-map-marker').trim(),
+        color: '#fff', weight: 2, opacity: 0.9, fillOpacity: 0.7
+      });
+      marker.bindPopup(
+        '<div style="min-width:160px;font-size:13px;">' +
+        '<strong style="font-size:14px;">' + (r.title || r.label) + '</strong><br/>' +
+        '客户总数：<b>' + r.total + '</b><br/>' +
+        'A级：' + r.ratingA + ' &nbsp; B级：' + r.ratingB + ' &nbsp; C级：' + r.ratingC + '<br/>' +
+        '预计贡献：<b>' + r.estimate + '</b> 万元' +
+        '</div>'
+      );
+      markersLayer.addLayer(marker);
+    });
+    const bounds = markersLayer.getBounds();
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 6 });
+  }
+
+  function updateChart(byRegion) {
+    const dom = document.getElementById('chart');
+    if (!chartInstance) {
+      chartInstance = echarts.init(dom);
+      window._chartInstance = chartInstance;
+    }
+    if (!byRegion || !byRegion.length) {
+      chartInstance.setOption({ title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#929299', fontSize: 14 } } });
+      return;
+    }
+    const regions = byRegion.map(r => r.title || r.label);
+    const seriesA = byRegion.map(r => r.ratingA || 0);
+    const seriesB = byRegion.map(r => r.ratingB || 0);
+    const seriesC = byRegion.map(r => r.ratingC || 0);
+    const cs = getComputedStyle(document.documentElement);
+    chartInstance.setOption({
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      legend: { data: ['A（战略级）', 'B（重点级）', 'C（普通级）'], top: 4, textStyle: { color: cs.getPropertyValue('--g-medium-text').trim(), fontSize: 12 } },
+      grid: { left: 50, right: 20, bottom: 60, top: 40 },
+      xAxis: {
+        type: 'category', data: regions,
+        axisLabel: { rotate: regions.length > 8 ? 30 : 0, fontSize: 11, color: cs.getPropertyValue('--g-chart-axis').trim() },
+        axisTick: { alignWithLabel: true },
+        axisLine: { lineStyle: { color: cs.getPropertyValue('--g-border').trim() } }
+      },
+      yAxis: {
+        type: 'value', name: '客户数', minInterval: 1,
+        axisLine: { lineStyle: { color: cs.getPropertyValue('--g-border').trim() } },
+        splitLine: { lineStyle: { color: cs.getPropertyValue('--g-chart-split').trim() } }
+      },
+      series: [
+        { name: 'A（战略级）', type: 'bar', stack: 'rating', data: seriesA, itemStyle: { color: cs.getPropertyValue('--g-badge-a').trim() }, barMaxWidth: 40 },
+        { name: 'B（重点级）', type: 'bar', stack: 'rating', data: seriesB, itemStyle: { color: cs.getPropertyValue('--g-badge-b').trim() }, barMaxWidth: 40 },
+        { name: 'C（普通级）', type: 'bar', stack: 'rating', data: seriesC, itemStyle: { color: cs.getPropertyValue('--g-badge-c').trim() }, barMaxWidth: 40 }
+      ]
+    }, true);
+  }
+
+  function updateTable(byRegion) {
+    const tbody = document.getElementById('regionBody');
+    if (!byRegion || !byRegion.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--g-light-text);">暂无数据</td></tr>';
+      return;
+    }
+    tbody.innerHTML = byRegion.map(r => '<tr>' +
+      '<td>' + (r.title || r.label) + '</td>' +
+      '<td><b>' + r.total + '</b></td>' +
+      '<td><span class="badge badge-a">' + (r.ratingA || 0) + '</span></td>' +
+      '<td><span class="badge badge-b">' + (r.ratingB || 0) + '</span></td>' +
+      '<td><span class="badge badge-c">' + (r.ratingC || 0) + '</span></td>' +
+      '<td><span class="badge badge-active">' + (r.statusActive || 0) + '</span></td>' +
+      '<td><span class="badge badge-signed">' + (r.statusSigned || 0) + '</span></td>' +
+      '<td><span class="badge badge-negotiating">' + (r.statusNegotiating || 0) + '</span></td>' +
+      '<td><span class="badge badge-ended">' + (r.statusEnded || 0) + '</span></td>' +
+      '</tr>'
+    ).join('');
+  }
+
+  function updateCards(totals) {
+    if (!totals) return;
+    document.getElementById('vTotal').textContent = totals.customers != null ? totals.customers.toLocaleString() : '-';
+    document.getElementById('vA').textContent = totals.ratingA != null ? totals.ratingA.toLocaleString() : '-';
+    document.getElementById('vB').textContent = totals.ratingB != null ? totals.ratingB.toLocaleString() : '-';
+    document.getElementById('vC').textContent = totals.ratingC != null ? totals.ratingC.toLocaleString() : '-';
+    const activeSigned = (totals.statusActive || 0) + (totals.statusSigned || 0);
+    document.getElementById('vActiveSigned').textContent = activeSigned.toLocaleString();
+    document.getElementById('vNegotiating').textContent = totals.statusNegotiating != null ? totals.statusNegotiating.toLocaleString() : '-';
+    document.getElementById('vEstimate').textContent = totals.totalEstimate != null ? totals.totalEstimate.toLocaleString() : '-';
+  }
+
+  window.loadStats = async function() {
+    const btn = document.getElementById('btnRefresh');
+    btn.classList.add('loading');
+    btn.textContent = '⏳ 加载中…';
+    try {
+      const resp = await fetch('/api/stats');
+      if (resp.status === 401) { showLogin(); return; }
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.error || '请求失败: ' + resp.status);
+      }
+      const data = await resp.json();
+      updateCards(data.totals);
+      updateMap(data.byRegion);
+      updateChart(data.byRegion);
+      updateTable(data.byRegion);
+      const genTime = data.generated_at ? new Date(data.generated_at).toLocaleString('zh-CN') : '未知';
+      document.getElementById('footerInfo').textContent = '数据生成于：' + genTime + ' ｜ 数据来源：Grist';
+    } catch (err) {
+      console.error('加载统计数据失败:', err);
+      const msg = err.message || '';
+      let hint = msg;
+      if (msg.includes('GRIST_DOC_ID')) {
+        hint = '请先配置 GRIST_DOC_ID 环境变量。';
+      } else if (msg.includes('Customers') || msg.includes('表不存在')) {
+        hint = '请在 Grist 文档中创建 Customers 表。';
+      }
+      document.getElementById('footerInfo').innerHTML = '<span style="color:var(--g-error);">数据加载失败：' + hint + '</span>';
+    } finally {
+      btn.classList.remove('loading');
+      btn.textContent = '🔄 刷新';
+    }
+  };
+
+  /* ---- Login ---- */
+  function showLogin() {
+    const overlay = document.getElementById('loginOverlay');
+    if (!overlay) return;
+    overlay.classList.add('active');
+    document.body.classList.add('login-active');
+    document.getElementById('loginError').textContent = '';
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
+    document.getElementById('loginBtn').disabled = false;
+    document.getElementById('loginBtn').textContent = '登 录';
+    setTimeout(() => document.getElementById('loginEmail').focus(), 100);
+    document.getElementById('loginPassword').onkeydown = (e) => {
+      if (e.key === 'Enter') doLogin();
+    };
+  }
+
+  function hideLogin() {
+    const overlay = document.getElementById('loginOverlay');
+    if (overlay) overlay.classList.remove('active');
+    document.body.classList.remove('login-active');
+  }
+
+  window.doLogin = async function() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errorEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    if (!email || !password) { errorEl.textContent = '请输入邮箱和密码'; return; }
+    btn.disabled = true;
+    btn.textContent = '登录中...';
+    errorEl.textContent = '';
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errorEl.textContent = data.error || '登录失败';
+        btn.disabled = false;
+        btn.textContent = '登 录';
+        return;
+      }
+      currentUser = data.user;
+      hideLogin();
+      onLoginSuccess();
+    } catch (e) {
+      errorEl.textContent = '网络连接失败，请检查服务器';
+      btn.disabled = false;
+      btn.textContent = '登 录';
+    }
+  };
+
+  async function checkAuth() {
+    try {
+      const res = await fetch('/api/auth/me');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.authenticated) {
+          currentUser = data.user;
+          const infoEl = document.getElementById('userInfo');
+          const displayEl = document.getElementById('userDisplay');
+          if (infoEl && displayEl) {
+            infoEl.style.display = 'flex';
+            displayEl.textContent = data.user.displayName || data.user.email || '';
+          }
+          return true;
+        }
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  function onLoginSuccess() {
+    const infoEl = document.getElementById('userInfo');
+    const displayEl = document.getElementById('userDisplay');
+    if (infoEl && displayEl && currentUser) {
+      infoEl.style.display = 'flex';
+      displayEl.textContent = currentUser.displayName || currentUser.email || '';
+    }
+    initMap();
+    loadStats();
+    window.addEventListener('resize', function() {
+      if (chartInstance) chartInstance.resize();
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && isFullscreen) toggleFullscreen();
+    });
+  }
+
+  window.doLogout = async function() {
+    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) {}
+    currentUser = null;
+    const infoEl = document.getElementById('userInfo');
+    if (infoEl) infoEl.style.display = 'none';
+    showLogin();
+  };
+
+  document.addEventListener('DOMContentLoaded', async function() {
+    const authed = await checkAuth();
+    if (authed) {
+      onLoginSuccess();
+    } else {
+      showLogin();
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
