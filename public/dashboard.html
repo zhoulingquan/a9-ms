@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>A9 Marketing System</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js" integrity="sha384-o5uz97et3bErHvpKfD4Jz4n0JfhJDWABFuF4NP+iEEDxE1VwMWJ19QGR0lqFZnr6" crossorigin="anonymous"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -250,9 +250,31 @@
   .btn-login:hover { background: var(--g-primary-dark); }
   .btn-login:disabled { opacity: .6; cursor: not-allowed; }
 
+  /* ---- Grist iframe overlay ---- */
+  .grist-overlay {
+    display: none; position: fixed; inset: 0; z-index: 500;
+    background: var(--g-bg); flex-direction: column;
+  }
+  .grist-overlay.active { display: flex; }
+  body.grist-active .header,
+  body.grist-active .container { display: none; }
+  .grist-overlay-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; height: 40px; background: var(--g-bg);
+    border-bottom: 1px solid var(--g-border-light); flex-shrink: 0;
+  }
+  .grist-overlay-bar span { font-size: 14px; font-weight: 600; color: var(--g-body); }
+  .grist-close-btn {
+    background: var(--g-bg); border: 1px solid var(--g-border); color: var(--g-medium-text);
+    padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; font-family: inherit;
+    transition: all .15s;
+  }
+  .grist-close-btn:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
+  .grist-overlay iframe { flex: 1; width: 100%; border: none; }
+
   /* ---- Print ---- */
   @media print {
-    .header, .btn-refresh, .btn-fullscreen, .map-basemap-select, .footer, .theme-switcher { display: none !important; }
+    .header, .btn-refresh, .btn-fullscreen, .map-basemap-select, .footer, .theme-switcher, .grist-overlay { display: none !important; }
     .panel { box-shadow: none; border: 1px solid #ddd; page-break-inside: avoid; }
     .stat-card { box-shadow: none; border: 1px solid #ddd; }
     #map { height: 400px; }
@@ -276,7 +298,7 @@
 <div class="header">
   <h1>A9 Marketing System</h1>
   <nav>
-    <a class="btn-grist" id="gristBtn" href="/grist/" target="_blank">📊 多维表格</a>
+    <a class="btn-grist" id="gristBtn" href="javascript:void(0)" onclick="openGrist()">📊 多维表格</a>
     <button class="btn-refresh" id="btnRefresh" onclick="loadStats()">🔄 刷新</button>
     <div class="theme-switcher">
       <button class="theme-btn" id="themeBtn" onclick="toggleThemeMenu()">🌓 <span id="themeLabel">亮色</span></button>
@@ -362,18 +384,17 @@
       <h2>A9 Marketing System</h2>
     </div>
     <div class="login-body">
-      <p style="text-align:center;color:var(--g-light-text);margin:0 0 14px;font-size:13px;">请登录以继续</p>
+      <p style="text-align:center;color:var(--g-light-text);margin:0 0 14px;font-size:13px;">使用 Grist 账户登录</p>
       <div class="login-form">
         <div class="form-group">
           <label for="loginEmail">邮箱</label>
-          <input type="email" id="loginEmail" placeholder="请输入邮箱" autocomplete="email">
-        </div>
-        <div class="form-group">
-          <label for="loginPassword">密码</label>
-          <input type="password" id="loginPassword" placeholder="请输入密码" autocomplete="current-password">
+          <input type="email" id="loginEmail" placeholder="请输入 Grist 注册邮箱" autocomplete="email">
         </div>
         <div class="login-error" id="loginError"></div>
       </div>
+      <p style="text-align:center;color:var(--g-light-text);margin:8px 0 0;font-size:12px;">
+        未注册？<a href="/grist/auth/login" target="_blank" style="color:var(--g-primary);">前往 Grist 注册</a>
+      </p>
     </div>
     <div class="login-footer">
       <button class="btn-login" id="loginBtn" onclick="doLogin()">登 录</button>
@@ -381,26 +402,37 @@
   </div>
 </div>
 
+<!-- Grist iframe overlay -->
+<div class="grist-overlay" id="gristOverlay">
+  <div class="grist-overlay-bar">
+    <span>📊 多维表格</span>
+    <button class="grist-close-btn" onclick="closeGrist()">✕ 返回看板</button>
+  </div>
+  <iframe id="gristFrame" src="about:blank" allow="clipboard-read; clipboard-write"></iframe>
+</div>
+
 <script>
 (function() {
   'use strict';
 
-  /* ============================================================
-   *  Theme System — 与 Grist 保持一致
-   * ============================================================ */
-  const THEME_KEY = 'a9-theme';       // localStorage key
-  const GRIST_THEME_KEY = 'grist-theme'; // Grist 在 localStorage 中使用的 key
-  let currentThemeMode = 'system';     // 'light' | 'dark' | 'system'
-
-  // 解析 Grist 的主题偏好（Grist 存储格式: {"appearance":"light","syncWithOS":true,...}）
-  function parseGristThemePref(value) {
-    if (!value) return null;
-    try {
-      const pref = JSON.parse(value);
-      if (pref && pref.appearance) return pref.appearance; // 'light' | 'dark'
-    } catch (e) {}
-    return null;
+  // HTML 转义函数，防止 XSS
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
+
+  /* ============================================================
+   *  Theme System — 与 Grist 双向联动
+   *  亮色 ↔ Grist 浅色 | 暗色 ↔ Grist dark | 跟随系统 ↔ Grist 跟随系统
+   *  持久化：a9-theme localStorage
+   * ============================================================ */
+  const THEME_KEY = 'a9-theme';           // localStorage: 前端模式
+  let currentThemeMode = 'system';        // 'light' | 'dark' | 'system'
 
   // 检测系统是否偏好暗色
   function systemPrefersDark() {
@@ -416,37 +448,36 @@
   // 应用主题到 DOM
   function applyTheme(resolvedTheme) {
     document.documentElement.setAttribute('data-theme', resolvedTheme);
-    // 更新 Leaflet 地图瓦片（暗色主题用 dark 瓦片）
     if (typeof switchBasemap === 'function') {
+      const autoBasemap = resolvedTheme === 'dark' ? 'dark' : 'positron';
+      switchBasemap(autoBasemap);
       const mapSelect = document.getElementById('basemapSelect');
-      if (mapSelect) {
-        const currentBasemap = mapSelect.value;
-        // 只在用户没有手动切换过底图时自动切换
-        if (!window._userPickedBasemap) {
-          const autoBasemap = resolvedTheme === 'dark' ? 'dark' : 'positron';
-          switchBasemap(autoBasemap);
-          mapSelect.value = autoBasemap;
-        }
-      }
+      if (mapSelect) mapSelect.value = autoBasemap;
+      // 主题自动切换底图不算用户手动选择，重置标记
+      window._userPickedBasemap = false;
     }
-    // 更新 ECharts 背景
     if (window._chartInstance) {
-      window._chartInstance.setOption({
-        backgroundColor: 'transparent'
-      });
+      window._chartInstance.setOption({ backgroundColor: 'transparent' });
     }
   }
 
-  // 设置主题模式
+  // 设置主题模式（前端→Grist 联动入口）
   window.setTheme = function(mode) {
     currentThemeMode = mode;
+    // 持久化到 localStorage
     localStorage.setItem(THEME_KEY, mode);
     const resolved = resolveTheme(mode);
-    // 写入共享 cookie，Grist 页面也能读取
-    setThemeCookie(resolved);
     applyTheme(resolved);
     updateThemeUI(mode);
     closeThemeMenu();
+    // 广播主题变化（其他标签页）
+    try {
+      const bc = new BroadcastChannel('grist-theme-channel');
+      bc.postMessage({ type: 'theme-change', mode: mode });
+      bc.close();
+    } catch (_) {}
+    // 同步主题到 Grist（用户主动切换，需重载 iframe）
+    sendThemeToGrist(true);
   };
 
   // 更新主题切换按钮的 UI
@@ -454,14 +485,10 @@
     const label = document.getElementById('themeLabel');
     const labels = { light: '亮色', dark: '暗色', system: '跟随系统' };
     if (label) label.textContent = labels[mode] || '跟随系统';
-
-    // 更新选中标记
     ['light', 'dark', 'system'].forEach(t => {
       const el = document.getElementById('check-' + t);
       if (el) el.textContent = (t === mode) ? '✓' : '';
     });
-
-    // 更新选项高亮
     document.querySelectorAll('.theme-option').forEach(opt => {
       opt.classList.toggle('active', opt.dataset.theme === mode);
     });
@@ -483,73 +510,140 @@
     if (!e.target.closest('.theme-switcher')) closeThemeMenu();
   });
 
-  // 读取共享 cookie 中的 Grist 主题
-  function getThemeCookie() {
-    const match = document.cookie.match(/(?:^|;\s*)a9-theme-sync=([^;]*)/);
-    return match ? match[1] : null;
+  // 同步模式到前端（Grist→前端 联动入口）
+  function syncModeFromGrist(mode) {
+    if (!mode || !['light', 'dark', 'system'].includes(mode) || mode === currentThemeMode) return;
+    currentThemeMode = mode;
+    // 持久化
+    localStorage.setItem(THEME_KEY, mode);
+    applyTheme(resolveTheme(mode));
+    updateThemeUI(mode);
   }
 
-  // 设置共享 cookie（当我们在前端切换主题时，Grist 也能读到）
-  function setThemeCookie(theme) {
-    document.cookie = 'a9-theme-sync=' + theme + ';path=/;max-age=' + (365 * 24 * 60 * 60) + ';SameSite=Lax';
-  }
-
-  // 初始化主题
+  // 初始化主题（从 localStorage 恢复，确保刷新后不变）
   function initTheme() {
-    // 1. 优先读取自己的 localStorage
+    // 优先读取自己的 localStorage（刷新后恢复）
     const saved = localStorage.getItem(THEME_KEY);
     if (saved && ['light', 'dark', 'system'].includes(saved)) {
       currentThemeMode = saved;
     } else {
-      // 2. 尝试读取共享 cookie（Grist 设置的）
-      const cookieTheme = getThemeCookie();
-      if (cookieTheme === 'dark' || cookieTheme === 'light') {
-        currentThemeMode = cookieTheme;
-      }
+      currentThemeMode = 'system';
     }
 
     const resolved = resolveTheme(currentThemeMode);
     applyTheme(resolved);
     updateThemeUI(currentThemeMode);
+    localStorage.setItem(THEME_KEY, currentThemeMode);
 
-    // 监听系统主题变化
+    // 监听系统主题变化（跟随系统模式下实时响应）
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
       if (currentThemeMode === 'system') {
         applyTheme(resolveTheme('system'));
+        sendThemeToGrist(true);
       }
     });
 
-    // 监听 Grist 主题变化（BroadcastChannel — 同源时有效）
+    // 监听 localStorage 变化（其他标签页写入时触发 storage 事件）
+    window.addEventListener('storage', function(e) {
+      if (e.key === THEME_KEY && e.newValue) {
+        const mode = e.newValue;
+        if (mode && ['light', 'dark', 'system'].includes(mode)) {
+          syncModeFromGrist(mode);
+        }
+      }
+    });
+
+    // 监听 BroadcastChannel（其他标签页发送）
     try {
       const bc = new BroadcastChannel('grist-theme-channel');
       bc.onmessage = function(e) {
-        if (e.data && e.data.type === 'theme-change' && e.data.appearance) {
-          currentThemeMode = e.data.appearance;
-          localStorage.setItem(THEME_KEY, e.data.appearance);
-          applyTheme(e.data.appearance);
-          updateThemeUI(e.data.appearance);
+        if (e.data && e.data.type === 'theme-change' && e.data.mode) {
+          syncModeFromGrist(e.data.mode);
         }
       };
-    } catch (e) {}
-
-    // 轮询检查共享 cookie（Grist 代理页面写入的主题）
-    let _lastCookieTheme = getThemeCookie();
-    setInterval(function() {
-      const current = getThemeCookie();
-      if (current && current !== _lastCookieTheme) {
-        _lastCookieTheme = current;
-        if (current === 'dark' || current === 'light') {
-          currentThemeMode = current;
-          localStorage.setItem(THEME_KEY, current);
-          applyTheme(current);
-          updateThemeUI(current);
-        }
-      }
-    }, 1000);
+    } catch (_) {}
   }
 
   // 页面加载时立即初始化主题（避免闪烁）
   initTheme();
+
+  /* ============================================================
+   *  Grist iframe 管理
+   * ============================================================ */
+  // 使用代理路径（同源），注入的主题同步脚本可通过 postMessage 通信
+  const GRIST_PROXY_PATH = '/grist/';
+  let gristIframeReady = false;
+
+  window.openGrist = function() {
+    const overlay = document.getElementById('gristOverlay');
+    const frame = document.getElementById('gristFrame');
+    if (!overlay || !frame) return;
+    gristIframeReady = false;
+    frame.src = GRIST_PROXY_PATH;
+    overlay.classList.add('active');
+    document.body.classList.add('grist-active');
+    sessionStorage.setItem('grist-open', '1');
+  };
+
+  window.closeGrist = function() {
+    const overlay = document.getElementById('gristOverlay');
+    const frame = document.getElementById('gristFrame');
+    if (overlay) overlay.classList.remove('active');
+    if (frame) frame.src = 'about:blank';
+    gristIframeReady = false;
+    document.body.classList.remove('grist-active');
+    sessionStorage.removeItem('grist-open');
+  };
+
+  // 监听 Grist iframe 的 postMessage（主题变更通知）
+  window.addEventListener('message', function(e) {
+    if (!e.data) return;
+    // Grist iframe 就绪
+    if (e.data.type === 'grist-iframe-ready') {
+      gristIframeReady = true;
+      // iframe 就绪后仅同步主题偏好到后端，不重载 iframe
+      sendThemeToGrist(false);
+    }
+    // Grist 主题变更 → 同步到前端
+    if (e.data.type === 'grist-theme-changed') {
+      var mode = null;
+      if (e.data.syncWithOS) mode = 'system';
+      else if (e.data.appearance === 'dark') mode = 'dark';
+      else if (e.data.appearance === 'light') mode = 'light';
+      if (mode) syncModeFromGrist(mode);
+    }
+  });
+
+  // 向 Grist 同步主题
+  // reloadIframe: true = 用户主动切换主题，需要重载 iframe 使 Grist 生效
+  function sendThemeToGrist(reloadIframe) {
+    var resolved = resolveTheme(currentThemeMode);
+    var appearance = resolved === 'dark' ? 'dark' : 'light';
+    var syncWithOS = currentThemeMode === 'system';
+    var frame = document.getElementById('gristFrame');
+    var overlay = document.getElementById('gristOverlay');
+    var gristIsOpen = overlay && overlay.classList.contains('active');
+
+    fetch('/api/grist-theme', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ appearance: appearance, syncWithOS: syncWithOS }),
+    }).then(function(res) {
+      if (res.ok && reloadIframe && gristIsOpen && frame) {
+        frame.src = frame.src;
+      }
+    }).catch(function(err) {
+      console.warn('[Theme] Grist 主题同步失败:', err.message);
+    });
+  }
+
+  // ESC 键关闭 Grist iframe
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      var overlay = document.getElementById('gristOverlay');
+      if (overlay && overlay.classList.contains('active')) closeGrist();
+    }
+  });
 
   /* ============================================================
    *  Dashboard Logic
@@ -627,10 +721,10 @@
       });
       marker.bindPopup(
         '<div style="min-width:160px;font-size:13px;">' +
-        '<strong style="font-size:14px;">' + (r.title || r.label) + '</strong><br/>' +
-        '客户总数：<b>' + r.total + '</b><br/>' +
-        'A级：' + r.ratingA + ' &nbsp; B级：' + r.ratingB + ' &nbsp; C级：' + r.ratingC + '<br/>' +
-        '预计贡献：<b>' + r.estimate + '</b> 万元' +
+        '<strong style="font-size:14px;">' + escapeHtml(r.title || r.label) + '</strong><br/>' +
+        '客户总数：<b>' + escapeHtml(r.total) + '</b><br/>' +
+        'A级：' + escapeHtml(r.ratingA) + ' &nbsp; B级：' + escapeHtml(r.ratingB) + ' &nbsp; C级：' + escapeHtml(r.ratingC) + '<br/>' +
+        '预计贡献：<b>' + escapeHtml(r.estimate) + '</b> 万元' +
         '</div>'
       );
       markersLayer.addLayer(marker);
@@ -684,15 +778,15 @@
       return;
     }
     tbody.innerHTML = byRegion.map(r => '<tr>' +
-      '<td>' + (r.title || r.label) + '</td>' +
-      '<td><b>' + r.total + '</b></td>' +
-      '<td><span class="badge badge-a">' + (r.ratingA || 0) + '</span></td>' +
-      '<td><span class="badge badge-b">' + (r.ratingB || 0) + '</span></td>' +
-      '<td><span class="badge badge-c">' + (r.ratingC || 0) + '</span></td>' +
-      '<td><span class="badge badge-active">' + (r.statusActive || 0) + '</span></td>' +
-      '<td><span class="badge badge-signed">' + (r.statusSigned || 0) + '</span></td>' +
-      '<td><span class="badge badge-negotiating">' + (r.statusNegotiating || 0) + '</span></td>' +
-      '<td><span class="badge badge-ended">' + (r.statusEnded || 0) + '</span></td>' +
+      '<td>' + escapeHtml(r.title || r.label) + '</td>' +
+      '<td><b>' + escapeHtml(r.total) + '</b></td>' +
+      '<td><span class="badge badge-a">' + escapeHtml(r.ratingA || 0) + '</span></td>' +
+      '<td><span class="badge badge-b">' + escapeHtml(r.ratingB || 0) + '</span></td>' +
+      '<td><span class="badge badge-c">' + escapeHtml(r.ratingC || 0) + '</span></td>' +
+      '<td><span class="badge badge-active">' + escapeHtml(r.statusActive || 0) + '</span></td>' +
+      '<td><span class="badge badge-signed">' + escapeHtml(r.statusSigned || 0) + '</span></td>' +
+      '<td><span class="badge badge-negotiating">' + escapeHtml(r.statusNegotiating || 0) + '</span></td>' +
+      '<td><span class="badge badge-ended">' + escapeHtml(r.statusEnded || 0) + '</span></td>' +
       '</tr>'
     ).join('');
   }
@@ -736,7 +830,7 @@
       } else if (msg.includes('Customers') || msg.includes('表不存在')) {
         hint = '请在 Grist 文档中创建 Customers 表。';
       }
-      document.getElementById('footerInfo').innerHTML = '<span style="color:var(--g-error);">数据加载失败：' + hint + '</span>';
+      document.getElementById('footerInfo').textContent = '数据加载失败：' + hint;
     } finally {
       btn.classList.remove('loading');
       btn.textContent = '🔄 刷新';
@@ -751,11 +845,10 @@
     document.body.classList.add('login-active');
     document.getElementById('loginError').textContent = '';
     document.getElementById('loginEmail').value = '';
-    document.getElementById('loginPassword').value = '';
     document.getElementById('loginBtn').disabled = false;
     document.getElementById('loginBtn').textContent = '登 录';
     setTimeout(() => document.getElementById('loginEmail').focus(), 100);
-    document.getElementById('loginPassword').onkeydown = (e) => {
+    document.getElementById('loginEmail').onkeydown = (e) => {
       if (e.key === 'Enter') doLogin();
     };
   }
@@ -768,10 +861,9 @@
 
   window.doLogin = async function() {
     const email = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPassword').value;
     const errorEl = document.getElementById('loginError');
     const btn = document.getElementById('loginBtn');
-    if (!email || !password) { errorEl.textContent = '请输入邮箱和密码'; return; }
+    if (!email) { errorEl.textContent = '请输入邮箱'; return; }
     btn.disabled = true;
     btn.textContent = '登录中...';
     errorEl.textContent = '';
@@ -779,7 +871,7 @@
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -844,9 +936,16 @@
   };
 
   document.addEventListener('DOMContentLoaded', async function() {
+    // 如果在 iframe 中加载，不初始化（防止 Grist 代理回退时递归嵌套）
+    if (window.self !== window.top) return;
+
     const authed = await checkAuth();
     if (authed) {
       onLoginSuccess();
+      // 恢复 Grist overlay 状态
+      if (sessionStorage.getItem('grist-open') === '1') {
+        openGrist();
+      }
     } else {
       showLogin();
     }
