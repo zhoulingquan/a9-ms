@@ -97,3 +97,36 @@ test('allows admin login with ADMIN_PASSWORD when Grist has no password hash', a
   assert.equal(payload.success, true);
   assert.deepEqual(req.session.user, { email: 'admin@a9.com', displayName: 'admin@a9.com' });
 });
+
+test('logout clears current and legacy A9 session cookies', async () => {
+  const router = createAuthRouter({
+    gristDb: {},
+    gristApi: {},
+    gristApiKey: 'service-api-key',
+  });
+  const logoutLayer = router.stack.find(layer => layer.route?.path === '/logout');
+  const handler = logoutLayer.route.stack[0].handle;
+  const req = {
+    session: {
+      destroy(callback) { callback(); },
+    },
+  };
+  let setCookies = [];
+  let payload = null;
+  const res = {
+    setHeader(name, value) {
+      if (name.toLowerCase() === 'set-cookie') setCookies = value;
+    },
+    status() { return this; },
+    json(body) { payload = body; return this; },
+  };
+
+  await handler(req, res);
+
+  const cookieText = setCookies.join('\n');
+  assert.equal(payload.success, true);
+  assert.match(cookieText, /connect\.sid=;/);
+  assert.match(cookieText, /a9\.sid=;/);
+  assert.match(cookieText, /grist_core=;/);
+  assert.match(cookieText, /grist_core_status=;/);
+});

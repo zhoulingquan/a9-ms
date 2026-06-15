@@ -145,6 +145,110 @@ test('proxies Grist session access before A9 API auth blocks it', async (t) => {
   assert.deepEqual(gristHits, ['/api/session/access/all']);
 });
 
+test('opens Grist signup without auto-login or existing Grist session cookies', async (t) => {
+  const gristHits = [];
+  let autoLoginCalls = 0;
+  const gristServer = http.createServer((req, res) => {
+    gristHits.push({ url: req.url, cookie: req.headers.cookie || '' });
+    res.writeHead(200, { 'content-type': 'text/html' });
+    res.end('<html><head></head><body>signup</body></html>');
+  });
+  await new Promise(resolve => gristServer.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => gristServer.close(resolve)));
+
+  const gristUrl = `http://127.0.0.1:${gristServer.address().port}`;
+  const {
+    router,
+    gristProxy,
+    gristStaticProxy,
+  } = createProxyRouter({
+    gristApi: {
+      autoLoginToGrist: async () => {
+        autoLoginCalls += 1;
+        return ['grist_core=new-session; Path=/; SameSite=Lax'];
+      },
+    },
+    gristUrl,
+    requireAuth: (req, res, next) => next(),
+  });
+
+  const app = express();
+  app.use((req, res, next) => {
+    req.session = { user: { email: 'alice@example.com' } };
+    next();
+  });
+  app.use(router);
+  const appServer = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => appServer.once('listening', resolve));
+  t.after(() => {
+    gristProxy.close();
+    gristStaticProxy.close();
+    return new Promise(resolve => appServer.close(resolve));
+  });
+
+  const response = await fetch(`http://127.0.0.1:${appServer.address().port}/grist/signup`, {
+    headers: { cookie: 'connect.sid=app-session; grist_core=old-session; grist_core_status=S' },
+  });
+  const secondResponse = await fetch(`http://127.0.0.1:${appServer.address().port}/grist/login`, {
+    headers: { cookie: 'connect.sid=app-session' },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(secondResponse.status, 200);
+  assert.equal(autoLoginCalls, 0);
+  assert.equal(gristHits[0].url, '/signup');
+  assert.equal(gristHits[0].cookie.includes('grist_core='), false);
+  assert.equal(gristHits[0].cookie.includes('grist_core_status='), false);
+  assert.equal(gristHits[1].url, '/login');
+  assert.equal(gristHits[1].cookie.includes('grist_core='), false);
+  assert.equal((secondResponse.headers.get('set-cookie') || '').includes('grist_core='), false);
+});
+
+test('strips Grist session cookies from auth-page native API checks', async (t) => {
+  const gristHits = [];
+  const gristServer = http.createServer((req, res) => {
+    gristHits.push({ url: req.url, cookie: req.headers.cookie || '' });
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ users: [{ anonymous: true }], orgs: [] }));
+  });
+  await new Promise(resolve => gristServer.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => gristServer.close(resolve)));
+
+  const gristUrl = `http://127.0.0.1:${gristServer.address().port}`;
+  const {
+    router,
+    gristProxy,
+    gristStaticProxy,
+  } = createProxyRouter({
+    gristApi: { autoLoginToGrist: async () => [] },
+    gristUrl,
+    requireAuth: (req, res, next) => next(),
+  });
+
+  const app = express();
+  app.use(router);
+  const appServer = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => appServer.once('listening', resolve));
+  t.after(() => {
+    gristProxy.close();
+    gristStaticProxy.close();
+    return new Promise(resolve => appServer.close(resolve));
+  });
+
+  const response = await fetch(`http://127.0.0.1:${appServer.address().port}/api/session/access/all`, {
+    headers: {
+      cookie: 'connect.sid=app-session; grist_core=old-session; grist_core_status=S',
+      referer: `http://127.0.0.1:${appServer.address().port}/grist/signup`,
+    },
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(body.orgs, []);
+  assert.equal(gristHits[0].cookie.includes('grist_core='), false);
+  assert.equal(gristHits[0].cookie.includes('grist_core_status='), false);
+});
+
 test('does not expose the service-token Grist API proxy to browser callers', async (t) => {
   const gristHits = [];
   const gristServer = http.createServer((req, res) => {

@@ -24,7 +24,8 @@ test('dashboard does not automatically sync from Grist session', () => {
 });
 
 test('login registration link opens an existing Grist entry path', () => {
-  assert.match(html, /href="\/grist\/login"/);
+  assert.match(html, /href="\/grist\/signup"/);
+  assert.doesNotMatch(html, /前往 Grist 注册<\/a>[\s\S]*href="\/grist\/login"/);
   assert.doesNotMatch(html, /\/grist\/auth\/login/);
 });
 

@@ -34,6 +34,10 @@ function checkLoginRateLimit(ip) {
   return true;
 }
 
+function expiredCookie(name) {
+  return `${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; SameSite=Lax`;
+}
+
 // 定期清理过期条目
 const loginRateCleanup = setInterval(() => {
   const now = Date.now();
@@ -159,22 +163,18 @@ function createAuthRouter(deps) {
 
   // POST /logout
   router.post('/logout', (req, res) => {
-    // 清除 Grist 相关的 cookies
-    res.setHeader('Set-Cookie', [
-      'grist_core=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax',
-      'grist_core_status=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
-    ]);
     // 确保 session 被正确销毁
     req.session.destroy((err) => {
       if (err) {
         console.error('[Logout Error]', err.message);
         return res.status(500).json({ error: '登出失败，请重试' });
       }
-      // 清除 session cookie
+      // 清除 Grist、当前 A9、旧版 A9 session cookies。
       res.setHeader('Set-Cookie', [
-        'grist_core=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax',
-        'grist_core_status=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax',
-        'connect.sid=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
+        expiredCookie('grist_core'),
+        expiredCookie('grist_core_status'),
+        expiredCookie('connect.sid'),
+        expiredCookie('a9.sid'),
       ]);
       res.json({ success: true });
     });

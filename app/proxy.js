@@ -216,6 +216,34 @@ function mergeCookieHeader(cookieHeader, setCookieHeaders) {
   return Array.from(cookies.entries()).map(([key, value]) => `${key}=${value}`).join('; ');
 }
 
+function stripGristSessionCookies(cookieHeader) {
+  return (cookieHeader || '')
+    .split(';')
+    .map(part => part.trim())
+    .filter(Boolean)
+    .filter(part => {
+      const name = part.split('=')[0].trim();
+      return !['grist_core', 'grist_core_status'].includes(name);
+    })
+    .join('; ');
+}
+
+function isGristAuthPath(pathname) {
+  return pathname === '/login' || pathname.startsWith('/login/')
+    || pathname === '/signup' || pathname.startsWith('/signup/');
+}
+
+function isGristAuthReferer(req) {
+  const referer = req.headers.referer || req.headers.referrer || '';
+  if (!referer) return false;
+  try {
+    const pathname = new URL(referer, 'http://localhost').pathname;
+    return isGristAuthPath(pathname.replace(/^\/grist(?=\/|$)/, '') || '/');
+  } catch (_) {
+    return false;
+  }
+}
+
 // ---------- 创建代理路由 ----------
 /**
  * @param {object} deps
@@ -242,7 +270,13 @@ function createProxyRouter(deps) {
   async function serveGristPage(req, res, stripPrefix) {
     // 自动登录 Grist：确保每次请求都带有 Grist session cookie
     let cookieHeader = req.headers.cookie || '';
-    if (req.session && req.session.user && req.session.user.email) {
+    const proxyPath = stripPrefix ? (req.originalUrl.replace(/^\/grist/, '') || '/') : req.originalUrl;
+    const targetPathname = new URL(proxyPath, 'http://localhost').pathname;
+    const authPath = isGristAuthPath(targetPathname);
+    if (authPath) {
+      cookieHeader = stripGristSessionCookies(cookieHeader);
+    }
+    if (!authPath && req.session && req.session.user && req.session.user.email) {
       if (!/(?:^|;\s*)grist_core=/.test(cookieHeader)) {
         const gristCookies = await gristApi.autoLoginToGrist(req.session.user.email);
         if (gristCookies.length > 0) {
@@ -253,7 +287,6 @@ function createProxyRouter(deps) {
     }
 
     // 构造代理路径
-    const proxyPath = stripPrefix ? (req.originalUrl.replace(/^\/grist/, '') || '/') : req.originalUrl;
     const targetUrl = new URL(proxyPath, gristUrl).href;
 
     try {
@@ -339,6 +372,9 @@ function createProxyRouter(deps) {
   router.use('/api', (req, res, next) => {
     const pathname = new URL(req.originalUrl, 'http://localhost').pathname;
     if (!isGristNativeApiPath(pathname)) return next();
+    if (isGristAuthReferer(req)) {
+      req.headers.cookie = stripGristSessionCookies(req.headers.cookie || '');
+    }
 
     const proxyRequest = () => {
       req.url = req.originalUrl;
@@ -411,6 +447,8 @@ module.exports = {
   isGristNativeApiPath,
   isGristWebPath,
   isGristWebSocketPath,
+  isGristAuthPath,
+  stripGristSessionCookies,
   rewriteGristWebSocketOrigin,
   createGristConfigPatchScript,
   createGristFetchOptions,
