@@ -96,7 +96,8 @@ function createGristConfigPatchScript(publicOrigin, publicAppPath = '/') {
     `var _appPath=${JSON.stringify(publicAppPath)};`,
     // 避免对登录/注册页面进行路径重定向，防止访问被拒绝
     'var isAuthPath = location.pathname.includes("/login") || location.pathname.includes("/signup");',
-    'if(!isAuthPath && (location.pathname!==_appPath.split("?")[0]||location.search!==(_appPath.indexOf("?")>=0?"?"+_appPath.split("?").slice(1).join("?"):""))){',
+    // 只有在非认证路径且当前路径不是根路径时才执行重定向
+    'if(!isAuthPath && location.pathname !== "/" && (location.pathname!==_appPath.split("?")[0]||location.search!==(_appPath.indexOf("?")>=0?"?"+_appPath.split("?").slice(1).join("?"):""))){',
     '  history.replaceState(history.state,"",_appPath);',
     '}',
     'if(window.gristConfig){',
@@ -350,9 +351,24 @@ function createProxyRouter(deps) {
       });
     };
 
-    if (pathname === '/api/session/access/all') {
+    // 允许注册过程中可能调用的 API 路径在未认证的情况下访问
+    const unauthenticatedPaths = [
+      '/api/session/access/all',
+      '/api/session/login',
+      '/api/session/logout',
+      '/api/users',
+      '/api/users/',
+      '/api/orgs',
+      '/api/orgs/'
+    ];
+
+    if (unauthenticatedPaths.some(pattern =>
+      pathname === pattern ||
+      (pattern.endsWith('/') && pathname.startsWith(pattern.slice(0, -1)))
+    )) {
       return proxyRequest();
     }
+
     return requireAuth(req, res, proxyRequest);
   });
 

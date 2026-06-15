@@ -18,10 +18,9 @@ test('login form sends password field', () => {
   assert.match(html, /JSON\.stringify\(\{ email, password \}\)/);
 });
 
-test('dashboard restores A9 session from existing Grist session before showing login', () => {
-  assert.match(html, /async function syncAuthFromGrist\(\)/);
-  assert.match(html, /fetch\('\/api\/auth\/sync', \{ method: 'POST' \}\)/);
-  assert.match(html, /const synced = await syncAuthFromGrist\(\)/);
+test('dashboard does not automatically sync from Grist session', () => {
+  assert.doesNotMatch(html, /const synced = await syncAuthFromGrist\(\)/);
+  assert.doesNotMatch(html, /syncAuthFromGrist/);
 });
 
 test('login registration link opens an existing Grist entry path', () => {

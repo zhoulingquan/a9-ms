@@ -164,7 +164,18 @@ function createAuthRouter(deps) {
       'grist_core=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax',
       'grist_core_status=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
     ]);
-    req.session.destroy(() => {
+    // 确保 session 被正确销毁
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('[Logout Error]', err.message);
+        return res.status(500).json({ error: '登出失败，请重试' });
+      }
+      // 清除 session cookie
+      res.setHeader('Set-Cookie', [
+        'grist_core=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax',
+        'grist_core_status=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax',
+        'connect.sid=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
+      ]);
       res.json({ success: true });
     });
   });

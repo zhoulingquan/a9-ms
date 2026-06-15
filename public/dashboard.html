@@ -1554,19 +1554,6 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
     }
   };
 
-  async function syncAuthFromGrist() {
-    try {
-      const res = await fetch('/api/auth/sync', { method: 'POST' });
-      if (!res.ok) return false;
-      const data = await res.json();
-      if (!data.success || !data.user) return false;
-      currentUser = data.user;
-      updateUserUI(data.user);
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
 
   async function checkAuth() {
     try {
@@ -1579,8 +1566,7 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
           return true;
         }
       }
-      const synced = await syncAuthFromGrist();
-      if (synced) return true;
+      // 不再自动从 Grist 会话同步认证信息，必须通过 A9 登录
     } catch (e) {}
     return false;
   }
@@ -1604,11 +1590,19 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
   }
 
   window.doLogout = async function() {
-    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) {}
-    currentUser = null;
-    const footer = document.getElementById('sidebarFooter');
-    if (footer) footer.style.display = 'none';
-    showLogin();
+    try {
+      const res = await fetch('/api/auth/logout', { method: 'POST' });
+      if (res.ok) {
+        currentUser = null;
+        const footer = document.getElementById('sidebarFooter');
+        if (footer) footer.style.display = 'none';
+        showLogin();
+      } else {
+        console.error('登出失败');
+      }
+    } catch (e) {
+      console.error('登出请求失败', e);
+    }
   };
 
   document.addEventListener('DOMContentLoaded', async function() {
