@@ -94,7 +94,9 @@ function createGristConfigPatchScript(publicOrigin, publicAppPath = '/') {
     '(function(){',
     `var _origin=${JSON.stringify(publicOrigin)};`,
     `var _appPath=${JSON.stringify(publicAppPath)};`,
-    'if(location.pathname!==_appPath.split("?")[0]||location.search!==(_appPath.indexOf("?")>=0?"?"+_appPath.split("?").slice(1).join("?"):"")){',
+    // 避免对登录/注册页面进行路径重定向，防止访问被拒绝
+    'var isAuthPath = location.pathname.includes("/login") || location.pathname.includes("/signup");',
+    'if(!isAuthPath && (location.pathname!==_appPath.split("?")[0]||location.search!==(_appPath.indexOf("?")>=0?"?"+_appPath.split("?").slice(1).join("?"):""))){',
     '  history.replaceState(history.state,"",_appPath);',
     '}',
     'if(window.gristConfig){',
