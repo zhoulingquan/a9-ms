@@ -1,17 +1,19 @@
 {
-  "name": "a9-marketing-system",
+  "name": "a9-customer-ledger-system",
   "version": "3.0.0",
-  "description": "A9 Marketing System — NocoDB 多维表格 + 统计看板 + AI 助手",
+  "description": "A9 Marketing System — Grist 多维表格 + 统计看板",
   "main": "app/server.js",
   "scripts": {
     "start": "node app/server.js",
+    "test": "node --test",
     "stop": "taskkill /f /im node.exe 2>nul || true",
     "dev": "docker compose up",
     "dev:build": "docker compose up --build",
-    "seed": "node nocodb-init/seed.js",
     "deploy": "docker compose up -d --build"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.10.0",
     "express": "^4.21.0",
     "express-session": "^1.19.0",
     "http-proxy": "^1.18.1",

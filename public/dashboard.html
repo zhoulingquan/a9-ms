@@ -4,18 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>A9 Marketing System</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" />
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js" integrity="sha384-o5uz97et3bErHvpKfD4Jz4n0JfhJDWABFuF4NP+iEEDxE1VwMWJ19QGR0lqFZnr6" crossorigin="anonymous"></script>
+
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  /* ========== Grist Light Theme (default) ========== */
+  /* ========== Light Theme (default) ========== */
   :root, [data-theme="light"] {
     --g-primary: #16b378;
     --g-primary-dark: #009058;
     --g-primary-dim: #007548;
-    --g-primary-light: rgba(22,179,120,0.15);
+    --g-primary-light: rgba(22,179,120,0.12);
     --g-primary-emphasis: #b1ffe2;
     --g-body: #262633;
     --g-medium-text: #494949;
@@ -28,7 +29,7 @@
     --g-error: #d0021b;
     --g-warning: #dd962c;
     --g-info: #3b82f6;
-    --g-selection: rgba(22,179,120,0.15);
+    --g-selection: rgba(22,179,120,0.12);
     --g-overlay-bg: rgba(38,38,51,0.5);
     --g-map-marker: #16b378;
     --g-chart-axis: #494949;
@@ -43,14 +44,21 @@
     --g-login-shadow: 0 8px 32px rgba(38,38,51,0.24);
     --g-popup-bg: #ffffff;
     --g-popup-border: #e8e8e8;
+    --g-sidebar-bg: #1e1e2e;
+    --g-sidebar-text: #a4a4b1;
+    --g-sidebar-active-bg: rgba(22,179,120,0.15);
+    --g-sidebar-active-text: #16b378;
+    --g-sidebar-hover-bg: rgba(255,255,255,0.05);
+    --g-sidebar-width: 220px;
+    --g-sidebar-collapsed-width: 56px;
   }
 
-  /* ========== Grist Dark Theme ========== */
+  /* ========== Dark Theme ========== */
   [data-theme="dark"] {
     --g-primary: #17b378;
     --g-primary-dark: #1da270;
     --g-primary-dim: #157a54;
-    --g-primary-light: rgba(22,179,120,0.2);
+    --g-primary-light: rgba(22,179,120,0.18);
     --g-primary-emphasis: #13d78d;
     --g-body: #efefef;
     --g-medium-text: #d5d5d5;
@@ -63,7 +71,7 @@
     --g-error: #e63946;
     --g-warning: #dd962c;
     --g-info: #3b82f6;
-    --g-selection: rgba(22,179,120,0.2);
+    --g-selection: rgba(22,179,120,0.18);
     --g-overlay-bg: rgba(0,0,0,0.6);
     --g-map-marker: #17b378;
     --g-chart-axis: #d5d5d5;
@@ -78,6 +86,11 @@
     --g-login-shadow: 0 8px 32px rgba(0,0,0,0.5);
     --g-popup-bg: #32323f;
     --g-popup-border: #60606d;
+    --g-sidebar-bg: #1a1a28;
+    --g-sidebar-text: #a4a4b1;
+    --g-sidebar-active-bg: rgba(22,179,120,0.18);
+    --g-sidebar-active-text: #17b378;
+    --g-sidebar-hover-bg: rgba(255,255,255,0.05);
   }
 
   html { font-size: 14px; }
@@ -85,53 +98,131 @@
     font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Liberation Sans,Helvetica,Arial,sans-serif;
     background: var(--g-bg-secondary); color: var(--g-body); line-height: 1.5;
     transition: background .2s, color .2s;
+    display: flex; min-height: 100vh;
   }
 
-  /* ---- Header ---- */
-  .header {
-    background: var(--g-bg); border-bottom: 1px solid var(--g-border-light);
-    padding: 0 20px; display: flex; align-items: center; justify-content: space-between;
-    height: 48px; position: sticky; top: 0; z-index: 100;
+  /* ========== Sidebar ========== */
+  .sidebar {
+    width: var(--g-sidebar-width); min-height: 100vh; background: var(--g-sidebar-bg);
+    display: flex; flex-direction: column; flex-shrink: 0;
+    transition: width .2s, background .2s; position: fixed; left: 0; top: 0; bottom: 0; z-index: 200;
+  }
+  .sidebar-brand {
+    padding: 10px 10px; display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    position: relative; min-height: 48px;
+  }
+  .sidebar-brand .logo {
+    width: 28px; height: 28px; border-radius: 3px; background: var(--g-primary);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; color: #fff; font-size: 13px; flex-shrink: 0;
+  }
+  .sidebar-brand h1 { font-size: 14px; font-weight: 600; color: #fff; white-space: nowrap; }
+  .sidebar-toggle {
+    margin-left: auto; width: 24px; height: 24px; border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.1); background: transparent; color: var(--g-sidebar-text);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; line-height: 1; transition: background .1s, color .1s, border-color .1s;
+  }
+  .sidebar-toggle:hover { background: var(--g-sidebar-hover-bg); color: #fff; border-color: rgba(255,255,255,0.18); }
+  .sidebar-nav { flex: 1; padding: 4px 0; overflow-y: auto; }
+  .sidebar-section { padding: 10px 12px 4px; font-size: 11px; color: var(--g-sidebar-text); text-transform: uppercase; letter-spacing: .5px; opacity: .5; }
+  .nav-item {
+    display: flex; align-items: center; gap: 8px; padding: 5px 12px; margin: 1px 6px;
+    color: var(--g-sidebar-text); font-size: 13px; font-weight: 400;
+    cursor: pointer; transition: background .1s, color .1s; text-decoration: none; border: none;
+    background: none; width: calc(100% - 12px); text-align: left; font-family: inherit;
+    border-radius: 3px; border-left: 3px solid transparent;
+  }
+  .nav-item:hover { background: var(--g-sidebar-hover-bg); color: #fff; }
+  .nav-item.active { background: var(--g-sidebar-active-bg); color: var(--g-sidebar-active-text); border-left-color: var(--g-primary); }
+  .nav-item .nav-icon { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; text-align: center; font-size: 15px; flex-shrink: 0; opacity: .75; line-height: 1; }
+  .nav-item.active .nav-icon { opacity: 1; }
+  .sidebar-footer {
+    padding: 10px 12px; border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .sidebar-footer .avatar {
+    width: 24px; height: 24px; border-radius: 3px; background: var(--g-primary);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 11px; font-weight: 600; flex-shrink: 0;
+  }
+  .sidebar-footer .user-name { color: #fff; font-size: 13px; font-weight: 400; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sidebar-footer .btn-logout {
+    padding: 2px 6px; border-radius: 3px; background: none; border: none;
+    color: var(--g-sidebar-text); font-size: 11px; cursor: pointer; font-family: inherit;
+    transition: color .1s;
+  }
+  .sidebar-footer .btn-logout:hover { color: var(--g-error); }
+
+  /* ========== Main Area ========== */
+  .main-area {
+    flex: 1; margin-left: var(--g-sidebar-width); display: flex; flex-direction: column; min-height: 100vh;
+    width: calc(100vw - var(--g-sidebar-width)); max-width: calc(100vw - var(--g-sidebar-width));
+min-width: 0; overflow-x: clip; overflow-y: visible;
+    transition: margin-left .2s, width .2s, max-width .2s;
+  }
+  body.sidebar-collapsed .sidebar { width: var(--g-sidebar-collapsed-width); }
+  body.sidebar-collapsed .main-area {
+    margin-left: var(--g-sidebar-collapsed-width);
+    width: calc(100vw - var(--g-sidebar-collapsed-width));
+    max-width: calc(100vw - var(--g-sidebar-collapsed-width));
+  }
+  body.sidebar-collapsed .sidebar-brand { justify-content: center; padding: 10px 8px; }
+  body.sidebar-collapsed .sidebar-brand .logo { display: none; }
+  body.sidebar-collapsed .sidebar-brand h1,
+  body.sidebar-collapsed .sidebar-section,
+  body.sidebar-collapsed .nav-label,
+  body.sidebar-collapsed .sidebar-footer .user-name,
+  body.sidebar-collapsed .sidebar-footer .btn-logout { display: none; }
+  body.sidebar-collapsed .sidebar-toggle {
+    position: static; margin-left: 0;
+    background: var(--g-bg); color: var(--g-medium-text); border-color: var(--g-border-light);
+    box-shadow: 0 1px 4px rgba(38,38,51,0.18);
+  }
+  body.sidebar-collapsed .sidebar-toggle:hover { color: var(--g-primary-dark); border-color: var(--g-primary); background: var(--g-bg); }
+  body.sidebar-collapsed .nav-item { justify-content: center; padding: 9px 0; margin: 2px 6px; gap: 0; border-left-width: 0; width: calc(100% - 12px); }
+  body.sidebar-collapsed .nav-item.active { border-left-width: 0; box-shadow: inset 3px 0 0 var(--g-primary); }
+  body.sidebar-collapsed .sidebar-footer { justify-content: center; padding: 10px 8px; }
+  body.sidebar-collapsed .sidebar-footer .avatar { width: 28px; height: 28px; }
+  .btn-action {
+    height: 28px; border-radius: 3px; border: 1px solid var(--g-border);
+    background: var(--g-bg); color: var(--g-medium-text); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; padding: 0 10px;
+    font-size: 12px; font-weight: 500; font-family: inherit; transition: all .1s;
+  }
+  .btn-action:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
+  .btn-action.primary { background: var(--g-primary); border-color: var(--g-primary); color: #fff; }
+  .btn-action.primary:hover { background: var(--g-primary-dark); border-color: var(--g-primary-dark); color: #fff; }
+  .btn-symbol {
+    width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 14px; line-height: 1; flex-shrink: 0;
+  }
+
+  /* ---- Top Bar ---- */
+  .topbar {
+    height: 40px; background: var(--g-bg); border-bottom: 1px solid var(--g-border-light);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; position: sticky; top: 0; z-index: 9998;
     transition: background .2s, border-color .2s;
   }
-  .header h1 { font-size: 15px; font-weight: 600; color: var(--g-body); }
-  .header nav { display: flex; gap: 8px; align-items: center; }
-  .btn-grist {
-    background: var(--g-primary); color: #fff; padding: 5px 14px; border-radius: 4px;
-    cursor: pointer; font-size: 13px; font-weight: 500; transition: background .15s;
-    text-decoration: none; display: inline-flex; align-items: center; gap: 5px; border: none;
+  .topbar-left { display: flex; align-items: center; gap: 8px; }
+  .topbar-title { font-size: 14px; font-weight: 600; color: var(--g-body); }
+  .topbar-right { display: flex; align-items: center; gap: 4px; }
+  .btn-icon {
+    width: 28px; height: 28px; border-radius: 3px; border: 1px solid var(--g-border);
+    background: var(--g-bg); color: var(--g-medium-text); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 13px;
+    transition: all .1s;
   }
-  .btn-grist:hover { background: var(--g-primary-dark); color: #fff; }
-  .btn-refresh {
-    background: var(--g-bg); color: var(--g-medium-text); padding: 5px 14px;
-    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;
-    border: 1px solid var(--g-border); transition: all .15s;
-  }
-  .btn-refresh:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
-  .btn-refresh.loading { opacity: .6; pointer-events: none; }
-  .user-info { display: flex; align-items: center; gap: 8px; margin-left: 4px; padding-left: 12px; border-left: 1px solid var(--g-border-light); }
-  .user-display { font-size: 13px; font-weight: 500; color: var(--g-medium-text); }
-  .btn-logout {
-    padding: 4px 10px; border: 1px solid var(--g-border); border-radius: 4px;
-    background: var(--g-bg); color: var(--g-light-text); font-size: 12px; font-weight: 500;
-    cursor: pointer; transition: all .15s; font-family: inherit;
-  }
-  .btn-logout:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
+  .btn-icon:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
 
   /* ---- Theme Switcher ---- */
-  .theme-switcher {
-    position: relative; display: inline-flex;
-  }
-  .theme-btn {
-    background: var(--g-bg); color: var(--g-medium-text); padding: 5px 10px;
-    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;
-    border: 1px solid var(--g-border); transition: all .15s; display: inline-flex; align-items: center; gap: 4px;
-  }
-  .theme-btn:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
+  .theme-switcher { position: relative; display: inline-flex; }
   .theme-dropdown {
     display: none; position: absolute; top: calc(100% + 4px); right: 0;
     background: var(--g-popup-bg); border: 1px solid var(--g-popup-border);
-    border-radius: 4px; box-shadow: var(--g-login-shadow); min-width: 160px;
+    border-radius: 3px; box-shadow: var(--g-login-shadow); min-width: 160px;
     z-index: 200; overflow: hidden;
   }
   .theme-dropdown.open { display: block; }
@@ -144,137 +235,238 @@
   .theme-option.active { color: var(--g-primary-dark); font-weight: 600; }
   .theme-option .check { width: 16px; text-align: center; }
 
-  /* ---- Container ---- */
-  .container { max-width: 1400px; margin: 0 auto; padding: 16px 20px; }
+  /* ========== Content ========== */
+  .content { flex: 1; padding: 20px 24px; position: relative; z-index: 0; }
 
   /* ---- Stats Cards ---- */
   .stats-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px;
   }
   .stat-card {
-    background: var(--g-bg); border-radius: 4px; padding: 14px 16px;
+    background: var(--g-bg); border-radius: 3px; padding: 14px 16px;
     border: 1px solid var(--g-border-light); transition: border-color .15s, background .2s;
   }
   .stat-card:hover { border-color: var(--g-primary); }
-  .stat-card .label { font-size: 12px; color: var(--g-light-text); margin-bottom: 4px; font-weight: 500; }
-  .stat-card .value { font-size: 1.6rem; font-weight: 700; color: var(--g-body); }
+  .stat-card { position: relative; }
+  .metric-close-btn {
+    position: absolute; top: 6px; right: 6px; width: 20px; height: 20px;
+    border-radius: 3px; border: 1px solid var(--g-border); background: var(--g-bg);
+    color: var(--g-light-text); cursor: pointer; display: none;
+    align-items: center; justify-content: center; font-size: 12px; line-height: 1;
+  }
+  .stat-card:hover .metric-close-btn { display: flex; }
+  .metric-close-btn:hover { border-color: var(--g-error); color: var(--g-error); }
+  .metric-add-btn {
+    border: 2px dashed var(--g-border); border-radius: 3px; min-height: 80px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: border-color .15s, background .15s; background: transparent;
+  }
+  .metric-add-btn:hover { border-color: var(--g-primary); background: var(--g-primary-light); }
+  .metric-add-inner { text-align: center; color: var(--g-light-text); }
+  .metric-add-inner .plus { font-size: 24px; line-height: 1; }
+  .metric-add-inner .text { font-size: 12px; margin-top: 2px; }
+  .metric-edit-form { padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+  .metric-edit-field label { display: block; font-size: 10px; color: var(--g-light-text); margin-bottom: 2px; font-weight: 500; }
+  .metric-edit-field input, .metric-edit-field select { width: 100%; padding: 4px 6px; border: 1px solid var(--g-border); border-radius: 3px; background: var(--g-bg); color: var(--g-body); font-size: 12px; font-family: inherit; }
+  .metric-edit-actions { display: flex; gap: 6px; justify-content: flex-end; }
+  .stat-card .label { font-size: 12px; color: var(--g-light-text); margin-bottom: 6px; font-weight: 500; }
+  .stat-card .value { font-size: 1.7rem; font-weight: 700; color: var(--g-body); }
   .stat-card.accent { border-left: 3px solid var(--g-primary); }
   .stat-card.red    { border-left: 3px solid var(--g-error); }
   .stat-card.orange { border-left: 3px solid var(--g-warning); }
   .stat-card.blue   { border-left: 3px solid var(--g-info); }
   .stat-card.green  { border-left: 3px solid var(--g-primary); }
   .stat-card.gray   { border-left: 3px solid var(--g-light-text); }
+  .metric-widget-value { padding: 18px 14px; font-size: 2rem; font-weight: 700; color: var(--g-body); }
 
   /* ---- Panels ---- */
   .panel {
-    background: var(--g-bg); border-radius: 4px; margin-bottom: 16px;
+    background: var(--g-bg); border-radius: 3px; margin-bottom: 12px;
     border: 1px solid var(--g-border-light); overflow: hidden; transition: background .2s, border-color .2s;
   }
+  #mapPanel {
+    position: relative;
+    z-index: 0;
+  }
   .panel-header {
-    background: var(--g-bg); padding: 10px 16px; font-size: 13px; font-weight: 600;
+    background: var(--g-bg); padding: 8px 14px; font-size: 13px; font-weight: 600;
     color: var(--g-medium-text); display: flex; align-items: center; justify-content: space-between;
     border-bottom: 1px solid var(--g-border-light); transition: background .2s, border-color .2s;
   }
-  .panel-body { padding: 16px; }
+  .panel-body { padding: 14px; }
 
   /* ---- Map ---- */
-  #map { height: 480px; width: 100%; }
-  .map-basemap-select {
-    background: var(--g-bg); border: 1px solid var(--g-border); color: var(--g-medium-text);
-    padding: 3px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;
+  #map { height: 480px; width: 100%; margin-bottom: 12px; position: relative; z-index: 0; }
+  #map.leaflet-container { overflow: hidden; }
+  #map .leaflet-pane,
+  #map .leaflet-tile,
+  #map .leaflet-marker-icon,
+  #map .leaflet-marker-shadow,
+  #map .leaflet-tile-container,
+  #map .leaflet-pane > svg,
+  #map .leaflet-pane > canvas,
+  #map .leaflet-zoom-box,
+  #map .leaflet-image-layer,
+  #map .leaflet-layer {
+    position: absolute;
+    left: 0;
+    top: 0;
   }
-  .map-basemap-select option { color: #333; }
+  #map .leaflet-map-pane { z-index: 400; }
+  #map .leaflet-tile-pane { z-index: 200; }
+  #map .leaflet-overlay-pane { z-index: 400; }
+  #map .leaflet-shadow-pane { z-index: 500; }
+  #map .leaflet-marker-pane { z-index: 600; }
+  #map .leaflet-tooltip-pane { z-index: 650; }
+  #map .leaflet-popup-pane { z-index: 700; }
+  #map .leaflet-top,
+  #map .leaflet-bottom { position: absolute; z-index: 800; pointer-events: none; }
+  #map .leaflet-top { top: 0; }
+  #map .leaflet-right { right: 0; }
+  #map .leaflet-bottom { bottom: 0; }
+  #map .leaflet-left { left: 0; }
+  #map .leaflet-control { position: relative; z-index: 800; pointer-events: auto; float: left; clear: both; }
+  #map .leaflet-right .leaflet-control { float: right; }
+  #map .leaflet-top .leaflet-control { margin-top: 10px; }
+  #map .leaflet-bottom .leaflet-control { margin-bottom: 10px; }
+  #map .leaflet-left .leaflet-control { margin-left: 10px; }
+  #map .leaflet-right .leaflet-control { margin-right: 10px; }
+  .map-controls { display: flex; align-items: center; gap: 6px; }
   .btn-fullscreen {
     background: var(--g-bg); border: 1px solid var(--g-border); color: var(--g-medium-text);
-    padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 6px;
+    padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 12px;
   }
   .btn-fullscreen:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
 
-  /* ---- Chart ---- */
-  #chart { height: 400px; width: 100%; }
+  /* ---- Native Chart Widgets ---- */
+  .dashboard-row { margin-bottom: 12px; }
+  .chart-widgets-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .chart-widget-card { border: 1px solid var(--g-border-light); border-radius: 3px; overflow: hidden; background: var(--g-bg); }
+  .chart-widget-header { min-height: 38px; padding: 7px 10px; border-bottom: 1px solid var(--g-border-light); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .chart-widget-title { font-size: 12px; font-weight: 600; color: var(--g-medium-text); }
+  .chart-widget-scope { color: var(--g-light-text); font-size: 11px; font-weight: 400; margin-left: 6px; }
+  .chart-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .chart-action-btn { background: var(--g-bg); border: 1px solid var(--g-border); color: var(--g-medium-text); padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; font-family: inherit; }
+  .chart-action-btn:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
+  .native-chart { width: 100%; height: 320px; }
 
-  /* ---- Table ---- */
-  .table-wrap { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  thead { background: var(--g-bg-secondary); }
-  th, td { padding: 8px 12px; text-align: center; border-bottom: 1px solid var(--g-border-light); white-space: nowrap; }
-  th { font-weight: 600; color: var(--g-light-text); text-transform: uppercase; font-size: 11px; letter-spacing: .3px; }
-  td:first-child { text-align: left; font-weight: 500; }
-  tbody tr:hover { background: var(--g-selection); }
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; color: #fff; }
-  .badge-a { background: var(--g-badge-a); }
-  .badge-b { background: var(--g-badge-b); }
-  .badge-c { background: var(--g-badge-c); }
-  .badge-active { background: var(--g-badge-active); }
-  .badge-signed { background: var(--g-badge-signed); }
-  .badge-negotiating { background: var(--g-badge-negotiating); }
-  .badge-ended { background: var(--g-badge-ended); }
+  /* ---- Chart Edit Form ---- */
+  .chart-edit-form { padding: 16px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; }
+  .chart-edit-field label { display: block; font-size: 11px; color: var(--g-light-text); margin-bottom: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: .3px; }
+  .chart-edit-field select { width: 100%; padding: 6px 8px; border: 1px solid var(--g-border); border-radius: 3px; background: var(--g-bg); color: var(--g-body); font-size: 13px; font-family: inherit; }
+  .chart-edit-metric { display: flex; gap: 6px; }
+  .chart-edit-metric select { flex: 1; min-width: 0; }
+  .chart-edit-type-group { display: flex; gap: 4px; }
+  .chart-type-btn { flex: 1; padding: 6px 4px; border: 1px solid var(--g-border); border-radius: 3px; background: var(--g-bg); color: var(--g-medium-text); cursor: pointer; font-size: 12px; font-family: inherit; transition: all .1s; }
+  .chart-type-btn:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
+  .chart-type-btn.active { border-color: var(--g-primary); background: var(--g-primary-light); color: var(--g-primary-dark); font-weight: 600; }
 
-  /* ---- Footer ---- */
-  .footer { text-align: center; padding: 12px; color: var(--g-light-text); font-size: 12px; }
+  /* ---- Add Chart Placeholder ---- */
+  .chart-add-btn { border: 2px dashed var(--g-border); border-radius: 3px; height: 120px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border-color .15s, background .15s; background: transparent; }
+  .chart-add-btn:hover { border-color: var(--g-primary); background: var(--g-primary-light); }
+  .chart-add-inner { text-align: center; color: var(--g-light-text); }
+  .chart-add-inner .plus { font-size: 28px; line-height: 1; }
+  .chart-add-inner .text { font-size: 13px; margin-top: 4px; }
 
-  /* ---- Login Overlay ---- */
+  /* ---- Map Fullscreen ---- */
+  body.map-fullscreen-active {
+    overflow: hidden;
+  }
+  body.map-fullscreen-active .sidebar,
+  body.map-fullscreen-active .topbar {
+    display: none;
+  }
+  body.map-fullscreen-active .main-area {
+    margin-left: 0;
+    width: 100vw;
+    max-width: 100vw;
+    min-height: 100vh;
+    z-index: 10000;
+  }
+  body.map-fullscreen-active .content {
+    padding: 0;
+  }
+  #mapPanel.map-fullscreen {
+    position: fixed; inset: 0; z-index: 10000; border-radius: 0; border: none; margin: 0;
+    display: flex; flex-direction: column; box-shadow: none;
+  }
+  #mapPanel.map-fullscreen .panel-header {
+    flex: 0 0 auto; padding: 12px 16px; border-bottom: 1px solid var(--g-border);
+  }
+  #mapPanel.map-fullscreen #map {
+    flex: 1 1 auto; min-height: 0; height: auto; margin-bottom: 0;
+  }
+  #mapPanel.map-collapsed #map {
+    display: none;
+  }
+
+  /* ---- Overlays ---- */
   .login-overlay {
     display: none; position: fixed; inset: 0; z-index: 1000;
     background: var(--g-overlay-bg); justify-content: center; align-items: center;
     padding: 20px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
   }
   .login-overlay.active { display: flex; }
-  body.login-active .header,
-  body.login-active .container { filter: blur(4px); pointer-events: none; user-select: none; transition: filter .3s; }
   .login-box {
-    background: var(--g-bg); border-radius: 6px; width: 100%; max-width: 380px;
-    box-shadow: var(--g-login-shadow); border: 1px solid var(--g-border-light);
-    transition: background .2s, border-color .2s;
+    background: var(--g-bg); border-radius: 6px; box-shadow: var(--g-login-shadow);
+    width: 100%; max-width: 360px; overflow: hidden;
   }
-  .login-header { display: flex; justify-content: center; align-items: center; padding: 20px 24px 12px; }
-  .login-header h2 { font-size: 18px; color: var(--g-body); font-weight: 600; }
-  .login-body { padding: 12px 24px 8px; }
-  .login-footer { display: flex; justify-content: center; padding: 12px 24px 20px; }
-  .login-form .form-group { margin-bottom: 14px; }
-  .login-form label { display: block; font-size: 13px; font-weight: 500; color: var(--g-medium-text); margin-bottom: 4px; }
-  .login-form input {
-    width: 100%; padding: 8px 12px; border: 1px solid var(--g-border);
-    border-radius: 4px; font-size: 14px; font-family: inherit;
-    outline: none; transition: border-color .15s, box-shadow .15s; box-sizing: border-box;
-    color: var(--g-body); background: var(--g-bg);
+  .login-header {
+    padding: 24px 24px 16px; text-align: center;
+    border-bottom: 1px solid var(--g-border-light);
   }
-  .login-form input:focus { border-color: var(--g-primary); box-shadow: 0 0 0 2px var(--g-primary-light); }
-  .login-form input::placeholder { color: var(--g-light-text); }
-  .login-error { color: var(--g-error); font-size: 12px; text-align: center; min-height: 18px; margin-top: 4px; }
+  .login-header .logo {
+    width: 48px; height: 48px; border-radius: 8px; background: var(--g-primary);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; color: #fff; font-size: 20px; margin-bottom: 12px;
+  }
+  .login-header h2 {
+    font-size: 18px; font-weight: 600; color: var(--g-body); margin: 0;
+  }
+  .login-body { padding: 20px 24px; }
+  .login-form { margin-top: 16px; }
+  .form-group { margin-bottom: 14px; }
+  .form-group label {
+    display: block; font-size: 12px; font-weight: 500; color: var(--g-medium-text);
+    margin-bottom: 6px;
+  }
+  .form-group input {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--g-border);
+    border-radius: 4px; background: var(--g-bg); color: var(--g-body);
+    font-size: 14px; font-family: inherit; box-sizing: border-box;
+  }
+  .form-group input:focus {
+    outline: none; border-color: var(--g-primary);
+    box-shadow: 0 0 0 2px var(--g-primary-light);
+  }
+  .login-error {
+    color: var(--g-error); font-size: 13px; min-height: 20px;
+    text-align: center;
+  }
+  .login-footer { padding: 0 24px 24px; }
   .btn-login {
-    padding: 8px 32px; border: none; border-radius: 4px;
+    width: 100%; padding: 12px; border: none; border-radius: 4px;
     background: var(--g-primary); color: #fff; font-size: 14px;
-    font-weight: 500; cursor: pointer; transition: background .15s; font-family: inherit;
+    font-weight: 600; cursor: pointer; font-family: inherit;
+    transition: background .15s;
   }
   .btn-login:hover { background: var(--g-primary-dark); }
-  .btn-login:disabled { opacity: .6; cursor: not-allowed; }
-
-  /* ---- Grist iframe overlay ---- */
-  .grist-overlay {
-    display: none; position: fixed; inset: 0; z-index: 500;
-    background: var(--g-bg); flex-direction: column;
-  }
+  .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+  body.login-active .sidebar,
+  body.login-active .main-area { filter: blur(4px); pointer-events: none; user-select: none; transition: filter .3s; }
+  .grist-overlay { display: none; position: fixed; inset: 0; z-index: 500; background: var(--g-bg); flex-direction: column; }
   .grist-overlay.active { display: flex; }
-  body.grist-active .header,
-  body.grist-active .container { display: none; }
-  .grist-overlay-bar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 16px; height: 40px; background: var(--g-bg);
-    border-bottom: 1px solid var(--g-border-light); flex-shrink: 0;
-  }
-  .grist-overlay-bar span { font-size: 14px; font-weight: 600; color: var(--g-body); }
-  .grist-close-btn {
-    background: var(--g-bg); border: 1px solid var(--g-border); color: var(--g-medium-text);
-    padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; font-family: inherit;
-    transition: all .15s;
-  }
+  body.grist-active .sidebar,
+  body.grist-active .main-area { display: none; }
+  .grist-overlay-bar { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; border-bottom: 1px solid var(--g-border-light); background: var(--g-bg); }
+  .grist-close-btn { padding: 4px 10px; border: 1px solid var(--g-border); border-radius: 3px; background: var(--g-bg); color: var(--g-medium-text); cursor: pointer; font-size: 12px; font-family: inherit; }
   .grist-close-btn:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
   .grist-overlay iframe { flex: 1; width: 100%; border: none; }
 
   /* ---- Print ---- */
   @media print {
-    .header, .btn-refresh, .btn-fullscreen, .map-basemap-select, .footer, .theme-switcher, .grist-overlay { display: none !important; }
+    .sidebar, .topbar, .btn-fullscreen, .footer, .grist-overlay { display: none !important; }
+    .main-area { margin-left: 0; }
     .panel { box-shadow: none; border: 1px solid #ddd; page-break-inside: avoid; }
     .stat-card { box-shadow: none; border: 1px solid #ddd; }
     #map { height: 400px; }
@@ -282,105 +474,112 @@
   }
 
   /* ---- Responsive ---- */
+  @media (max-width: 980px) {
+    .chart-widgets-grid { grid-template-columns: 1fr; }
+  }
+
   @media (max-width: 768px) {
-    .stats-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+    .sidebar { width: var(--g-sidebar-collapsed-width); }
+    .sidebar .nav-item .nav-label,
+    .sidebar-brand h1,
+    .sidebar-section,
+    .sidebar-footer .user-name,
+    .sidebar-footer .btn-logout { display: none; }
+    .sidebar-brand { justify-content: center; padding: 12px; }
+    .nav-item { justify-content: center; padding: 10px; }
+    .sidebar-footer { justify-content: center; }
+    .main-area { margin-left: var(--g-sidebar-collapsed-width); }
+    .stats-grid { gap: 8px; }
     .stat-card .value { font-size: 1.3rem; }
     #map { height: 320px; }
-    #chart { height: 300px; }
-    .header { padding: 0 12px; }
-    .container { padding: 12px; }
+    .content { padding: 12px; }
   }
 </style>
 </head>
 <body>
 
-<!-- Header -->
-<div class="header">
-  <h1>A9 Marketing System</h1>
-  <nav>
-    <a class="btn-grist" id="gristBtn" href="javascript:void(0)" onclick="openGrist()">📊 多维表格</a>
-    <button class="btn-refresh" id="btnRefresh" onclick="loadStats()">🔄 刷新</button>
-    <div class="theme-switcher">
-      <button class="theme-btn" id="themeBtn" onclick="toggleThemeMenu()">🌓 <span id="themeLabel">亮色</span></button>
-      <div class="theme-dropdown" id="themeDropdown">
-        <button class="theme-option" data-theme="light" onclick="setTheme('light')">
-          <span class="check" id="check-light"></span> ☀️ 亮色
-        </button>
-        <button class="theme-option" data-theme="dark" onclick="setTheme('dark')">
-          <span class="check" id="check-dark"></span> 🌙 暗色
-        </button>
-        <button class="theme-option" data-theme="system" onclick="setTheme('system')">
-          <span class="check" id="check-system"></span> 💻 跟随系统
-        </button>
-      </div>
-    </div>
-    <div class="user-info" id="userInfo" style="display:none;">
-      <span class="user-display" id="userDisplay"></span>
-      <button class="btn-logout" onclick="doLogout()">退出</button>
-    </div>
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="logo">A9</div>
+    <h1>A9 Marketing</h1>
+    <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="收起侧边栏" aria-label="收起侧边栏" aria-expanded="true">‹</button>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section">主菜单</div>
+    <button class="nav-item active" data-page="dashboard" onclick="switchPage('dashboard')">
+      <span class="nav-icon">▦</span><span class="nav-label">数据看板</span>
+    </button>
   </nav>
-</div>
-
-<!-- Main Content -->
-<div class="container">
-
-  <!-- Stats Cards -->
-  <div class="stats-grid" id="statsGrid">
-    <div class="stat-card accent"><div class="label">客户总数</div><div class="value" id="vTotal">-</div></div>
-    <div class="stat-card red"><div class="label">A（战略级）</div><div class="value" id="vA">-</div></div>
-    <div class="stat-card orange"><div class="label">B（重点级）</div><div class="value" id="vB">-</div></div>
-    <div class="stat-card blue"><div class="label">C（普通级）</div><div class="value" id="vC">-</div></div>
-    <div class="stat-card green"><div class="label">合作中 / 已签约</div><div class="value" id="vActiveSigned">-</div></div>
-    <div class="stat-card gray"><div class="label">洽谈中 / 意向中</div><div class="value" id="vNegotiating">-</div></div>
-    <div class="stat-card accent"><div class="label">预计年度贡献（万元）</div><div class="value" id="vEstimate">-</div></div>
+  <div class="sidebar-footer" id="sidebarFooter" style="display:none;">
+    <div class="avatar" id="sidebarAvatar">A</div>
+    <span class="user-name" id="sidebarUserName"></span>
+    <button class="btn-logout" onclick="doLogout()" title="退出登录">⏻</button>
   </div>
+</aside>
 
-  <!-- Map Panel -->
-  <div class="panel" id="mapPanel">
-    <div class="panel-header">
-      <span>🗺️ 客户地域分布</span>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <select class="map-basemap-select" id="basemapSelect" onchange="switchBasemap(this.value)">
-          <option value="positron">CartoDB Positron</option>
-          <option value="dark">CartoDB DarkMatter</option>
-        </select>
-        <button class="btn-fullscreen" id="btnFullscreen" onclick="toggleFullscreen()">⛶ 全屏</button>
+<!-- Main Area -->
+<div class="main-area">
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-title" id="topbarTitle">数据看板</span>
+    </div>
+    <div class="topbar-right">
+      <button class="btn-action primary" onclick="openGrist()"><span class="btn-symbol">▤</span>多维表格</button>
+      <button class="btn-action" onclick="loadStats()"><span class="btn-symbol">↻</span>刷新</button>
+      <div class="theme-switcher">
+        <button class="btn-icon" id="themeBtn" onclick="toggleThemeMenu()" title="切换主题">◐</button>
+        <div class="theme-dropdown" id="themeDropdown">
+          <button class="theme-option" data-theme="light" onclick="setTheme('light')">
+            <span class="check" id="check-light"></span> ☀️ 亮色
+          </button>
+          <button class="theme-option" data-theme="dark" onclick="setTheme('dark')">
+            <span class="check" id="check-dark"></span> 🌙 暗色
+          </button>
+          <button class="theme-option" data-theme="system" onclick="setTheme('system')">
+            <span class="check" id="check-system"></span> 💻 跟随系统
+          </button>
+        </div>
       </div>
     </div>
-    <div id="map"></div>
-  </div>
+  </header>
 
-  <!-- Chart Panel -->
-  <div class="panel">
-    <div class="panel-header"><span>📊 各区域客户评级分布</span></div>
-    <div class="panel-body">
-      <div id="chart"></div>
+  <!-- Content -->
+  <div class="content">
+    <!-- Metric Widgets -->
+    <div class="dashboard-row metrics-row">
+      <div class="stats-grid" id="metricWidgetsGrid"></div>
     </div>
-  </div>
 
-  <!-- Region Table Panel -->
-  <div class="panel">
-    <div class="panel-header"><span>📋 区域明细表</span></div>
-    <div class="panel-body table-wrap">
-      <table id="regionTable">
-        <thead>
-          <tr>
-            <th>区域</th><th>总数</th><th>A（战略级）</th><th>B（重点级）</th><th>C（普通级）</th>
-            <th>合作中</th><th>已签约</th><th>洽谈中</th><th>已终止</th>
-          </tr>
-        </thead>
-        <tbody id="regionBody"></tbody>
-      </table>
+    <!-- Map -->
+    <div class="dashboard-row map-row">
+      <div class="panel" id="mapPanel">
+        <div class="panel-header">
+          <span><span class="btn-symbol">◇</span> 客户地域分布</span>
+          <div class="map-controls">
+            <button class="btn-fullscreen" id="btnFullscreen" onclick="toggleFullscreen()" aria-pressed="false">⛶ 全屏</button>
+            <button class="btn-fullscreen" id="btnCollapse" onclick="toggleCollapse()">▴ 收起</button>
+          </div>
+        </div>
+        <div id="map"></div>
+      </div>
     </div>
-  </div>
 
-  <div class="footer" id="footerInfo">数据加载中…</div>
+    <!-- Native Charts -->
+    <div class="dashboard-row charts-row">
+      <div class="chart-widgets-grid" id="chartWidgetsGrid"></div>
+    </div>
+
+    <div class="footer" id="footerInfo">数据加载中…</div>
+  </div>
 </div>
 
 <!-- Login Overlay -->
 <div class="login-overlay" id="loginOverlay">
   <div class="login-box">
     <div class="login-header">
+      <div class="logo">A9</div>
       <h2>A9 Marketing System</h2>
     </div>
     <div class="login-body">
@@ -389,6 +588,10 @@
         <div class="form-group">
           <label for="loginEmail">邮箱</label>
           <input type="email" id="loginEmail" placeholder="请输入 Grist 注册邮箱" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">密码</label>
+          <input type="password" id="loginPassword" placeholder="如账户设置了密码，请输入密码" autocomplete="current-password">
         </div>
         <div class="login-error" id="loginError"></div>
       </div>
@@ -404,10 +607,6 @@
 
 <!-- Grist iframe overlay -->
 <div class="grist-overlay" id="gristOverlay">
-  <div class="grist-overlay-bar">
-    <span>📊 多维表格</span>
-    <button class="grist-close-btn" onclick="closeGrist()">✕ 返回看板</button>
-  </div>
   <iframe id="gristFrame" src="about:blank" allow="clipboard-read; clipboard-write"></iframe>
 </div>
 
@@ -426,6 +625,12 @@
       .replace(/'/g, '&#39;');
   }
 
+  let map, markersLayer, currentBasemapLayer, currentBasemapKey;
+  let isFullscreen = false;
+  let currentUser = null;
+  const MAP_TILE_SIZE = 256;
+  const MAP_WORLD_BOUNDS = [[-85.05112878, -180], [85.05112878, 180]];
+
   /* ============================================================
    *  Theme System — 与 Grist 双向联动
    *  亮色 ↔ Grist 浅色 | 暗色 ↔ Grist dark | 跟随系统 ↔ Grist 跟随系统
@@ -439,26 +644,14 @@
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   }
 
-  // 解析主题模式为实际的 light/dark
   function resolveTheme(mode) {
     if (mode === 'system') return systemPrefersDark() ? 'dark' : 'light';
     return mode;
   }
 
-  // 应用主题到 DOM
   function applyTheme(resolvedTheme) {
     document.documentElement.setAttribute('data-theme', resolvedTheme);
-    if (typeof switchBasemap === 'function') {
-      const autoBasemap = resolvedTheme === 'dark' ? 'dark' : 'positron';
-      switchBasemap(autoBasemap);
-      const mapSelect = document.getElementById('basemapSelect');
-      if (mapSelect) mapSelect.value = autoBasemap;
-      // 主题自动切换底图不算用户手动选择，重置标记
-      window._userPickedBasemap = false;
-    }
-    if (window._chartInstance) {
-      window._chartInstance.setOption({ backgroundColor: 'transparent' });
-    }
+    syncMapBasemapWithTheme(resolvedTheme);
   }
 
   // 设置主题模式（前端→Grist 联动入口）
@@ -467,6 +660,7 @@
     // 持久化到 localStorage
     localStorage.setItem(THEME_KEY, mode);
     const resolved = resolveTheme(mode);
+    setThemeCookie(resolved);
     applyTheme(resolved);
     updateThemeUI(mode);
     closeThemeMenu();
@@ -480,11 +674,7 @@
     sendThemeToGrist(true);
   };
 
-  // 更新主题切换按钮的 UI
   function updateThemeUI(mode) {
-    const label = document.getElementById('themeLabel');
-    const labels = { light: '亮色', dark: '暗色', system: '跟随系统' };
-    if (label) label.textContent = labels[mode] || '跟随系统';
     ['light', 'dark', 'system'].forEach(t => {
       const el = document.getElementById('check-' + t);
       if (el) el.textContent = (t === mode) ? '✓' : '';
@@ -494,7 +684,6 @@
     });
   }
 
-  // 切换主题下拉菜单
   window.toggleThemeMenu = function() {
     const dd = document.getElementById('themeDropdown');
     if (dd) dd.classList.toggle('open');
@@ -505,7 +694,6 @@
     if (dd) dd.classList.remove('open');
   }
 
-  // 点击外部关闭菜单
   document.addEventListener('click', function(e) {
     if (!e.target.closest('.theme-switcher')) closeThemeMenu();
   });
@@ -520,18 +708,27 @@
     updateThemeUI(mode);
   }
 
+  function getThemeCookie() {
+    const match = document.cookie.match(/(?:^|;\s*)a9-theme-sync=([^;]*)/);
+    return match ? match[1] : null;
+  }
+
+  function setThemeCookie(theme) {
+    document.cookie = 'a9-theme-sync=' + theme + ';path=/;max-age=' + (365 * 24 * 60 * 60) + ';SameSite=Lax';
+  }
+
   // 初始化主题（从 localStorage 恢复，确保刷新后不变）
   function initTheme() {
-    // 优先读取自己的 localStorage（刷新后恢复）
     const saved = localStorage.getItem(THEME_KEY);
     if (saved && ['light', 'dark', 'system'].includes(saved)) {
       currentThemeMode = saved;
     } else {
-      currentThemeMode = 'system';
+      const cookieTheme = getThemeCookie();
+      if (cookieTheme === 'dark' || cookieTheme === 'light') {
+        currentThemeMode = cookieTheme;
+      }
     }
-
-    const resolved = resolveTheme(currentThemeMode);
-    applyTheme(resolved);
+    applyTheme(resolveTheme(currentThemeMode));
     updateThemeUI(currentThemeMode);
     localStorage.setItem(THEME_KEY, currentThemeMode);
 
@@ -562,9 +759,22 @@
         }
       };
     } catch (_) {}
+
+    let _lastCookieTheme = getThemeCookie();
+    setInterval(function() {
+      const current = getThemeCookie();
+      if (current && current !== _lastCookieTheme) {
+        _lastCookieTheme = current;
+        if (current === 'dark' || current === 'light') {
+          currentThemeMode = current;
+          localStorage.setItem(THEME_KEY, current);
+          applyTheme(current);
+          updateThemeUI(current);
+        }
+      }
+    }, 1000);
   }
 
-  // 页面加载时立即初始化主题（避免闪烁）
   initTheme();
 
   /* ============================================================
@@ -574,15 +784,457 @@
   const GRIST_PROXY_PATH = '/grist/';
   let gristIframeReady = false;
 
-  window.openGrist = function() {
-    const overlay = document.getElementById('gristOverlay');
-    const frame = document.getElementById('gristFrame');
-    if (!overlay || !frame) return;
-    gristIframeReady = false;
-    frame.src = GRIST_PROXY_PATH;
-    overlay.classList.add('active');
-    document.body.classList.add('grist-active');
-    sessionStorage.setItem('grist-open', '1');
+  async function getGristOpenPath() {
+    try {
+      const res = await fetch('/api/health');
+      if (!res.ok) return GRIST_PROXY_PATH;
+      const health = await res.json();
+      if (health.gristDashboardPath) {
+        return health.gristDashboardPath;
+      }
+      if (health.gristDoc && health.gristDoc !== '(未配置)') {
+        return '/grist/doc/' + encodeURIComponent(health.gristDoc);
+      }
+    } catch (_) {}
+    return GRIST_PROXY_PATH;
+  }
+
+  let dashboardWidgets = [];
+  let chartSchema = null;
+  const chartInstances = new Map();
+  const LEAFLET_FALLBACK_URL = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
+
+  function loadScript(src) {
+    return new Promise(function(resolve, reject) {
+      const script = document.createElement('script');
+      script.src = src;
+      script.crossOrigin = 'anonymous';
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  async function ensureLeafletLoaded() {
+    if (window.L) return true;
+    try {
+      await loadScript(LEAFLET_FALLBACK_URL);
+    } catch (_) {}
+    return Boolean(window.L);
+  }
+
+  async function loadChartSchema() {
+    if (chartSchema) return chartSchema;
+    const res = await fetch('/api/chart-schema', { cache: 'no-store' });
+    if (!res.ok) return { tables: [] };
+    chartSchema = await res.json();
+    return chartSchema;
+  }
+
+  async function loadDashboardWidgets() {
+    try {
+      await loadChartSchema();
+      const res = await fetch('/api/dashboard-widgets', { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      dashboardWidgets = data.widgets || [];
+      await renderDashboardWidgets();
+    } catch (_) {}
+  }
+
+  async function saveUserDashboardWidgets() {
+    await fetch('/api/dashboard-widgets', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ widgets: dashboardWidgets.filter(widget => widget.scope === 'user') }),
+    });
+  }
+
+  async function renderDashboardWidgets() {
+    const metricGrid = document.getElementById('metricWidgetsGrid');
+    const chartGrid = document.getElementById('chartWidgetsGrid');
+    if (!metricGrid || !chartGrid) return;
+    metricGrid.innerHTML = '';
+    chartGrid.innerHTML = '';
+    chartInstances.clear();
+    for (const widget of dashboardWidgets) {
+      if (widget.type === 'metric') {
+        metricGrid.insertAdjacentHTML('beforeend', renderMetricShell(widget));
+      } else {
+        chartGrid.insertAdjacentHTML('beforeend', renderChartShell(widget));
+      }
+      await renderNativeChartWidget(widget);
+    }
+    metricGrid.insertAdjacentHTML('beforeend', '<div class="metric-add-btn" onclick="addNewMetric()"><div class="metric-add-inner"><div class="plus">+</div><div class="text">添加统计</div></div></div>');
+    chartGrid.insertAdjacentHTML('beforeend', '<div class="chart-add-btn" onclick="addNewChart()"><div class="chart-add-inner"><div class="plus">+</div><div class="text">添加新图表</div></div></div>');
+  }
+
+  function renderMetricShell(widget) {
+    return '<div class="stat-card accent" data-widget-id="' + escapeHtml(widget.id) + '">' +
+      '<button class="metric-close-btn" onclick="closeMetricWidget(this)" title="关闭">✕</button>' +
+      '<div class="label">' + escapeHtml(widget.title) + '</div>' +
+      '<div class="value metric-widget-value" id="widget-' + escapeHtml(widget.id) + '">-</div>' +
+    '</div>';
+  }
+
+  function renderChartShell(widget) {
+    return '<div class="chart-widget-card" data-widget-id="' + escapeHtml(widget.id) + '">' +
+      '<div class="chart-widget-header">' +
+        '<div class="chart-widget-title">' + escapeHtml(widget.title) + '</div>' +
+        '<div class="chart-actions">' +
+          '<button class="chart-action-btn chart-view-btn" onclick="refreshGristWidget(this)">刷新</button>' +
+          '<button class="chart-action-btn chart-view-btn" onclick="editGristWidget(this)">编辑</button>' +
+          '<button class="chart-action-btn chart-edit-btn" onclick="saveGristWidget(this)" style="display:none">保存</button>' +
+          '<button class="chart-action-btn chart-edit-btn" onclick="cancelEditGristWidget(this)" style="display:none">取消</button>' +
+          '<button class="chart-action-btn" onclick="closeGristWidget(this)">✕</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="native-chart" id="widget-' + escapeHtml(widget.id) + '" style="height:' + (parseInt(widget.height, 10) || 320) + 'px"></div>' +
+    '</div>';
+  }
+
+  async function renderNativeChartWidget(widget) {
+    const el = document.getElementById('widget-' + widget.id);
+    if (!el) return;
+    const res = await fetch('/api/chart-data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify(widget),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.type === 'metric') {
+      el.textContent = data.value != null ? Number(data.value).toLocaleString() : '-';
+      return;
+    }
+    const instance = echarts.init(el);
+    chartInstances.set(widget.id, instance);
+    instance.setOption(buildChartOption(data), true);
+  }
+
+  function buildChartOption(data) {
+    const cs = getComputedStyle(document.documentElement);
+    if (data.type === 'pie') {
+      return {
+        tooltip: { trigger: 'item' },
+        series: [{ type: 'pie', radius: ['40%', '70%'], data: data.labels.map((label, i) => ({ name: label, value: data.values[i] })) }],
+      };
+    }
+    return {
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      grid: { left: 48, right: 16, bottom: 48, top: 24 },
+      xAxis: { type: 'category', data: data.labels, axisLabel: { color: cs.getPropertyValue('--g-chart-axis').trim(), rotate: data.labels.length > 8 ? 30 : 0 } },
+      yAxis: { type: 'value', splitLine: { lineStyle: { color: cs.getPropertyValue('--g-chart-split').trim() } } },
+      series: [{ type: data.type === 'line' ? 'line' : 'bar', data: data.values, itemStyle: { color: cs.getPropertyValue('--g-primary').trim() } }],
+    };
+  }
+
+  window.refreshGristWidget = function(button) {
+    const card = button.closest('.chart-widget-card');
+    const widget = dashboardWidgets.find(item => item.id === card?.dataset.widgetId);
+    if (widget) renderNativeChartWidget(widget);
+  };
+
+  window.deleteGristWidget = async function(button) {
+    const card = button.closest('.chart-widget-card');
+    if (!card) return;
+    dashboardWidgets = dashboardWidgets.filter(widget => widget.id !== card.dataset.widgetId || widget.scope !== 'user');
+    await renderDashboardWidgets();
+    await saveUserDashboardWidgets();
+  };
+
+  function getTableSchema(tableId) {
+    if (!chartSchema || !chartSchema.tables) return null;
+    return chartSchema.tables.find(function(t) { return t.id === tableId; });
+  }
+
+  function buildChartEditFormHTML(widget) {
+    var tables = (chartSchema && chartSchema.tables) || [];
+    var tableOptions = tables.map(function(t) {
+      var selected = t.id === widget.tableId ? ' selected' : '';
+      return '<option value="' + escapeHtml(t.id) + '"' + selected + '>' + escapeHtml(t.id) + '</option>';
+    }).join('');
+    var tableSchema = getTableSchema(widget.tableId);
+    var fields = (tableSchema && tableSchema.fields) || [];
+    var dimensionOptions = fields.map(function(f) {
+      var selected = f.id === widget.dimension ? ' selected' : '';
+      return '<option value="' + escapeHtml(f.id) + '"' + selected + '>' + escapeHtml(f.label || f.id) + '</option>';
+    }).join('');
+    var metricTypeOptions = ['count', 'sum', 'avg'].map(function(t) {
+      var selected = t === widget.metric.type ? ' selected' : '';
+      var label = t === 'count' ? '计数' : t === 'sum' ? '求和' : '平均值';
+      return '<option value="' + t + '"' + selected + '>' + label + '</option>';
+    }).join('');
+    var metricFieldOptions = fields.map(function(f) {
+      var selected = f.id === widget.metric.field ? ' selected' : '';
+      return '<option value="' + escapeHtml(f.id) + '"' + selected + '>' + escapeHtml(f.label || f.id) + '</option>';
+    }).join('');
+    var metricFieldDisabled = widget.metric.type === 'count' ? ' disabled' : '';
+    var types = [
+      { key: 'bar', label: '柱状图' },
+      { key: 'pie', label: '饼图' },
+      { key: 'line', label: '折线图' }
+    ];
+    var typeButtons = types.map(function(t) {
+      var cls = t.key === widget.type ? ' active' : '';
+      return '<button type="button" class="chart-type-btn' + cls + '" data-type="' + t.key + '" onclick="selectChartType(this)">' + t.label + '</button>';
+    }).join('');
+    return '<div class="chart-edit-form">' +
+      '<div class="chart-edit-field">' +
+        '<label>数据表</label>' +
+        '<select class="edit-table-id" onchange="changeEditTable(this)">' + tableOptions + '</select>' +
+      '</div>' +
+      '<div class="chart-edit-field">' +
+        '<label>分组字段</label>' +
+        '<select class="edit-dimension">' + dimensionOptions + '</select>' +
+      '</div>' +
+      '<div class="chart-edit-field">' +
+        '<label>统计指标</label>' +
+        '<div class="chart-edit-metric">' +
+          '<select class="edit-metric-type" onchange="toggleEditMetricField(this)">' + metricTypeOptions + '</select>' +
+          '<select class="edit-metric-field"' + metricFieldDisabled + '>' + metricFieldOptions + '</select>' +
+        '</div>' +
+      '</div>' +
+      '<div class="chart-edit-field">' +
+        '<label>图表类型</label>' +
+        '<div class="chart-edit-type-group">' + typeButtons + '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function setChartWidgetEditMode(card, editing) {
+    if (!card) return;
+    card.querySelectorAll('.chart-view-btn').forEach(function(btn) { btn.style.display = editing ? 'none' : ''; });
+    card.querySelectorAll('.chart-edit-btn').forEach(function(btn) { btn.style.display = editing ? '' : 'none'; });
+  }
+
+  window.selectChartType = function(btn) {
+    btn.parentElement.querySelectorAll('.chart-type-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+  };
+
+  window.toggleEditMetricField = function(select) {
+    var card = select.closest('.chart-widget-card');
+    if (!card) return;
+    var fieldSelect = card.querySelector('.edit-metric-field');
+    if (fieldSelect) fieldSelect.disabled = select.value === 'count';
+  };
+
+  window.changeEditTable = function(select) {
+    var card = select.closest('.chart-widget-card');
+    if (!card) return;
+    var tableId = select.value;
+    var tableSchema = getTableSchema(tableId);
+    var fields = (tableSchema && tableSchema.fields) || [];
+    var dimensionSelect = card.querySelector('.edit-dimension');
+    var metricFieldSelect = card.querySelector('.edit-metric-field');
+    if (dimensionSelect) {
+      dimensionSelect.innerHTML = fields.map(function(f) {
+        return '<option value="' + escapeHtml(f.id) + '">' + escapeHtml(f.label || f.id) + '</option>';
+      }).join('');
+    }
+    if (metricFieldSelect) {
+      metricFieldSelect.innerHTML = fields.map(function(f) {
+        return '<option value="' + escapeHtml(f.id) + '">' + escapeHtml(f.label || f.id) + '</option>';
+      }).join('');
+    }
+  };
+
+  window.editGristWidget = function(button) {
+    var card = button.closest('.chart-widget-card');
+    if (!card) return;
+    var widgetId = card.dataset.widgetId;
+    var widget = dashboardWidgets.find(function(w) { return w.id === widgetId; });
+    if (!widget) return;
+    var chartEl = card.querySelector('.native-chart');
+    if (chartEl) {
+      var instance = chartInstances.get(widgetId);
+      if (instance) { instance.dispose(); chartInstances.delete(widgetId); }
+      chartEl.style.display = 'none';
+      var existing = card.querySelector('.chart-edit-form');
+      if (existing) existing.remove();
+      chartEl.insertAdjacentHTML('afterend', buildChartEditFormHTML(widget));
+    }
+    setChartWidgetEditMode(card, true);
+  };
+
+  window.saveGristWidget = async function(button) {
+    var card = button.closest('.chart-widget-card');
+    if (!card) return;
+    var widgetId = card.dataset.widgetId;
+    var widget = dashboardWidgets.find(function(w) { return w.id === widgetId; });
+    if (!widget) return;
+    widget.tableId = card.querySelector('.edit-table-id').value;
+    widget.dimension = card.querySelector('.edit-dimension').value;
+    widget.metric.type = card.querySelector('.edit-metric-type').value;
+    var metricFieldSelect = card.querySelector('.edit-metric-field');
+    widget.metric.field = metricFieldSelect && !metricFieldSelect.disabled ? metricFieldSelect.value : undefined;
+    var activeTypeBtn = card.querySelector('.chart-type-btn.active');
+    if (activeTypeBtn) widget.type = activeTypeBtn.dataset.type;
+    var editForm = card.querySelector('.chart-edit-form');
+    if (editForm) editForm.remove();
+    var chartEl = card.querySelector('.native-chart');
+    if (chartEl) {
+      chartEl.style.display = '';
+      chartEl.innerHTML = '';
+    }
+    setChartWidgetEditMode(card, false);
+    await renderNativeChartWidget(widget);
+    if (widget.scope === 'user') await saveUserDashboardWidgets();
+  };
+
+  window.cancelEditGristWidget = function(button) {
+    var card = button.closest('.chart-widget-card');
+    if (!card) return;
+    var editForm = card.querySelector('.chart-edit-form');
+    if (editForm) editForm.remove();
+    var chartEl = card.querySelector('.native-chart');
+    if (chartEl) {
+      chartEl.style.display = '';
+      chartEl.innerHTML = '';
+    }
+    setChartWidgetEditMode(card, false);
+    var widgetId = card.dataset.widgetId;
+    var widget = dashboardWidgets.find(function(w) { return w.id === widgetId; });
+    if (widget) renderNativeChartWidget(widget);
+  };
+
+  window.closeGristWidget = async function(button) {
+    var card = button.closest('.chart-widget-card');
+    if (!card) return;
+    var widgetId = card.dataset.widgetId;
+    dashboardWidgets = dashboardWidgets.filter(function(w) { return w.id !== widgetId; });
+    await renderDashboardWidgets();
+    var hasUserWidgets = dashboardWidgets.some(function(w) { return w.scope === 'user'; });
+    if (hasUserWidgets) await saveUserDashboardWidgets();
+  };
+
+  window.closeMetricWidget = async function(button) {
+    var card = button.closest('.stat-card');
+    if (!card) return;
+    var widgetId = card.dataset.widgetId;
+    dashboardWidgets = dashboardWidgets.filter(function(w) { return w.id !== widgetId; });
+    await renderDashboardWidgets();
+    await saveUserDashboardWidgets();
+  };
+
+  window.addNewMetric = async function() {
+    await loadChartSchema();
+    if (!chartSchema || !chartSchema.tables || !chartSchema.tables.length) return;
+    var table = chartSchema.tables[0];
+    var widgetId = 'user-metric-' + Date.now();
+    var newWidget = {
+      id: widgetId,
+      title: '自定义统计',
+      type: 'metric',
+      tableId: table.id,
+      metric: { type: 'count' },
+      height: 140,
+      scope: 'user'
+    };
+    dashboardWidgets.push(newWidget);
+    await renderDashboardWidgets();
+    var card = document.querySelector('.stat-card[data-widget-id="' + widgetId + '"]');
+    if (card) {
+      editMetricWidget(card);
+    }
+  };
+
+  function editMetricWidget(card) {
+    var widgetId = card.dataset.widgetId;
+    var widget = dashboardWidgets.find(function(w) { return w.id === widgetId; });
+    if (!widget) return;
+    var tables = (chartSchema && chartSchema.tables) || [];
+    var tableOptions = tables.map(function(t) {
+      var selected = t.id === widget.tableId ? ' selected' : '';
+      return '<option value="' + escapeHtml(t.id) + '"' + selected + '>' + escapeHtml(t.id) + '</option>';
+    }).join('');
+    var tableSchema = getTableSchema(widget.tableId);
+    var fields = (tableSchema && tableSchema.fields) || [];
+    var dimensionOptions = '<option value="">(无)</option>' + fields.map(function(f) {
+      var selected = f.id === widget.dimension ? ' selected' : '';
+      return '<option value="' + escapeHtml(f.id) + '"' + selected + '>' + escapeHtml(f.label || f.id) + '</option>';
+    }).join('');
+    var metricTypeOptions = ['count', 'sum', 'avg'].map(function(t) {
+      var selected = t === widget.metric.type ? ' selected' : '';
+      var label = t === 'count' ? '计数' : t === 'sum' ? '求和' : '平均值';
+      return '<option value="' + t + '"' + selected + '>' + label + '</option>';
+    }).join('');
+    var metricFieldOptions = fields.map(function(f) {
+      var selected = f.id === widget.metric.field ? ' selected' : '';
+      return '<option value="' + escapeHtml(f.id) + '"' + selected + '>' + escapeHtml(f.label || f.id) + '</option>';
+    }).join('');
+    var metricFieldDisabled = widget.metric.type === 'count' ? ' disabled' : '';
+    var form = document.createElement('div');
+    form.className = 'metric-edit-form';
+    form.innerHTML = '<div class="metric-edit-field"><label>标题</label><input type="text" class="edit-title" value="' + escapeHtml(widget.title) + '"></div>' +
+      '<div class="metric-edit-field"><label>数据表</label><select class="edit-table-id" onchange="changeEditTable(this)">' + tableOptions + '</select></div>' +
+      '<div class="metric-edit-field"><label>筛选字段</label><select class="edit-dimension">' + dimensionOptions + '</select></div>' +
+      '<div class="metric-edit-field"><label>统计指标</label><div class="chart-edit-metric"><select class="edit-metric-type" onchange="toggleEditMetricField(this)">' + metricTypeOptions + '</select><select class="edit-metric-field"' + metricFieldDisabled + '>' + metricFieldOptions + '</select></div></div>' +
+      '<div class="metric-edit-actions"><button class="chart-action-btn" onclick="saveMetricWidget(this)">保存</button><button class="chart-action-btn" onclick="cancelMetricEdit(this)">取消</button></div>';
+    card.innerHTML = '';
+    card.appendChild(form);
+  }
+
+  window.saveMetricWidget = async function(button) {
+    var card = button.closest('.stat-card');
+    if (!card) return;
+    var widgetId = card.dataset.widgetId;
+    var widget = dashboardWidgets.find(function(w) { return w.id === widgetId; });
+    if (!widget) return;
+    widget.title = card.querySelector('.edit-title').value || '自定义统计';
+    widget.tableId = card.querySelector('.edit-table-id').value;
+    var dimSelect = card.querySelector('.edit-dimension');
+    widget.dimension = dimSelect.value || undefined;
+    widget.metric.type = card.querySelector('.edit-metric-type').value;
+    var metricFieldSelect = card.querySelector('.edit-metric-field');
+    widget.metric.field = metricFieldSelect && !metricFieldSelect.disabled ? metricFieldSelect.value : undefined;
+    await renderDashboardWidgets();
+    await saveUserDashboardWidgets();
+  };
+
+  window.cancelMetricEdit = async function(button) {
+    var card = button.closest('.stat-card');
+    if (!card) return;
+    var widgetId = card.dataset.widgetId;
+    var isNew = widgetId.startsWith('user-metric-');
+    if (isNew) {
+      dashboardWidgets = dashboardWidgets.filter(function(w) { return w.id !== widgetId; });
+    }
+    await renderDashboardWidgets();
+  };
+
+  window.addNewChart = async function() {
+    await loadChartSchema();
+    if (!chartSchema || !chartSchema.tables || !chartSchema.tables.length) return;
+    var table = chartSchema.tables[0];
+    var firstField = (table.fields && table.fields.length) ? table.fields[0].id : '';
+    var widgetId = 'user-chart-' + Date.now();
+    var newWidget = {
+      id: widgetId,
+      title: '自定义图表',
+      type: 'bar',
+      tableId: table.id,
+      dimension: firstField,
+      metric: { type: 'count' },
+      height: 320,
+      scope: 'user'
+    };
+    dashboardWidgets.push(newWidget);
+    await renderDashboardWidgets();
+    var card = document.querySelector('.chart-widget-card[data-widget-id="' + widgetId + '"]');
+    if (card) {
+      var editBtn = card.querySelector('.chart-view-btn[onclick*="editGristWidget"]');
+      if (editBtn) editGristWidget(editBtn);
+    }
+  };
+
+
+
+  window.openGrist = async function() {
+    var path = await getGristOpenPath();
+    window.open(path, '_blank');
   };
 
   window.closeGrist = function() {
@@ -593,10 +1245,12 @@
     gristIframeReady = false;
     document.body.classList.remove('grist-active');
     sessionStorage.removeItem('grist-open');
+    refreshDashboardLayout();
   };
 
   // 监听 Grist iframe 的 postMessage（主题变更通知）
   window.addEventListener('message', function(e) {
+    if (e.origin !== window.location.origin) return;
     if (!e.data) return;
     // Grist iframe 就绪
     if (e.data.type === 'grist-iframe-ready') {
@@ -646,69 +1300,142 @@
   });
 
   /* ============================================================
+   *  Sidebar Navigation
+   * ============================================================ */
+  const SIDEBAR_COLLAPSED_KEY = 'a9-sidebar-collapsed';
+
+  function getMapCoveringMinZoom() {
+    const mapEl = document.getElementById('map');
+    const width = mapEl ? mapEl.clientWidth : 0;
+    const height = mapEl ? mapEl.clientHeight : 0;
+    if (!width || !height) return 0;
+    return Math.max(0, Math.ceil(Math.log2(Math.max(width, height) / MAP_TILE_SIZE)));
+  }
+
+  function applyMapCoverageBounds() {
+    if (!map) return;
+    const minZoom = getMapCoveringMinZoom();
+    map.setMinZoom(minZoom);
+    map.setMaxBounds(MAP_WORLD_BOUNDS);
+    if (map.getZoom() < minZoom) map.setZoom(minZoom, { animate: false });
+    map.panInsideBounds(MAP_WORLD_BOUNDS, { animate: false });
+  }
+
+  function refreshDashboardLayout() {
+    const refresh = () => {
+      if (!map) return;
+      map.invalidateSize({ pan: false });
+      applyMapCoverageBounds();
+    };
+    requestAnimationFrame(refresh);
+    setTimeout(refresh, 250);
+  }
+
+  function applySidebarCollapsed(collapsed) {
+    document.body.classList.toggle('sidebar-collapsed', collapsed);
+    const btn = document.getElementById('sidebarToggle');
+    if (btn) {
+      btn.textContent = collapsed ? '›' : '‹';
+      btn.title = collapsed ? '展开侧边栏' : '收起侧边栏';
+      btn.setAttribute('aria-label', btn.title);
+      btn.setAttribute('aria-expanded', String(!collapsed));
+    }
+    refreshDashboardLayout();
+  }
+
+  function initSidebar() {
+    const collapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1';
+    applySidebarCollapsed(collapsed);
+  }
+
+  window.toggleSidebar = function() {
+    const collapsed = !document.body.classList.contains('sidebar-collapsed');
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
+    applySidebarCollapsed(collapsed);
+  };
+
+  window.switchPage = function(page) {
+    document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+      item.classList.toggle('active', item.dataset.page === page);
+    });
+    const titles = { dashboard: '数据看板' };
+    const titleEl = document.getElementById('topbarTitle');
+    if (titleEl) titleEl.textContent = titles[page] || '数据看板';
+  };
+
+  /* ============================================================
    *  Dashboard Logic
    * ============================================================ */
-  let map, markersLayer, currentBasemapLayer;
-  let chartInstance;
-  let isFullscreen = false;
-  let currentUser = null;
-  window._userPickedBasemap = false;
-
   const basemaps = {
-    positron: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; CartoDB', maxZoom: 18
+    positron: () => L.tileLayer('/api/map-tiles/light/{z}/{x}/{y}.png', {
+      attribution: '&copy; CartoDB', maxZoom: 18, noWrap: true, bounds: MAP_WORLD_BOUNDS
     }),
-    dark: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; CartoDB', maxZoom: 18
+    dark: () => L.tileLayer('/api/map-tiles/dark/{z}/{x}/{y}.png', {
+      attribution: '&copy; CartoDB', maxZoom: 18, noWrap: true, bounds: MAP_WORLD_BOUNDS
     })
   };
 
-  function initMap() {
-    map = L.map('map', { center: [35.8, 104.5], zoom: 4, zoomControl: true });
-    const resolved = resolveTheme(currentThemeMode);
-    const defaultBasemap = resolved === 'dark' ? 'dark' : 'positron';
-    currentBasemapLayer = basemaps[defaultBasemap]();
+  function syncMapBasemapWithTheme(resolvedTheme) {
+    if (!map) return;
+    const nextKey = resolvedTheme === 'dark' ? 'dark' : 'positron';
+    if (currentBasemapKey === nextKey) return;
+    if (currentBasemapLayer) map.removeLayer(currentBasemapLayer);
+    currentBasemapLayer = basemaps[nextKey]();
     currentBasemapLayer.addTo(map);
-    const mapSelect = document.getElementById('basemapSelect');
-    if (mapSelect) mapSelect.value = defaultBasemap;
-    markersLayer = L.layerGroup().addTo(map);
+    currentBasemapKey = nextKey;
   }
 
-  window.switchBasemap = function(key) {
-    if (currentBasemapLayer) map.removeLayer(currentBasemapLayer);
-    currentBasemapLayer = basemaps[key]();
-    currentBasemapLayer.addTo(map);
-    window._userPickedBasemap = true;
-  };
+  function initMap() {
+    if (!window.L) return false;
+    if (map) {
+      setTimeout(refreshDashboardLayout, 0);
+      return true;
+    }
+    map = L.map('map', {
+      center: [35.8, 104.5],
+      zoom: 4,
+      zoomControl: false,
+      maxBounds: MAP_WORLD_BOUNDS,
+      maxBoundsViscosity: 1.0
+    });
+    syncMapBasemapWithTheme(resolveTheme(currentThemeMode));
+    markersLayer = L.featureGroup().addTo(map);
+    applyMapCoverageBounds();
+    return true;
+  }
 
   window.toggleFullscreen = function() {
-    isFullscreen = !isFullscreen;
     const panel = document.getElementById('mapPanel');
-    if (isFullscreen) {
-      panel.style.position = 'fixed';
-      panel.style.top = '0';
-      panel.style.left = '0';
-      panel.style.right = '0';
-      panel.style.bottom = '0';
-      panel.style.zIndex = '9999';
-      panel.style.borderRadius = '0';
-      panel.style.border = 'none';
-      document.getElementById('btnFullscreen').textContent = '✕ 退出';
-    } else {
-      panel.style.position = '';
-      panel.style.top = '';
-      panel.style.left = '';
-      panel.style.right = '';
-      panel.style.bottom = '';
-      panel.style.zIndex = '';
-      panel.style.borderRadius = '';
-      panel.style.border = '';
-      document.getElementById('btnFullscreen').textContent = '⛶ 全屏';
+    const button = document.getElementById('btnFullscreen');
+    isFullscreen = !isFullscreen;
+    document.body.classList.toggle('map-fullscreen-active', isFullscreen);
+    panel.classList.toggle('map-fullscreen', isFullscreen);
+    button.textContent = isFullscreen ? '✕ 退出' : '⛶ 全屏';
+    button.setAttribute('aria-pressed', String(isFullscreen));
+
+    const resizeMap = () => {
+      refreshDashboardLayout();
+    };
+    requestAnimationFrame(() => {
+      resizeMap();
+      setTimeout(resizeMap, 250);
+    });
+  };
+
+  let isCollapsed = false;
+  window.toggleCollapse = function() {
+    const panel = document.getElementById('mapPanel');
+    const button = document.getElementById('btnCollapse');
+    isCollapsed = !isCollapsed;
+    panel.classList.toggle('map-collapsed', isCollapsed);
+    button.textContent = isCollapsed ? '▾ 展开' : '▴ 收起';
+    if (!isCollapsed && map) {
+      refreshDashboardLayout();
     }
-    setTimeout(() => map.invalidateSize(), 100);
   };
 
   function updateMap(byRegion) {
+    if (!markersLayer) return;
     markersLayer.clearLayers();
     if (!byRegion || !byRegion.length) return;
     byRegion.forEach(r => {
@@ -730,110 +1457,31 @@
       markersLayer.addLayer(marker);
     });
     const bounds = markersLayer.getBounds();
-    if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 6 });
-  }
-
-  function updateChart(byRegion) {
-    const dom = document.getElementById('chart');
-    if (!chartInstance) {
-      chartInstance = echarts.init(dom);
-      window._chartInstance = chartInstance;
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [30, 30], maxZoom: 6 });
+      applyMapCoverageBounds();
     }
-    if (!byRegion || !byRegion.length) {
-      chartInstance.setOption({ title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#929299', fontSize: 14 } } });
-      return;
-    }
-    const regions = byRegion.map(r => r.title || r.label);
-    const seriesA = byRegion.map(r => r.ratingA || 0);
-    const seriesB = byRegion.map(r => r.ratingB || 0);
-    const seriesC = byRegion.map(r => r.ratingC || 0);
-    const cs = getComputedStyle(document.documentElement);
-    chartInstance.setOption({
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-      legend: { data: ['A（战略级）', 'B（重点级）', 'C（普通级）'], top: 4, textStyle: { color: cs.getPropertyValue('--g-medium-text').trim(), fontSize: 12 } },
-      grid: { left: 50, right: 20, bottom: 60, top: 40 },
-      xAxis: {
-        type: 'category', data: regions,
-        axisLabel: { rotate: regions.length > 8 ? 30 : 0, fontSize: 11, color: cs.getPropertyValue('--g-chart-axis').trim() },
-        axisTick: { alignWithLabel: true },
-        axisLine: { lineStyle: { color: cs.getPropertyValue('--g-border').trim() } }
-      },
-      yAxis: {
-        type: 'value', name: '客户数', minInterval: 1,
-        axisLine: { lineStyle: { color: cs.getPropertyValue('--g-border').trim() } },
-        splitLine: { lineStyle: { color: cs.getPropertyValue('--g-chart-split').trim() } }
-      },
-      series: [
-        { name: 'A（战略级）', type: 'bar', stack: 'rating', data: seriesA, itemStyle: { color: cs.getPropertyValue('--g-badge-a').trim() }, barMaxWidth: 40 },
-        { name: 'B（重点级）', type: 'bar', stack: 'rating', data: seriesB, itemStyle: { color: cs.getPropertyValue('--g-badge-b').trim() }, barMaxWidth: 40 },
-        { name: 'C（普通级）', type: 'bar', stack: 'rating', data: seriesC, itemStyle: { color: cs.getPropertyValue('--g-badge-c').trim() }, barMaxWidth: 40 }
-      ]
-    }, true);
-  }
-
-  function updateTable(byRegion) {
-    const tbody = document.getElementById('regionBody');
-    if (!byRegion || !byRegion.length) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--g-light-text);">暂无数据</td></tr>';
-      return;
-    }
-    tbody.innerHTML = byRegion.map(r => '<tr>' +
-      '<td>' + escapeHtml(r.title || r.label) + '</td>' +
-      '<td><b>' + escapeHtml(r.total) + '</b></td>' +
-      '<td><span class="badge badge-a">' + escapeHtml(r.ratingA || 0) + '</span></td>' +
-      '<td><span class="badge badge-b">' + escapeHtml(r.ratingB || 0) + '</span></td>' +
-      '<td><span class="badge badge-c">' + escapeHtml(r.ratingC || 0) + '</span></td>' +
-      '<td><span class="badge badge-active">' + escapeHtml(r.statusActive || 0) + '</span></td>' +
-      '<td><span class="badge badge-signed">' + escapeHtml(r.statusSigned || 0) + '</span></td>' +
-      '<td><span class="badge badge-negotiating">' + escapeHtml(r.statusNegotiating || 0) + '</span></td>' +
-      '<td><span class="badge badge-ended">' + escapeHtml(r.statusEnded || 0) + '</span></td>' +
-      '</tr>'
-    ).join('');
-  }
-
-  function updateCards(totals) {
-    if (!totals) return;
-    document.getElementById('vTotal').textContent = totals.customers != null ? totals.customers.toLocaleString() : '-';
-    document.getElementById('vA').textContent = totals.ratingA != null ? totals.ratingA.toLocaleString() : '-';
-    document.getElementById('vB').textContent = totals.ratingB != null ? totals.ratingB.toLocaleString() : '-';
-    document.getElementById('vC').textContent = totals.ratingC != null ? totals.ratingC.toLocaleString() : '-';
-    const activeSigned = (totals.statusActive || 0) + (totals.statusSigned || 0);
-    document.getElementById('vActiveSigned').textContent = activeSigned.toLocaleString();
-    document.getElementById('vNegotiating').textContent = totals.statusNegotiating != null ? totals.statusNegotiating.toLocaleString() : '-';
-    document.getElementById('vEstimate').textContent = totals.totalEstimate != null ? totals.totalEstimate.toLocaleString() : '-';
   }
 
   window.loadStats = async function() {
-    const btn = document.getElementById('btnRefresh');
-    btn.classList.add('loading');
-    btn.textContent = '⏳ 加载中…';
     try {
-      const resp = await fetch('/api/stats');
+      const resp = await fetch('/api/stats', { cache: 'no-store' });
       if (resp.status === 401) { showLogin(); return; }
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));
         throw new Error(errData.error || '请求失败: ' + resp.status);
       }
       const data = await resp.json();
-      updateCards(data.totals);
       updateMap(data.byRegion);
-      updateChart(data.byRegion);
-      updateTable(data.byRegion);
       const genTime = data.generated_at ? new Date(data.generated_at).toLocaleString('zh-CN') : '未知';
       document.getElementById('footerInfo').textContent = '数据生成于：' + genTime + ' ｜ 数据来源：Grist';
     } catch (err) {
       console.error('加载统计数据失败:', err);
       const msg = err.message || '';
       let hint = msg;
-      if (msg.includes('GRIST_DOC_ID')) {
-        hint = '请先配置 GRIST_DOC_ID 环境变量。';
-      } else if (msg.includes('Customers') || msg.includes('表不存在')) {
-        hint = '请在 Grist 文档中创建 Customers 表。';
-      }
-      document.getElementById('footerInfo').textContent = '数据加载失败：' + hint;
-    } finally {
-      btn.classList.remove('loading');
-      btn.textContent = '🔄 刷新';
+      if (msg.includes('GRIST_DOC_ID')) hint = '请先配置 GRIST_DOC_ID 环境变量。';
+      else if (msg.includes('Customers') || msg.includes('表不存在')) hint = '请在 Grist 文档中创建 Customers 表。';
+      document.getElementById('footerInfo').innerHTML = '<span style="color:var(--g-error);">数据加载失败：' + escapeHtml(hint) + '</span>';
     }
   };
 
@@ -845,10 +1493,14 @@
     document.body.classList.add('login-active');
     document.getElementById('loginError').textContent = '';
     document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
     document.getElementById('loginBtn').disabled = false;
     document.getElementById('loginBtn').textContent = '登 录';
     setTimeout(() => document.getElementById('loginEmail').focus(), 100);
     document.getElementById('loginEmail').onkeydown = (e) => {
+      if (e.key === 'Enter') doLogin();
+    };
+    document.getElementById('loginPassword').onkeydown = (e) => {
       if (e.key === 'Enter') doLogin();
     };
   }
@@ -859,8 +1511,20 @@
     document.body.classList.remove('login-active');
   }
 
+  function updateUserUI(user) {
+    const footer = document.getElementById('sidebarFooter');
+    const avatar = document.getElementById('sidebarAvatar');
+    const name = document.getElementById('sidebarUserName');
+    if (footer && user) {
+      footer.style.display = 'flex';
+      if (avatar) avatar.textContent = (user.displayName || user.email || 'U').charAt(0).toUpperCase();
+      if (name) name.textContent = user.displayName || user.email || '';
+    }
+  }
+
   window.doLogin = async function() {
     const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
     const errorEl = document.getElementById('loginError');
     const btn = document.getElementById('loginBtn');
     if (!email) { errorEl.textContent = '请输入邮箱'; return; }
@@ -871,7 +1535,7 @@
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, password })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -890,6 +1554,20 @@
     }
   };
 
+  async function syncAuthFromGrist() {
+    try {
+      const res = await fetch('/api/auth/sync', { method: 'POST' });
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (!data.success || !data.user) return false;
+      currentUser = data.user;
+      updateUserUI(data.user);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   async function checkAuth() {
     try {
       const res = await fetch('/api/auth/me');
@@ -897,41 +1575,39 @@
         const data = await res.json();
         if (data.authenticated) {
           currentUser = data.user;
-          const infoEl = document.getElementById('userInfo');
-          const displayEl = document.getElementById('userDisplay');
-          if (infoEl && displayEl) {
-            infoEl.style.display = 'flex';
-            displayEl.textContent = data.user.displayName || data.user.email || '';
-          }
+          updateUserUI(data.user);
           return true;
         }
       }
+      const synced = await syncAuthFromGrist();
+      if (synced) return true;
     } catch (e) {}
     return false;
   }
 
-  function onLoginSuccess() {
-    const infoEl = document.getElementById('userInfo');
-    const displayEl = document.getElementById('userDisplay');
-    if (infoEl && displayEl && currentUser) {
-      infoEl.style.display = 'flex';
-      displayEl.textContent = currentUser.displayName || currentUser.email || '';
-    }
-    initMap();
+  let _dashboardListenersAttached = false;
+
+  async function onLoginSuccess() {
+    updateUserUI(currentUser);
+    const mapReady = await ensureLeafletLoaded();
+    if (mapReady) initMap();
+    else document.getElementById('footerInfo').textContent = '地图组件加载失败，其他看板数据仍可使用';
     loadStats();
-    window.addEventListener('resize', function() {
-      if (chartInstance) chartInstance.resize();
-    });
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape' && isFullscreen) toggleFullscreen();
-    });
+    loadDashboardWidgets();
+    if (!_dashboardListenersAttached) {
+      _dashboardListenersAttached = true;
+      window.addEventListener('resize', refreshDashboardLayout);
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && isFullscreen) toggleFullscreen();
+      });
+    }
   }
 
   window.doLogout = async function() {
     try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) {}
     currentUser = null;
-    const infoEl = document.getElementById('userInfo');
-    if (infoEl) infoEl.style.display = 'none';
+    const footer = document.getElementById('sidebarFooter');
+    if (footer) footer.style.display = 'none';
     showLogin();
   };
 
@@ -939,13 +1615,10 @@
     // 如果在 iframe 中加载，不初始化（防止 Grist 代理回退时递归嵌套）
     if (window.self !== window.top) return;
 
+    initSidebar();
     const authed = await checkAuth();
     if (authed) {
       onLoginSuccess();
-      // 恢复 Grist overlay 状态
-      if (sessionStorage.getItem('grist-open') === '1') {
-        openGrist();
-      }
     } else {
       showLogin();
     }

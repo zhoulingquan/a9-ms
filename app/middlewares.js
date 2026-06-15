@@ -26,6 +26,7 @@ function securityHeaders(req, res, next) {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' ws: wss:; font-src 'self' https://cdn.jsdelivr.net; frame-ancestors 'self'");
   next();
 }
 
@@ -35,8 +36,10 @@ function securityHeaders(req, res, next) {
  * @param {string} opts.secret   - Session 密钥
  * @param {string} opts.dir      - Session 存储目录
  * @param {boolean} opts.isProduction - 是否生产环境
+ * @param {boolean} [opts.secure] - 是否设置 Secure Cookie
  */
 function sessionMiddleware(opts) {
+  const secure = typeof opts.secure === 'boolean' ? opts.secure : opts.isProduction;
   return session({
     secret: opts.secret,
     resave: false,
@@ -50,8 +53,8 @@ function sessionMiddleware(opts) {
     cookie: {
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
-      sameSite: 'lax',
-      secure: opts.isProduction,
+      sameSite: 'strict',
+      secure,
     },
   });
 }

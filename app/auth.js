@@ -35,7 +35,7 @@ function checkLoginRateLimit(ip) {
 }
 
 // 定期清理过期条目
-setInterval(() => {
+const loginRateCleanup = setInterval(() => {
   const now = Date.now();
   for (const [ip, entry] of LOGIN_ATTEMPTS) {
     if ((now - entry.lastAttempt) > LOGIN_RATE_WINDOW) {
@@ -43,23 +43,15 @@ setInterval(() => {
     }
   }
 }, 60 * 1000);
+loginRateCleanup.unref();
 
 // ---------- 认证事件总线 ----------
 const authEvents = new EventEmitter();
 
 // ---------- 认证中间件 ----------
-function requireAuth(gristApiKey) {
+function requireAuth() {
   return (req, res, next) => {
     if (req.session && req.session.user) return next();
-
-    const auth = req.get('authorization') || '';
-    if (auth.startsWith('Bearer ')) {
-      const token = auth.slice(7).trim();
-      if (token === gristApiKey) {
-        return next();
-      }
-    }
-
     res.status(401).json({ error: '未登录，请先登录', code: 'AUTH_REQUIRED' });
   };
 }
@@ -93,14 +85,15 @@ function createAuthRouter(deps) {
         return res.status(401).json({ error: '该邮箱未在 Grist 中注册，请先在 Grist 中创建账户' });
       }
 
-      if (user.passwordHash) {
-        if (!password) {
-          return res.status(400).json({ error: '请输入密码' });
-        }
-        const passwordMatch = await bcrypt.compare(password, user.passwordHash);
-        if (!passwordMatch) {
-          return res.status(401).json({ error: '密码错误' });
-        }
+      if (!user.passwordHash) {
+        return res.status(401).json({ error: '请先在 Grist 中设置密码' });
+      }
+      if (!password) {
+        return res.status(400).json({ error: '请输入密码' });
+      }
+      const passwordMatch = await bcrypt.compare(password, user.passwordHash);
+      if (!passwordMatch) {
+        return res.status(401).json({ error: '密码错误' });
       }
 
       const userApiKey = gristDb.getUserApiKey(email);

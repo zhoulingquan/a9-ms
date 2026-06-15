@@ -13,11 +13,13 @@ class GristDb {
    * @param {string} opts.dbPath    - SQLite 文件路径
    * @param {string} opts.container - Docker 容器名
    * @param {string} opts.gristUrl  - Grist 服务 URL
+   * @param {boolean} opts.direct   - 直接读取 dbPath，不通过 docker cp 同步
    */
   constructor(opts) {
     this.dbPath = opts.dbPath;
     this.container = opts.container;
     this.gristUrl = opts.gristUrl;
+    this.direct = !!opts.direct;
     this._db = null;
     this._lock = false;
   }
@@ -44,14 +46,23 @@ class GristDb {
     this._lock = false;
   }
 
+  close() {
+    this._closeDb();
+  }
+
   // 定期刷新数据库连接（避免 SQLite 锁问题）
   startConnectionRefresh(intervalMs = 5 * 60 * 1000) {
-    setInterval(() => this._closeDb(), intervalMs);
+    const timer = setInterval(() => this._closeDb(), intervalMs);
+    timer.unref();
   }
 
   // ---------- Docker 同步 ----------
 
   sync() {
+    if (this.direct) {
+      this._closeDb();
+      return;
+    }
     const dir = path.dirname(this.dbPath);
     if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
     const child = spawn('docker', ['cp', `${this.container}:/persist/home.sqlite3`, this.dbPath], {
@@ -72,8 +83,11 @@ class GristDb {
   }
 
   startSync(initialDelayMs = 2000, intervalMs = 3 * 60 * 1000) {
-    setTimeout(() => this.sync(), initialDelayMs);
-    setInterval(() => this.sync(), intervalMs);
+    if (this.direct) return;
+    const initialTimer = setTimeout(() => this.sync(), initialDelayMs);
+    const intervalTimer = setInterval(() => this.sync(), intervalMs);
+    initialTimer.unref();
+    intervalTimer.unref();
   }
 
   // ---------- 用户查询（隔离 schema） ----------

@@ -15,8 +15,11 @@ services:
     environment:
       GRIST_SINGLE_ORG: "a9ms"
       APP_HOME: /persist
+      APP_HOME_URL: ${APP_HOME_URL:-http://localhost:8484}
       GRIST_SANDBOX_FLAVOR: unsandboxed
       GRIST_DEFAULT_EMAIL: ${GRIST_DEFAULT_EMAIL:-admin@a9.com}
+      GRIST_ADMIN_EMAIL: ${GRIST_ADMIN_EMAIL:-admin@a9.com}
+      GRIST_IN_SERVICE: ${GRIST_IN_SERVICE:-true}
       GRIST_FORCE_ENABLE_ENTERPRISE: "false"
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8484/status || exit 1"]
@@ -37,17 +40,21 @@ services:
     ports:
       - "${APP_PORT:-3000}:3000"
     environment:
+      NODE_ENV: production
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
       GRIST_URL: http://grist:8484
       GRIST_EXTERNAL_URL: ${GRIST_EXTERNAL_URL:-http://localhost:8484}
       GRIST_API_KEY: ${GRIST_API_KEY:-}
       GRIST_DOC_ID: ${GRIST_DOC_ID:-}
+      GRIST_DASHBOARD_PATH: ${GRIST_DASHBOARD_PATH:-}
+      GRIST_DB_PATH: /grist-persist/home.sqlite3
+      GRIST_DB_DIRECT: "true"
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
       SESSION_DIR: /app/data/sessions
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
-      A9BOT_ENABLED: ${A9BOT_ENABLED:-false}
-      A9BOT_SERVICE_TOKEN: ${A9BOT_SERVICE_TOKEN:-}
     volumes:
       - app_data:/app/data
+      - grist_data:/grist-persist:ro
 
 volumes:
   grist_data:

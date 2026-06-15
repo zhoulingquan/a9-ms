@@ -8,17 +8,17 @@ const EventEmitter = require('events');
 // ---------- 字段映射配置 ----------
 // 修改 Grist 表字段名时，只需在此处调整映射
 const FIELD_MAP = {
-  rating: ['rating', '客户评级'],
-  status: ['status', '合作状态'],
+  rating: ['rating', '客户评级', '客户类型', 'C'],
+  status: ['status', '合作状态', 'F'],
   amount: ['amount', '合作金额级别'],
-  estimate: ['estimate', '预计年度贡献_万_'],
-  region: ['region', '所属区域'],
+  estimate: ['estimate', '预计年度贡献_万_', '预算_万元_', 'J'],
+  region: ['region', '所属区域', '区域/城市', 'B'],
 };
 
 // ---------- 表名配置 ----------
 const TABLE_NAMES = {
-  customers: ['Customers', 'customers'],
-  regions: ['Regions', 'regions'],
+  customers: ['Customers', 'customers', 'Table2'],
+  regions: ['Regions', 'regions', 'Table1'],
   changeLog: ['ChangeLog', 'change_log'],
 };
 
@@ -35,6 +35,20 @@ const STATUS_RULES = [
   { keys: ['洽谈', '意向'], field: 'statusNegotiating' },
   { keys: ['暂停', '结束'], field: 'statusEnded' },
 ];
+
+const DEFAULT_REGION_COORDS = {
+  北京: { lng: 116.4074, lat: 39.9042 },
+  合肥: { lng: 117.2272, lat: 31.8206 },
+  武汉: { lng: 114.3055, lat: 30.5928 },
+  长沙: { lng: 112.9388, lat: 28.2282 },
+  广州: { lng: 113.2644, lat: 23.1291 },
+  西安: { lng: 108.9398, lat: 34.3416 },
+  上海: { lng: 121.4737, lat: 31.2304 },
+  深圳: { lng: 114.0579, lat: 22.5431 },
+  成都: { lng: 104.0665, lat: 30.5723 },
+  非洲: { lng: 20.0, lat: 0.0 },
+  沙特: { lng: 45.0792, lat: 23.8859 },
+};
 
 // ---------- 事件总线 ----------
 const statsEvents = new EventEmitter();
@@ -65,6 +79,7 @@ function getField(fields, mapKey) {
 }
 
 function classifyRating(value) {
+  value = String(value || '');
   for (const rule of RATING_RULES) {
     if (rule.keys.some(k => value.includes(k))) return rule.field;
   }
@@ -72,10 +87,20 @@ function classifyRating(value) {
 }
 
 function classifyStatus(value) {
+  value = String(value || '');
   for (const rule of STATUS_RULES) {
     if (rule.keys.some(k => value.includes(k))) return rule.field;
   }
   return null;
+}
+
+function getRegionCoord(regionInfo, regionName, axis) {
+  const explicit = axis === 'lng'
+    ? regionInfo.coord_lng || regionInfo['经度']
+    : regionInfo.coord_lat || regionInfo['纬度'];
+  const parsed = parseFloat(explicit);
+  if (Number.isFinite(parsed) && parsed !== 0) return parsed;
+  return DEFAULT_REGION_COORDS[regionName]?.[axis] || 0;
 }
 
 // ---------- 统计聚合 ----------
@@ -138,7 +163,18 @@ async function computeStats(gristApi) {
 
   // 按区域聚合
   const regionMap = {};
-  regions.forEach(r => { regionMap[r.id] = r.fields || {}; });
+  regions.forEach(r => {
+    const fields = r.fields || {};
+    regionMap[r.id] = fields;
+    const aliases = [
+      fields.label,
+      fields.title,
+      fields.A,
+      fields['区域/城市'],
+      fields['区域名称'],
+    ].filter(Boolean);
+    aliases.forEach(alias => { regionMap[String(alias)] = fields; });
+  });
 
   const regionAgg = {};
   customers.forEach(row => {
@@ -149,13 +185,15 @@ async function computeStats(gristApi) {
       const ridStr = typeof rid === 'object' ? rid.id || JSON.stringify(rid) : String(rid);
       if (!regionAgg[ridStr]) {
         const rInfo = regionMap[ridStr] || {};
+        const regionLabel = rInfo.label || rInfo.A || rInfo['区域/城市'] || rInfo['区域名称'] || ridStr || '未知区域';
+        const regionTitle = rInfo.title || rInfo.A || rInfo['区域/城市'] || rInfo['完整标题'] || rInfo.label || ridStr || '未知区域';
         regionAgg[ridStr] = {
           id: ridStr,
-          label: rInfo.label || rInfo['区域名称'] || '未知区域',
-          title: rInfo.title || rInfo['完整标题'] || rInfo.label || '未知区域',
+          label: regionLabel,
+          title: regionTitle,
           province: rInfo.province || rInfo['代表省份'] || '',
-          coord_lng: parseFloat(rInfo.coord_lng || rInfo['经度'] || 0) || 0,
-          coord_lat: parseFloat(rInfo.coord_lat || rInfo['纬度'] || 0) || 0,
+          coord_lng: getRegionCoord(rInfo, regionTitle, 'lng'),
+          coord_lat: getRegionCoord(rInfo, regionTitle, 'lat'),
           color: rInfo.color || rInfo['标记颜色'] || '#94a3b8',
           total: 0, ratingA: 0, ratingB: 0, ratingC: 0,
           statusActive: 0, statusSigned: 0, statusNegotiating: 0, statusEnded: 0,
@@ -233,10 +271,31 @@ function createStatsRouter(gristApi) {
       if (!customersTable) return res.status(404).json({ error: 'Customers 表不存在，请先在 Grist 中创建' });
 
       const params = {};
-      if (req.query.limit) params.limit = req.query.limit;
-      if (req.query.offset) params.offset = req.query.offset;
-      if (req.query.sort) params.sort = req.query.sort;
-      if (req.query.filter) params.filter = req.query.filter;
+      if (req.query.limit) {
+        const limit = parseInt(req.query.limit);
+        if (!Number.isFinite(limit) || limit < 1 || limit > 10000) {
+          return res.status(400).json({ error: 'limit 必须为 1-10000 的整数' });
+        }
+        params.limit = limit;
+      }
+      if (req.query.offset) {
+        const offset = parseInt(req.query.offset);
+        if (!Number.isFinite(offset) || offset < 0) {
+          return res.status(400).json({ error: 'offset 必须为非负整数' });
+        }
+        params.offset = offset;
+      }
+      if (req.query.sort) {
+        const sort = String(req.query.sort).slice(0, 200);
+        if (!/^[a-zA-Z0-9_,\s\-]+$/.test(sort)) {
+          return res.status(400).json({ error: 'sort 格式无效' });
+        }
+        params.sort = sort;
+      }
+      if (req.query.filter) {
+        const filter = String(req.query.filter).slice(0, 2000);
+        params.filter = filter;
+      }
 
       const data = await gristApi.getRecords(customersTable.id, params);
       res.json(data);
@@ -254,7 +313,13 @@ function createStatsRouter(gristApi) {
 
       const limit = Math.min(parseInt(req.query.limit) || 50, 200);
       const params = { limit };
-      if (req.query.sort) params.sort = req.query.sort;
+      if (req.query.sort) {
+        const sort = String(req.query.sort).slice(0, 200);
+        if (!/^[a-zA-Z0-9_,\s\-]+$/.test(sort)) {
+          return res.status(400).json({ error: 'sort 格式无效' });
+        }
+        params.sort = sort;
+      }
 
       const data = await gristApi.getRecords(logTable.id, params);
       res.json(data.records || []);
@@ -270,14 +335,14 @@ function createStatsRouter(gristApi) {
       const logTable = findTable(tables, TABLE_NAMES.changeLog);
       if (!logTable) return res.status(404).json({ error: 'ChangeLog 表不存在' });
 
-      const { section_id, action, detail, username } = req.body;
+      const { section_id, action, detail } = req.body;
       if (!section_id || !action) {
         return res.status(400).json({ error: 'section_id 和 action 为必填字段' });
       }
       const safeSectionId = String(section_id).slice(0, 100);
       const safeAction = String(action).slice(0, 200);
       const safeDetail = String(detail || '').slice(0, 2000);
-      const safeUsername = String(username || '').slice(0, 100);
+      const safeUsername = String(req.session?.user?.email || req.session?.user?.displayName || 'unknown').slice(0, 100);
 
       await gristApi.createRecords(logTable.id, [
         { fields: { section_id: safeSectionId, action: safeAction, detail: safeDetail, username: safeUsername, created_at: new Date().toISOString() } },
