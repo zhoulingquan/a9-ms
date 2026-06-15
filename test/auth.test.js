@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { requireAuth } = require('../app/auth');
+const { requireAuth, createAuthRouter } = require('../app/auth');
 
 function runAuth(authorization) {
   let passed = false;
@@ -47,4 +47,53 @@ test('allows request with valid session', () => {
   const res = { status: () => res, json: () => res };
   requireAuth()(req, res, () => { passed = true; });
   assert.equal(passed, true);
+});
+
+test('allows admin login with ADMIN_PASSWORD when Grist has no password hash', async () => {
+  const previousPassword = process.env.ADMIN_PASSWORD;
+  process.env.ADMIN_PASSWORD = 'admin';
+
+  const router = createAuthRouter({
+    gristDb: {
+      findUserByEmail(email) {
+        return { email, name: email, passwordHash: null };
+      },
+      getUserApiKey() {
+        return 'user-api-key';
+      },
+    },
+    gristApi: {
+      autoLoginToGrist() {
+        return Promise.resolve([]);
+      },
+    },
+    gristApiKey: 'service-api-key',
+  });
+
+  const loginLayer = router.stack.find(layer => layer.route?.path === '/login');
+  const handler = loginLayer.route.stack[0].handle;
+  const req = {
+    ip: '127.0.0.200',
+    body: { email: 'admin@a9.com', password: 'admin' },
+    session: {
+      regenerate(callback) { callback(); },
+      save(callback) { callback(); },
+    },
+  };
+  let payload = null;
+  const res = {
+    setHeader() {},
+    status() { return this; },
+    json(body) { payload = body; return this; },
+  };
+
+  try {
+    await handler(req, res);
+  } finally {
+    if (previousPassword === undefined) delete process.env.ADMIN_PASSWORD;
+    else process.env.ADMIN_PASSWORD = previousPassword;
+  }
+
+  assert.equal(payload.success, true);
+  assert.deepEqual(req.session.user, { email: 'admin@a9.com', displayName: 'admin@a9.com' });
 });

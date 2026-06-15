@@ -85,15 +85,15 @@ function createAuthRouter(deps) {
         return res.status(401).json({ error: '该邮箱未在 Grist 中注册，请先在 Grist 中创建账户' });
       }
 
-      if (!user.passwordHash) {
-        return res.status(401).json({ error: '请先在 Grist 中设置密码' });
-      }
       if (!password) {
         return res.status(400).json({ error: '请输入密码' });
       }
-      const passwordMatch = await bcrypt.compare(password, user.passwordHash);
+      const adminEmail = process.env.GRIST_ADMIN_EMAIL || process.env.GRIST_DEFAULT_EMAIL || 'admin@a9.com';
+      const passwordMatch = user.passwordHash
+        ? await bcrypt.compare(password, user.passwordHash)
+        : user.email === adminEmail && password === process.env.ADMIN_PASSWORD;
       if (!passwordMatch) {
-        return res.status(401).json({ error: '密码错误' });
+        return res.status(401).json({ error: user.passwordHash ? '密码错误' : '请先在 Grist 中设置密码' });
       }
 
       const userApiKey = gristDb.getUserApiKey(email);
