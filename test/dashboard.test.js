@@ -24,6 +24,11 @@ test('dashboard restores A9 session from existing Grist session before showing l
   assert.match(html, /const synced = await syncAuthFromGrist\(\)/);
 });
 
+test('login registration link opens an existing Grist entry path', () => {
+  assert.match(html, /href="\/grist\/login"/);
+  assert.doesNotMatch(html, /\/grist\/auth\/login/);
+});
+
 test('initMap is safe to call more than once', () => {
   assert.match(html, /function initMap\(\) \{/);
   assert.match(html, /if \(!window\.L\) return false;/);
