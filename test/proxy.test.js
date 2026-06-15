@@ -105,6 +105,46 @@ test('merges Grist redirect cookies into the next proxied request', () => {
   assert.equal(merged, 'a9.sid=app-session; grist_core=new-session; grist_core_status=S');
 });
 
+test('proxies Grist session access before A9 API auth blocks it', async (t) => {
+  const gristHits = [];
+  const gristServer = http.createServer((req, res) => {
+    gristHits.push(req.url);
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ users: [{ email: 'anon@getgrist.com', anonymous: true }], orgs: [] }));
+  });
+  await new Promise(resolve => gristServer.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => gristServer.close(resolve)));
+
+  const gristUrl = `http://127.0.0.1:${gristServer.address().port}`;
+  const {
+    router,
+    gristProxy,
+    gristStaticProxy,
+  } = createProxyRouter({
+    gristApi: { autoLoginToGrist: async () => [] },
+    gristUrl,
+    requireAuth: (req, res) => res.status(401).json({ error: 'AUTH_REQUIRED' }),
+  });
+
+  const app = express();
+  app.use(router);
+  app.use('/api', (req, res) => res.status(401).json({ error: 'AUTH_REQUIRED' }));
+  const appServer = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => appServer.once('listening', resolve));
+  t.after(() => {
+    gristProxy.close();
+    gristStaticProxy.close();
+    return new Promise(resolve => appServer.close(resolve));
+  });
+
+  const response = await fetch(`http://127.0.0.1:${appServer.address().port}/api/session/access/all`);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(body.orgs, []);
+  assert.deepEqual(gristHits, ['/api/session/access/all']);
+});
+
 test('does not expose the service-token Grist API proxy to browser callers', async (t) => {
   const gristHits = [];
   const gristServer = http.createServer((req, res) => {

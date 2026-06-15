@@ -333,17 +333,25 @@ function createProxyRouter(deps) {
   }
 
   // ---- Grist 原生 /api/* — 供 /grist SPA 自身加载使用 ----
-  router.use('/api', requireAuth, (req, res, next) => {
+  router.use('/api', (req, res, next) => {
     const pathname = new URL(req.originalUrl, 'http://localhost').pathname;
     if (!isGristNativeApiPath(pathname)) return next();
-    req.url = req.originalUrl;
-    gristProxy.web(req, res, {
-      target: gristUrl,
-      changeOrigin: true,
-    }, (err) => {
-      console.error('[Grist Native API Proxy Error]', err.message);
-      res.status(502).json({ error: 'Grist API unavailable' });
-    });
+
+    const proxyRequest = () => {
+      req.url = req.originalUrl;
+      gristProxy.web(req, res, {
+        target: gristUrl,
+        changeOrigin: true,
+      }, (err) => {
+        console.error('[Grist Native API Proxy Error]', err.message);
+        res.status(502).json({ error: 'Grist API unavailable' });
+      });
+    };
+
+    if (pathname === '/api/session/access/all') {
+      return proxyRequest();
+    }
+    return requireAuth(req, res, proxyRequest);
   });
 
   // ---- /v — Grist 静态资源代理 ----
