@@ -159,6 +159,11 @@ function createAuthRouter(deps) {
 
   // POST /logout
   router.post('/logout', (req, res) => {
+    // 清除 Grist 相关的 cookies
+    res.setHeader('Set-Cookie', [
+      'grist_core=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax',
+      'grist_core_status=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
+    ]);
     req.session.destroy(() => {
       res.json({ success: true });
     });
