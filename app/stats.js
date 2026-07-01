@@ -54,7 +54,8 @@ const DEFAULT_REGION_COORDS = {
 const statsEvents = new EventEmitter();
 
 // ---------- 缓存 ----------
-const STATS_CACHE_TTL = 60 * 1000;
+// 20s TTL：与前端轮询对齐，导入新表格后约 40s 内自动刷新
+const STATS_CACHE_TTL = 20 * 1000;
 let statsCache = { data: null, timestamp: 0 };
 
 function invalidateCache() {
@@ -236,7 +237,8 @@ function createStatsRouter(gristApi) {
       statsCache = { data: stats, timestamp: Date.now() };
       res.json(stats);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      // 无文档/无表时返回空统计，前端显示空状态
+      res.json({ generated_at: new Date().toISOString(), totals: { customers: 0 }, byRegion: [] });
     }
   });
 
@@ -246,7 +248,7 @@ function createStatsRouter(gristApi) {
       const tables = await gristApi.getTables();
       res.json(tables);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      res.json([]);
     }
   });
 
@@ -259,7 +261,8 @@ function createStatsRouter(gristApi) {
       const data = await gristApi.getRecords(regionsTable.id, { limit: 100 });
       res.json(data);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('[Stats Regions Error]', err);
+      res.status(500).json({ error: '服务器内部错误，请稍后重试' });
     }
   });
 
@@ -300,7 +303,8 @@ function createStatsRouter(gristApi) {
       const data = await gristApi.getRecords(customersTable.id, params);
       res.json(data);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('[Stats Customers Error]', err);
+      res.status(500).json({ error: '服务器内部错误，请稍后重试' });
     }
   });
 
@@ -324,7 +328,8 @@ function createStatsRouter(gristApi) {
       const data = await gristApi.getRecords(logTable.id, params);
       res.json(data.records || []);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('[Stats Logs Get Error]', err);
+      res.status(500).json({ error: '服务器内部错误，请稍后重试' });
     }
   });
 
@@ -352,7 +357,8 @@ function createStatsRouter(gristApi) {
       statsEvents.emit('data-changed');
       res.json({ success: true });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('[Stats Logs Post Error]', err);
+      res.status(500).json({ error: '服务器内部错误，请稍后重试' });
     }
   });
 

@@ -50,6 +50,169 @@ const GRIST_THEME_SYNC_SCRIPT = [
   '</script>',
 ].join('\n');
 
+const GRIST_WELCOME_SIGNUP_EMAIL_SCRIPT = [
+  '<script>',
+  '(function(){',
+  'var _emailObserver=null;',
+  'var _signupSyncPending=false;',
+  'function _isWelcomeSignup(){',
+  '  return /\\/welcome\\/signup(?:\\/|$)/.test(location.pathname);',
+  '}',
+  'function _isWelcomeVerify(){',
+  '  return /\\/welcome\\/verify(?:\\/|$)/.test(location.pathname);',
+  '}',
+  'function _shouldOwnSignup(){',
+  '  return _isWelcomeSignup()&&!(window.gristConfig&&window.gristConfig.activation);',
+  '}',
+  'function _replaceText(root,from,to){',
+  '  var walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);',
+  '  var node;',
+  '  while((node=walker.nextNode())){',
+  '    if(node.nodeValue&&node.nodeValue.indexOf(from)>=0){node.nodeValue=to;}',
+  '  }',
+  '}',
+  'function _setText(el,text){if(el&&el.textContent!==text){el.textContent=text;}}',
+  'function _scheduleSignupSync(){',
+  '  if(_signupSyncPending)return;',
+  '  _signupSyncPending=true;',
+  '  setTimeout(function(){_signupSyncPending=false;_syncAuthPages();},50);',
+  '}',
+  'function _ensureStatus(form){',
+  '  var status=form.querySelector("[data-a9-register-status]");',
+  '  if(status)return status;',
+  '  status=document.createElement("div");',
+  '  status.setAttribute("data-a9-register-status","1");',
+  '  status.style.marginTop="12px";',
+  '  status.style.fontSize="13px";',
+  '  status.style.lineHeight="1.5";',
+  '  var actions=form.querySelector("button")&&form.querySelector("button").parentElement;',
+  '  (actions||form).appendChild(status);',
+  '  return status;',
+  '}',
+  'function _isA9SignupForm(form){',
+  '  if(!_shouldOwnSignup()||!form)return false;',
+  '  var action=String(form.getAttribute("action")||"");',
+  '  return form.getAttribute("data-a9-register-form")==="1"||action.indexOf("/signup/register")>=0||action.indexOf("/api/auth/register")>=0;',
+  '}',
+  'async function _registerWithA9(form,event){',
+  '  if(!_isA9SignupForm(form))return;',
+  '  if(event){event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();}',
+  '  if(form.getAttribute("data-a9-registering")==="1")return;',
+  '  var emailShow=form.querySelector("input[name=\\"emailShow\\"]")||form.querySelector("input[type=\\"email\\"]");',
+  '  var email=form.querySelector("input[name=\\"email\\"]")||emailShow;',
+  '  var password=form.querySelector("input[name=\\"password\\"],input[type=\\"password\\"]");',
+  '  if(emailShow&&email&&emailShow.value!==email.value){email.value=emailShow.value;}',
+  '  var status=_ensureStatus(form);',
+  '  var button=form.querySelector("button");',
+  '  var original=button&&button.textContent;',
+  '  form.setAttribute("data-a9-registering","1");',
+  '  status.style.color="";',
+  '  status.textContent="正在注册...";',
+  '  if(button){button.disabled=true;button.textContent="正在注册";}',
+  '  try{',
+  '    var response=await fetch("/api/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify({email:email?email.value:"",password:password?password.value:""})});',
+  '    var data=await response.json().catch(function(){return {}});',
+  '    if(!response.ok){throw new Error(data.error||"注册失败，请稍后重试");}',
+  '    status.style.color="#16b378";',
+  '    status.textContent="注册成功，正在进入看板...";',
+  '    location.assign("/");',
+  '  }catch(err){',
+  '    form.removeAttribute("data-a9-registering");',
+  '    status.style.color="#d93025";',
+  '    status.textContent=err.message||"注册失败，请稍后重试";',
+  '    if(button){button.disabled=false;button.textContent=original||"继续";}',
+  '  }',
+  '}',
+  'function _handleSignupClick(event){',
+  '  var button=event.target&&event.target.closest&&event.target.closest("button");',
+  '  if(!button)return;',
+  '  var form=button.form||button.closest("form");',
+  '  if(_isA9SignupForm(form)){_registerWithA9(form,event);}',
+  '}',
+  'function _handleSignupSubmit(event){',
+  '  var form=event.target;',
+  '  if(_isA9SignupForm(form)){_registerWithA9(form,event);}',
+  '}',
+  'function _syncNavText(){',
+  '  Array.prototype.forEach.call(document.querySelectorAll("a"),function(a){',
+  '    if(a.textContent.trim()==="Sign in"){a.textContent="登录";}',
+  '    if(a.textContent.trim()==="Sign up"){a.textContent="注册";}',
+  '    if(a.textContent.trim()==="log in"){a.textContent="登录";}',
+  '  });',
+  '}',
+  'function _syncVerifyPage(){',
+  '  if(!_isWelcomeVerify())return;',
+  '  document.documentElement.lang="zh-CN";',
+  '  document.title="验证邮箱 - A9";',
+  '  var root=document.querySelector("main")||document.querySelector("[role=main]")||document.body;',
+  '  _replaceText(root,"Welcome to Grist","验证邮箱");',
+  '  _replaceText(root,"Please check your email for a 6-digit verification code, and enter it here.","请输入邮件中的 6 位验证码。");',
+  '  _replaceText(root,"If you\\\'ve any trouble, try our full set of sign-up options. Do take care to use the email address you activated with:","如果遇到问题，请确认邮箱地址是否正确，或返回注册页重试。");',
+  '  _replaceText(root,"Confirmation code","验证码");',
+  '  _replaceText(root,"Resend verification email","重新发送验证码");',
+  '  _replaceText(root,"More sign-up options","更多注册方式");',
+  '  _syncNavText();',
+  '  Array.prototype.forEach.call(document.querySelectorAll("input[hidden]"),function(input){',
+  '    input.setAttribute("data-a9-hidden-code-input","1");',
+  '    input.style.display="none";',
+  '    input.style.visibility="hidden";',
+  '    input.setAttribute("aria-hidden","true");',
+  '  });',
+  '  var codeInput=document.querySelector("input[name=\\"code\\"]");',
+  '  if(codeInput){codeInput.placeholder="请输入验证码";codeInput.inputMode="numeric";_emailObserver&&_emailObserver.disconnect();}',
+  '}',
+  'function _syncAuthPages(){',
+  '  _syncSignupEmailField();',
+  '  _syncVerifyPage();',
+  '}',
+  'function _syncSignupEmailField(){',
+  '  if(!_shouldOwnSignup())return;',
+  '  document.documentElement.lang="zh-CN";',
+  '  document.title="注册 - A9";',
+  '  var root=document.querySelector("main")||document.querySelector("[role=main]")||document.body;',
+  '  _replaceText(root,"Welcome to Grist","创建 A9 账号");',
+  '  _replaceText(root,"The email address you activated Grist with:","邮箱地址：");',
+  '  _replaceText(root,"A password to use with Grist:","设置密码：");',
+  '  _replaceText(root,"Welcome Sumo-ling! Your Grist site is almost ready. Let\\\'s get your account set up and verified. If you already have a Grist account as you can just log in now. Otherwise, please pick a password.","请输入邮箱和密码完成注册。注册成功后将自动进入 A9 看板。");',
+  '  _syncNavText();',
+  '  var form=document.querySelector("form[action*=\\\"/signup/register\\\"]");',
+  '  if(!form)return;',
+  '  _setText(form.querySelector("p"),"请输入邮箱和密码完成注册。注册成功后将自动进入 A9 看板。");',
+  '  var emailShow=form.querySelector("input[name=\\"emailShow\\"]");',
+  '  var email=form.querySelector("input[name=\\"email\\"]");',
+  '  var password=form.querySelector("input[name=\\"password\\"]");',
+  '  if(!emailShow||!email)return;',
+  '  if(emailShow.disabled){emailShow.disabled=false;emailShow.removeAttribute("disabled");}',
+  '  emailShow.required=true;',
+  '  email.required=true;',
+  '  emailShow.placeholder="请输入邮箱地址";',
+  '  if(password){password.required=true;password.minLength=8;password.placeholder="至少 8 位密码";}',
+  '  _setText(form.querySelector("button"),"继续");',
+  '  var secondary=form.querySelector("a");',
+  '  if(secondary){secondary.textContent="已有账号，去登录";secondary.href="/login";}',
+  '  if(email.value&&!emailShow.value){emailShow.value=email.value;}',
+  '  if(emailShow.value!==email.value){email.value=emailShow.value;}',
+  '  if(emailShow.getAttribute("data-a9-email-sync")==="1"){_emailObserver&&_emailObserver.disconnect();return;}',
+  '  emailShow.setAttribute("data-a9-email-sync","1");',
+  '  form.setAttribute("data-a9-register-form","1");',
+  '  form.action="/api/auth/register";',
+  '  form.method="post";',
+  '  var sync=function(){email.value=emailShow.value;};',
+  '  emailShow.addEventListener("input",sync);',
+  '  emailShow.addEventListener("change",sync);',
+  '  form.addEventListener("submit",function(event){sync();_registerWithA9(form,event);});',
+  '  _emailObserver&&_emailObserver.disconnect();',
+  '}',
+  'document.addEventListener("click",_handleSignupClick,true);',
+  'document.addEventListener("submit",_handleSignupSubmit,true);',
+  'if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",_scheduleSignupSync)}else{_scheduleSignupSync()}',
+  '_emailObserver=new MutationObserver(_scheduleSignupSync);',
+  '_emailObserver.observe(document.documentElement,{childList:true,subtree:true});',
+  'setTimeout(function(){_emailObserver&&_emailObserver.disconnect()},15000);',
+  '})();',
+  '</script>',
+].join('\n');
+
 const GRIST_ROUTING_SCRIPT = [
   '<script>',
   '(function(){',
@@ -96,13 +259,26 @@ function createGristConfigPatchScript(publicOrigin, publicAppPath = '/') {
     `var _appPath=${JSON.stringify(publicAppPath)};`,
     // 避免对登录/注册页面进行路径重定向，防止访问被拒绝
     'var isAuthPath = location.pathname.includes("/login") || location.pathname.includes("/signup");',
-    // 只有在非认证路径且当前路径不是根路径时才执行重定向
-    'if(!isAuthPath && location.pathname !== "/" && (location.pathname!==_appPath.split("?")[0]||location.search!==(_appPath.indexOf("?")>=0?"?"+_appPath.split("?").slice(1).join("?"):""))){',
+    'if(location.pathname !== "/" && (location.pathname!==_appPath.split("?")[0]||location.search!==(_appPath.indexOf("?")>=0?"?"+_appPath.split("?").slice(1).join("?"):""))){',
     '  history.replaceState(history.state,"",_appPath);',
     '}',
-    'if(window.gristConfig){',
-    '  window.gristConfig.homeUrl=_origin+"/";',
-    '  window.gristConfig.baseDomain=location.hostname;',
+    'var _gristConfigValue=window.gristConfig;',
+    'function _patchGristConfig(config){',
+    '  if(!config)return config;',
+    '  config.homeUrl=_origin+"/";',
+    '  if(!isAuthPath){',
+    '    config.baseDomain=location.hostname;',
+    '  }',
+    '  return config;',
+    '}',
+    'try{',
+    '  Object.defineProperty(window,"gristConfig",{configurable:true,enumerable:true,get:function(){return _gristConfigValue},set:function(value){_gristConfigValue=_patchGristConfig(value)}});',
+    '  window.gristConfig=_gristConfigValue;',
+    '}catch(_){',
+    '  if(window.gristConfig){',
+    '    window.gristConfig.homeUrl=_origin+"/";',
+    '    if(!isAuthPath){window.gristConfig.baseDomain=location.hostname;}',
+    '  }',
     '}',
     '})();',
     '</script>',
@@ -129,6 +305,7 @@ const GRIST_NATIVE_API_PREFIXES = [
   '/api/workspaces',
   '/api/tables',
   '/api/records',
+  '/api/user',
   '/api/users',
   '/api/profile',
   '/api/install',
@@ -141,6 +318,10 @@ const GRIST_NATIVE_API_PREFIXES = [
 
 function isGristNativeApiPath(pathname) {
   return GRIST_NATIVE_API_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(prefix + '/'));
+}
+
+function isGristOrgApiPath(pathname) {
+  return /^\/o\/[^/]+\/api(?:\/|$)/.test(pathname);
 }
 
 const GRIST_WEB_PATH_PREFIXES = [
@@ -228,9 +409,19 @@ function stripGristSessionCookies(cookieHeader) {
     .join('; ');
 }
 
+function getGristAuthPathname(pathname) {
+  const pathWithoutGristPrefix = (pathname || '/').replace(/^\/grist(?=\/|$)/, '') || '/';
+  return pathWithoutGristPrefix.replace(
+    /^\/o\/[^/]+(?=\/(?:login|signup|welcome\/signup)(?:\/|$))/,
+    '',
+  ) || '/';
+}
+
 function isGristAuthPath(pathname) {
-  return pathname === '/login' || pathname.startsWith('/login/')
-    || pathname === '/signup' || pathname.startsWith('/signup/');
+  const authPathname = getGristAuthPathname(pathname);
+  return authPathname === '/login' || authPathname.startsWith('/login/')
+    || authPathname === '/signup' || authPathname.startsWith('/signup/')
+    || authPathname === '/welcome/signup' || authPathname.startsWith('/welcome/signup/');
 }
 
 function isGristAuthReferer(req) {
@@ -238,31 +429,45 @@ function isGristAuthReferer(req) {
   if (!referer) return false;
   try {
     const pathname = new URL(referer, 'http://localhost').pathname;
-    return isGristAuthPath(pathname.replace(/^\/grist(?=\/|$)/, '') || '/');
+    return isGristAuthPath(pathname);
   } catch (_) {
     return false;
   }
+}
+
+function safeInstallPrefs() {
+  return {
+    checkForLatestVersion: false,
+    envVars: {},
+    telemetry: {
+      telemetryLevel: {
+        value: 'off',
+        source: 'preferences',
+      },
+    },
+  };
 }
 
 // ---------- 创建代理路由 ----------
 /**
  * @param {object} deps
  * @param {import('./grist-api')} deps.gristApi - Grist API 实例
- * @param {string} deps.gristUrl               - Grist 服务 URL
+ * @param {string} deps.gristUrl               - Grist 服务 URL（容器内部地址）
+ * @param {string} deps.gristExternalUrl       - Grist 外部 URL（= APP_HOME_URL，用于 CSRF 重写）
  * @param {Function} deps.requireAuth           - 认证中间件
  */
 function createProxyRouter(deps) {
   const router = express.Router();
-  const { gristApi, gristUrl, requireAuth } = deps;
+  const { gristApi, gristUrl, gristExternalUrl, requireAuth } = deps;
 
   // Grist API 代理（独立实例）
-  const gristProxy = httpProxy.createProxyServer({});
+  const gristProxy = httpProxy.createProxyServer({ proxyTimeout: 30000, timeout: 30000 });
   gristProxy.on('error', (err) => {
     if (err.code !== 'ECONNRESET') console.error('[Grist Proxy]', err.message);
   });
 
   // /v/ 静态资源代理
-  const gristStaticProxy = httpProxy.createProxyServer({});
+  const gristStaticProxy = httpProxy.createProxyServer({ proxyTimeout: 30000, timeout: 30000 });
   gristStaticProxy.on('error', (err) => {
     if (err.code !== 'ECONNRESET') console.error('[Grist Static Proxy]', err.message);
   });
@@ -317,7 +522,14 @@ function createProxyRouter(deps) {
         if (fetchRes.status >= 301 && fetchRes.status <= 308) {
           const location = fetchRes.headers.get('location');
           if (!location) break;
-          fetchUrl = new URL(location, fetchUrl).href;
+          const redirectUrl = new URL(location, fetchUrl);
+          const gristHost = new URL(gristUrl).host;
+          if (redirectUrl.host !== gristHost) {
+            console.error('[Grist Page Proxy] 拒绝跨域重定向:', redirectUrl.host, '!=', gristHost);
+            res.status(502).json({ error: 'Grist unavailable' });
+            return;
+          }
+          fetchUrl = redirectUrl.href;
           redirectCount++;
           if (redirectCount > MAX_REDIRECTS) {
             res.status(401).json({ error: 'Grist 认证失败，请重新登录', code: 'GRIST_AUTH_REQUIRED' });
@@ -356,7 +568,7 @@ function createProxyRouter(deps) {
         const finalUrl = new URL(fetchUrl);
         const publicAppPath = finalUrl.pathname + finalUrl.search + finalUrl.hash;
         const patchScript = createGristConfigPatchScript(publicOrigin, publicAppPath);
-        body = body.replace('</head>', patchScript + '\n' + GRIST_THEME_SYNC_SCRIPT + '\n</head>');
+        body = body.replace('</head>', patchScript + '\n' + GRIST_WELCOME_SIGNUP_EMAIL_SCRIPT + '\n' + GRIST_THEME_SYNC_SCRIPT + '\n</head>');
       }
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('Content-Length', Buffer.byteLength(body));
@@ -368,43 +580,105 @@ function createProxyRouter(deps) {
     }
   }
 
+  // 公共：确保请求带 Grist session cookie。
+  // Grist 单组织模式下匿名访问首页即获得默认用户 session。
+  // 未注入会导致 401/403 → 返回登录页 HTML → 前端 JSON.parse 报 "!DOCTYPE" 错误。
+  // 供所有 Grist 代理路由（页面/原生 API/组织前缀 API）共用。
+  async function ensureGristCookie(req, res) {
+    let cookieHeader = req.headers.cookie || '';
+    if (req.session && req.session.user && req.session.user.email &&
+        !/(?:^|;\s*)grist_core=/.test(cookieHeader)) {
+      try {
+        const gristCookies = await gristApi.autoLoginToGrist(req.session.user.email);
+        if (gristCookies.length > 0) {
+          res.setHeader('Set-Cookie', gristCookies);
+          cookieHeader += '; ' + gristCookies.map(c => c.split(';')[0]).join('; ');
+          req.headers.cookie = cookieHeader;
+        }
+      } catch (err) {
+        console.error('[Grist Cookie] 自动登录失败:', err.message);
+      }
+    }
+  }
+
+  // 公共：删除 Origin/Referer 头，绕过 Grist 的 CSRF 跨域检查。
+  // Grist 对 POST 请求做 CSRF 检查：若 Origin 存在且与 APP_HOME_URL 不匹配则 403。
+  // 实测无 Origin 头时 Grist 跳过 CSRF 检查返回 200，最安全可靠。
+  // 不能只重写为 APP_HOME_URL，因为 Host 头（grist:8484）与 Origin 不一致时 Grist 仍判跨域。
+  function rewriteOriginForGrist(req) {
+    delete req.headers.origin;
+    delete req.headers.referer;
+  }
+
   // ---- Grist 原生 /api/* — 供 /grist SPA 自身加载使用 ----
-  router.use('/api', (req, res, next) => {
+  router.use('/api', async (req, res, next) => {
     const pathname = new URL(req.originalUrl, 'http://localhost').pathname;
     if (!isGristNativeApiPath(pathname)) return next();
-    if (isGristAuthReferer(req)) {
+    const authReferer = isGristAuthReferer(req);
+    if (authReferer) {
       req.headers.cookie = stripGristSessionCookies(req.headers.cookie || '');
+      if (pathname === '/api/install/prefs') {
+        return res.json(safeInstallPrefs());
+      }
     }
 
-    const proxyRequest = () => {
+    const proxyRequest = async () => {
+      await ensureGristCookie(req, res);
+      rewriteOriginForGrist(req);
       req.url = req.originalUrl;
       gristProxy.web(req, res, {
         target: gristUrl,
         changeOrigin: true,
       }, (err) => {
         console.error('[Grist Native API Proxy Error]', err.message);
-        res.status(502).json({ error: 'Grist API unavailable' });
+        if (!res.headersSent) res.status(502).json({ error: 'Grist API unavailable' });
       });
     };
 
-    // 允许注册过程中可能调用的 API 路径在未认证的情况下访问
+    if (authReferer) {
+      return proxyRequest();
+    }
+
+    // 允许注册/登录过程中可能调用的 API 路径在未认证的情况下访问
+    // 仅放行 session 相关端点；/api/users、/api/orgs 等需登录后访问，避免泄露用户/组织列表
     const unauthenticatedPaths = [
       '/api/session/access/all',
       '/api/session/login',
       '/api/session/logout',
-      '/api/users',
-      '/api/users/',
-      '/api/orgs',
-      '/api/orgs/'
     ];
 
-    if (unauthenticatedPaths.some(pattern =>
-      pathname === pattern ||
-      (pattern.endsWith('/') && pathname.startsWith(pattern.slice(0, -1)))
-    )) {
+    if (unauthenticatedPaths.includes(pathname)) {
       return proxyRequest();
     }
 
+    return requireAuth(req, res, proxyRequest);
+  });
+
+  // ---- Grist 组织前缀 API，如 /o/a9ms/api/session/access/all、/o/a9ms/api/log ----
+  router.use(async (req, res, next) => {
+    const pathname = new URL(req.originalUrl, 'http://localhost').pathname;
+    if (!isGristOrgApiPath(pathname)) return next();
+    const authReferer = isGristAuthReferer(req);
+    if (authReferer) {
+      req.headers.cookie = stripGristSessionCookies(req.headers.cookie || '');
+    }
+
+    const proxyRequest = async () => {
+      await ensureGristCookie(req, res);
+      rewriteOriginForGrist(req);
+      req.url = req.originalUrl;
+      gristProxy.web(req, res, {
+        target: gristUrl,
+        changeOrigin: true,
+      }, (err) => {
+        console.error('[Grist Org API Proxy Error]', err.message);
+        if (!res.headersSent) res.status(502).json({ error: 'Grist API unavailable' });
+      });
+    };
+
+    if (authReferer) {
+      return proxyRequest();
+    }
     return requireAuth(req, res, proxyRequest);
   });
 
@@ -414,7 +688,7 @@ function createProxyRouter(deps) {
     req.url = rewriteLocalePath(req.url);
     gristStaticProxy.web(req, res, { target: gristUrl }, (err) => {
       console.error('[Grist Static Proxy Error]', err.message);
-      res.status(502).json({ error: 'Grist static resource unavailable' });
+      if (!res.headersSent) res.status(502).json({ error: 'Grist static resource unavailable' });
     });
   });
 
@@ -423,19 +697,62 @@ function createProxyRouter(deps) {
     req.url = rewriteLocalePath('/v/unknown' + req.originalUrl);
     gristStaticProxy.web(req, res, { target: gristUrl }, (err) => {
       console.error('[Grist Locale Proxy Error]', err.message);
-      res.status(502).json({ error: 'Grist locale unavailable' });
+      if (!res.headersSent) res.status(502).json({ error: 'Grist locale unavailable' });
     });
   });
+
+  // ---- /dw — Grist 文档工作进程 HTTP 代理 ----
+  // /dw/self/... 路径用于文件上传等文档级操作，必须流式透传到 Grist。
+  // 若不代理会落到 express.static 回退返回 dashboard.html，前端 JSON.parse 报错。
+  router.use('/dw', async (req, res, next) => {
+    await ensureGristCookie(req, res);
+    rewriteOriginForGrist(req);
+    req.url = req.originalUrl;
+    gristProxy.web(req, res, { target: gristUrl, changeOrigin: true }, (err) => {
+      console.error('[Grist DW Proxy Error]', err.message);
+      if (!res.headersSent) res.status(502).json({ error: 'Grist unavailable' });
+    });
+  });
+
+  // 流式转发非 GET 请求（如 xlsx 上传的 multipart/form-data）。
+  // fetch 模式会因 req.body 为 undefined 而丢弃 body，故 POST/PUT 等改用 http-proxy 流式透传。
+  // 需先注入 Grist session cookie，否则 Grist 返回登录页 HTML，前端 JSON.parse 失败。
+  // GET/HEAD 仍走 serveGristPage 以跟随重定向并注入主题同步脚本。
+  async function streamProxy(req, res, stripPrefix) {
+    await ensureGristCookie(req, res);
+    req.url = stripPrefix
+      ? (req.originalUrl.replace(/^\/grist/, '') || '/')
+      : req.originalUrl;
+    gristProxy.web(req, res, { target: gristUrl, changeOrigin: true }, (err) => {
+      console.error('[Grist Stream Proxy Error]', err.message);
+      if (!res.headersSent) res.status(502).json({ error: 'Grist unavailable' });
+    });
+  }
 
   // ---- /grist — Grist 页面代理 ----
   // 使用服务端 fetch 跟随重定向，避免浏览器端重定向循环
   router.use('/grist', async (req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      return streamProxy(req, res, true);
+    }
     await serveGristPage(req, res, true);
+  });
+
+  // ---- Grist 登录/注册根路径页面：允许刷新认证页时不需要 A9 登录 ----
+  router.use(async (req, res, next) => {
+    if (!isGristAuthPath(req.path)) return next();
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      return streamProxy(req, res, false);
+    }
+    await serveGristPage(req, res, false);
   });
 
   // ---- Grist 根路径页面代理 ----
   router.use(requireAuth, (req, res, next) => {
     if (!isGristWebPath(req.path)) return next();
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      return streamProxy(req, res, false);
+    }
     serveGristPage(req, res, false);
   });
 
@@ -445,6 +762,7 @@ function createProxyRouter(deps) {
 module.exports = {
   createProxyRouter,
   isGristNativeApiPath,
+  isGristOrgApiPath,
   isGristWebPath,
   isGristWebSocketPath,
   isGristAuthPath,

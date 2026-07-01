@@ -10,7 +10,15 @@ yarn-error.log*
 .DS_Store
 
 # Docker
-.env
+docker-compose.override.yml
 
 # Grist
 grist_data/
+
+# Secrets
+.env*
+!.env.example
+
+# Databases
+*.sqlite3
+*.db

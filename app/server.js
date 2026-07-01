@@ -5,6 +5,21 @@
 const express = require('express');
 const path = require('path');
 
+// 12 列网格中计算新 widget 的位置:从左到右平铺,放不下则换行
+function computeNextPosition(existingWidgets, newW, newH) {
+  if (!existingWidgets || existingWidgets.length === 0) {
+    return { x: 0, y: 0 };
+  }
+  const maxY = Math.max(...existingWidgets.map(w => w.y || 0));
+  const lastRow = existingWidgets.filter(w => (w.y || 0) === maxY);
+  const usedWidth = Math.max(...lastRow.map(w => (w.x || 0) + (w.w || 0)), 0);
+  if (usedWidth + newW <= 12) {
+    return { x: usedWidth, y: maxY };
+  }
+  const lastRowH = Math.max(...lastRow.map(w => w.h || 4), 4);
+  return { x: 0, y: maxY + lastRowH };
+}
+
 // ---------- 加载配置 ----------
 const config = require('./config');
 
@@ -13,6 +28,7 @@ const GristDb = require('./grist-db');
 const gristDb = new GristDb({
   dbPath: config.grist.dbPath,
   container: config.grist.container,
+  containerDbPath: config.grist.containerDbPath,
   gristUrl: config.grist.url,
   direct: config.grist.directDb,
 });
@@ -32,22 +48,21 @@ const { requestLogger, securityHeaders, sessionMiddleware } = require('./middlew
 
 // ---------- 初始化认证 ----------
 const { requireAuth, createAuthRouter, authEvents } = require('./auth');
+const LocalUserStore = require('./local-user-store');
+const { createAdminRouter, requireAdmin } = require('./admin');
 const authMiddleware = requireAuth();
-const authRouter = createAuthRouter({ gristDb, gristApi, gristApiKey: config.grist.apiKey });
-
-// ---------- 初始化代理 ----------
-const { createProxyRouter } = require('./proxy');
-const {
-  router: proxyRouter,
-  gristProxy,
-  gristStaticProxy,
-} = createProxyRouter({
+const adminMiddleware = requireAdmin();
+const localUserStore = new LocalUserStore();
+const authRouter = createAuthRouter({
+  gristDb,
   gristApi,
-  gristUrl: config.grist.url,
   gristApiKey: config.grist.apiKey,
-  requireAuth: authMiddleware,
+  userStore: localUserStore,
 });
-const { isGristWebSocketPath, rewriteGristWebSocketOrigin } = require('./proxy');
+const adminRouter = createAdminRouter({
+  localUserStore,
+  gristDb,
+});
 
 // ---------- 初始化统计 ----------
 const { createStatsRouter, statsEvents } = require('./stats');
@@ -61,6 +76,9 @@ const dashboardWidgetStore = createDashboardWidgetStore({
   docId: config.grist.docId,
 });
 
+// ---------- 初始化 Agent 代理 ----------
+const { mountAgentRoutes, mountAgentUpgrade } = require('./agent-proxy');
+
 // ---------- 初始化地图瓦片代理 ----------
 const { createMapTileRouter } = require('./map-tiles');
 
@@ -69,7 +87,11 @@ const app = express();
 if (config.session.trustProxy) {
   app.set('trust proxy', 1);
 }
-app.use(express.json({ limit: '1mb' }));
+// 注入全局共享对象（auth.js / admin.js 通过 req.app.locals 读取）
+app.locals.adminEmails = config.adminEmails;
+app.locals.localUserStore = localUserStore;
+app.locals.dashboardWidgetStore = dashboardWidgetStore;
+app.use(express.json({ limit: '1mb', type: 'application/json' }));
 
 // 通用中间件
 app.use(requestLogger);
@@ -102,7 +124,8 @@ app.get('/api/health', async (req, res) => {
       grist: gristStatus,
     });
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message });
+    console.error('[Health]', err.message);
+    res.status(500).json({ status: 'error', message: '健康检查失败' });
   }
 });
 
@@ -125,22 +148,76 @@ app.post('/api/grist-theme', authMiddleware, async (req, res) => {
     await gristApi.updateTheme(themePrefs, req.headers.cookie || '');
     res.json({ success: true, userPrefs: { theme: themePrefs } });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[Grist Theme]', err.message);
+    res.status(500).json({ error: '主题同步失败' });
   }
 });
 
-// Grist 页面、静态资源与其原生 API 代理
-app.use(proxyRouter);
+// Agent widget 接收端点(MCP save_widget 调用,用 X-Agent-Token 认证,绕过 session auth)
+// 必须在 authMiddleware 之前注册,否则 MCP server 无 session cookie 会被 401 拦截
+app.post('/api/agent/widgets', async (req, res) => {
+  const AGENT_INTERNAL_TOKEN = process.env.AGENT_INTERNAL_TOKEN || '';
+  const token = req.headers['x-agent-token'] || '';
+  if (token !== AGENT_INTERNAL_TOKEN) {
+    return res.status(403).json({ error: '无权访问' });
+  }
+  try {
+    const widget = req.body?.widget;
+    if (!widget || !widget.type || !widget.title) {
+      return res.status(400).json({ error: 'widget 配置不完整' });
+    }
+    const store = req.app.locals.dashboardWidgetStore;
+    if (!store) {
+      return res.status(500).json({ error: 'widget store 未初始化' });
+    }
+    const email = req.body?.email || req.app.locals.adminEmails?.[0] || 'admin@a9.com';
+    // getWidgets 返回 { widgets: [...] },需取 .widgets 数组
+    const widgets = store.getWidgets(email).widgets || [];
+    // MCP 发送 metric 为字符串("count"/"sum"/"average"),需转为 { type: ... } 对象
+    const metricRaw = widget.metric;
+    const metricObj = typeof metricRaw === 'string' ? { type: metricRaw || 'count' }
+      : (metricRaw && typeof metricRaw === 'object' ? { type: metricRaw.type || 'count', field: metricRaw.field }
+        : { type: 'count' });
+    // 智能计算新 widget 的位置:从左到右平铺,放不下则换行
+    const newW = widget.type === 'metric' ? 3 : 6;
+    const newH = widget.type === 'metric' ? 2 : 4;
+    const pos = computeNextPosition(widgets, newW, newH);
+    const newWidget = {
+      id: `agent_${Date.now()}`,
+      type: widget.type,
+      title: widget.title,
+      tableId: widget.tableId || '',
+      dimension: widget.dimension || '',
+      metric: metricObj,
+      x: pos.x, y: pos.y, w: newW, h: newH,
+    };
+    widgets.push(newWidget);
+    store.saveUserWidgets(email, widgets);
+    console.log(`[Agent] widget 已保存: ${newWidget.title} → ${email}`);
+    res.json({ success: true, id: newWidget.id });
+  } catch (err) {
+    console.error('[Agent Widget Save]', err.message);
+    res.status(500).json({ error: '保存 widget 失败' });
+  }
+});
 
 // 以下 API 需要登录
 app.use('/api', authMiddleware);
+
+// 管理员后台路由（需登录 + 管理员权限）
+app.use('/api/admin', adminMiddleware, adminRouter);
 
 function getDashboardWidgetUser(req) {
   return req.session?.user?.email || 'service-account';
 }
 
 app.get('/api/dashboard-widgets', (req, res) => {
-  res.json(dashboardWidgetStore.getWidgets(getDashboardWidgetUser(req)));
+  try {
+    res.json(dashboardWidgetStore.getWidgets(getDashboardWidgetUser(req)));
+  } catch (err) {
+    console.error('[Dashboard Widgets Get Error]', err.message);
+    res.json({ widgets: [] });
+  }
 });
 
 app.put('/api/dashboard-widgets', (req, res) => {
@@ -156,7 +233,8 @@ app.get('/api/chart-schema', async (req, res) => {
   try {
     res.json(await getChartSchema(gristApi));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    // 无文档/无表时返回空 schema，前端据此显示空状态而非报错
+    res.json({ tables: [] });
   }
 });
 
@@ -171,31 +249,26 @@ app.post('/api/chart-data', async (req, res) => {
 // 统计与数据路由
 app.use('/api', statsRouter);
 
-// Grist iframe 回退代理：当 Grist SPA 内部导航绕过路由脚本时
-// （如 window.location 直接赋值），请求会缺少 /grist 前缀。
-// 通过 Referer 检测来自 Grist iframe 的请求，重定向到正确路径。
-app.use((req, res, next) => {
-  if (req.path.startsWith('/grist') || req.path.startsWith('/v/') || req.path.startsWith('/locales/')) {
-    return next();
-  }
-  const referer = req.get('referer');
-  if (referer) {
-    try {
-      const refUrl = new URL(referer);
-      if (refUrl.pathname.startsWith('/grist')) {
-        return res.redirect(302, '/grist' + req.path);
-      }
-    } catch (_) {}
-  }
-  next();
-});
+// Agent 代理路由（widget 接收 + Munchkin WebUI 反代）
+mountAgentRoutes(app);
 
 // SPA 回退
-app.get('*', (req, res) => {
+app.use((req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'API 不存在' });
   }
   res.sendFile(path.join(__dirname, '..', 'public', 'dashboard.html'));
+});
+
+// ---------- 全局错误处理中间件 ----------
+// 捕获任何未处理的同步错误与 next(err)，生产环境隐藏内部错误细节
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error('[Unhandled Error]', err.message);
+  // 防御：若响应已发送（如路由内已 res.json 后 session.save 又异步失败触发 next(err)），
+  // 不再尝试写入响应头，避免 ERR_HTTP_HEADERS_SENT
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: '服务器内部错误' });
 });
 
 // ---------- 启动服务 ----------
@@ -205,68 +278,30 @@ const server = app.listen(config.port, '0.0.0.0', () => {
   console.log('╔══════════════════════════════════════════╗');
   console.log('║       A9 Marketing System v3.0           ║');
   console.log('╠══════════════════════════════════════════╣');
-  console.log(`║  URL:      http://localhost:${addr.port}          ║`);
-  console.log(`║  Grist:    http://localhost:${addr.port}/grist/     ║`);
-  console.log(`║  看板:     http://localhost:${addr.port}/dashboard  ║`);
+  console.log(`║  门户:     http://localhost:${addr.port}          ║`);
+  console.log(`║  Grist:    http://localhost:8484         ║`);
   console.log('║  Status:   ✅ Running                      ║');
   console.log('╚══════════════════════════════════════════╝');
   console.log('');
 });
+
+// ---------- Agent WebSocket upgrade 处理 ----------
+// 复用 session 中间件解析 cookie，鉴权后代理到 Munchkin gateway
+mountAgentUpgrade(server, sessionMiddleware({
+  secret: config.session.secret,
+  dir: config.session.dir,
+  isProduction: config.isProduction,
+  secure: config.session.secureCookie,
+}));
 
 // ---------- 优雅退出 ----------
 function shutdown(signal) {
   console.log(`\n收到 ${signal} 信号，正在关闭服务器...`);
   server.close(() => {
     gristDb.close();
-    gristProxy.close();
-    gristStaticProxy.close();
     process.exit(0);
   });
   setTimeout(() => process.exit(1), 5000);
 }
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
-
-// ---------- WebSocket 代理升级（需认证） ----------
-server.on('upgrade', (req, socket, head) => {
-  socket.on('error', (err) => {
-    if (err.code !== 'ECONNRESET') console.error('[WS Socket]', err.message);
-  });
-
-  sessionMiddleware({
-    secret: config.session.secret,
-    dir: config.session.dir,
-    isProduction: config.isProduction,
-    secure: config.session.secureCookie,
-  })(req, {}, () => {
-    if (!req.session || !req.session.user) {
-      console.warn(`[WS] 拒绝未认证的 WebSocket 连接: ${req.url}`);
-      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-      try { socket.destroy(); } catch (_) {}
-      return;
-    }
-
-    if (req.url.startsWith('/grist')) {
-      req.url = req.url.replace(/^\/grist/, '');
-      rewriteGristWebSocketOrigin(req, config.grist.url);
-      gristProxy.ws(req, socket, head, { target: config.grist.url, changeOrigin: true }, (err) => {
-        if (err && err.code !== 'ECONNRESET') console.error('[Grist WS Proxy]', err.message);
-        try { socket.destroy(); } catch (_) {}
-      });
-    } else if (isGristWebSocketPath(new URL(req.url, 'http://localhost').pathname)) {
-      rewriteGristWebSocketOrigin(req, config.grist.url);
-      gristProxy.ws(req, socket, head, { target: config.grist.url, changeOrigin: true }, (err) => {
-        if (err && err.code !== 'ECONNRESET') console.error('[Grist WS Proxy]', err.message);
-        try { socket.destroy(); } catch (_) {}
-      });
-    } else if (req.url.startsWith('/v/')) {
-      gristStaticProxy.ws(req, socket, head, { target: config.grist.url, changeOrigin: true }, (err) => {
-        if (err && err.code !== 'ECONNRESET') console.error('[Grist Static WS Proxy]', err.message);
-        try { socket.destroy(); } catch (_) {}
-      });
-    } else {
-      console.warn(`[WS] 拒绝未知 WebSocket 路径: ${req.url}`);
-      try { socket.destroy(); } catch (_) {}
-    }
-  });
-});

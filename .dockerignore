@@ -1,0 +1,20 @@
+node_modules
+.env
+.env.*
+!.env.example
+data/
+grist_data/
+.git
+test/
+*.md
+scripts/
+docker-compose*.yml
+Dockerfile
+.dockerignore
+.gitignore
+# Munchkin 源码构建产物（镜像内重新构建）
+munchkin-src/webui/node_modules
+munchkin-src/webui/dist
+munchkin-src/munchkin/web/dist
+munchkin-src/**/__pycache__
+munchkin-src/**/*.pyc

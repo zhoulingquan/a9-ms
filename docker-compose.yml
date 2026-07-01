@@ -1,34 +1,61 @@
 # ============================================================
-#  A9 Marketing System — Docker Compose
-#  Grist (SQLite) + Express 网关
+#  A9 Marketing System — Docker Compose（单容器融合版）
+#  Caddy 鉴权代理 + Grist (SQLite) + 融合容器 (Express + Munchkin)
 # ============================================================
 
 services:
-  # ---------- Grist 多维表格引擎 ----------
+  # ---------- Grist 多维表格引擎（仅 backend 网络可见，由 Caddy 代理对外） ----------
   grist:
     image: gristlabs/grist-ee:latest
     restart: unless-stopped
     volumes:
       - grist_data:/persist
-    ports:
-      - "${GRIST_PORT:-8484}:8484"
+    expose:
+      - "8484"
     environment:
       GRIST_SINGLE_ORG: "a9ms"
       APP_HOME: /persist
-      APP_HOME_URL: ${APP_HOME_URL:-http://localhost:8484}
+      APP_HOME_URL: ${GRIST_EXTERNAL_URL:-http://localhost:8484}
       GRIST_SANDBOX_FLAVOR: unsandboxed
       GRIST_DEFAULT_EMAIL: ${GRIST_DEFAULT_EMAIL:-admin@a9.com}
       GRIST_ADMIN_EMAIL: ${GRIST_ADMIN_EMAIL:-admin@a9.com}
       GRIST_IN_SERVICE: ${GRIST_IN_SERVICE:-true}
       GRIST_FORCE_ENABLE_ENTERPRISE: "false"
+      GRIST_FORWARD_AUTH_HEADER: X-Forwarded-User
+      GRIST_FORCE_LOGIN: "true"
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8484/status || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
+    networks:
+      - backend
 
-  # ---------- A9 App (Express 网关) ----------
+  # ---------- Caddy 鉴权代理（对外 8484） ----------
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+      grist:
+        condition: service_healthy
+    ports:
+      - "${GRIST_PORT:-8484}:8484"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - frontend
+      - backend
+
+  # ---------- A9 App + Munchkin 融合容器 ----------
+  # 单容器内 supervisord 管理：
+  #   - app (Node.js Express 门户)
+  #   - munchkin (Python AI Agent gateway)
+  # 容器内通过 127.0.0.1:8765 通信，无需 Docker 网络
   app:
     build:
       context: .
@@ -51,11 +78,47 @@ services:
       GRIST_DB_DIRECT: "true"
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
       SESSION_DIR: /app/data/sessions
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-admin@a9.com}
+      # Agent 内部通信
+      AGENT_INTERNAL_TOKEN: ${AGENT_INTERNAL_TOKEN:?AGENT_INTERNAL_TOKEN is required}
+      MUNCHKIN_TOKEN_SECRET: ${MUNCHKIN_TOKEN_SECRET:?MUNCHKIN_TOKEN_SECRET is required}
+      # 容器内通信：munchkin gateway 监听 127.0.0.1:8765
+      MUNCHKIN_URL: http://127.0.0.1:8765
+      OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
     volumes:
       - app_data:/app/data
       - grist_data:/grist-persist:ro
+      # 持久化 munchkin workspace/sessions/media
+      - munchkin_data:/home/munchkin/.munchkin
+      # ---------- 开发期源码挂载（修改即时生效，无需重建镜像） ----------
+      # A9 后端源码
+      - ./app:/app/app
+      # A9 前端源码
+      - ./public:/app/public
+      # MCP Server 源码（munchkin 容器内已内置 mcp/httpx 依赖）
+      - ./mcp-grist:/app/mcp-grist
+      # Munchkin 配置文件（A9 后端可写，用于设置页面修改）
+      - ./munchkin/config.json:/home/munchkin/.munchkin/config.json
+      # Munchkin 工作区引导文件（注入系统提示词,定义图表生成行为规则）
+      - ./munchkin/workspace/AGENTS.md:/home/munchkin/.munchkin/workspace/AGENTS.md
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    networks:
+      - frontend
+      - backend
 
 volumes:
   grist_data:
   app_data:
+  caddy_data:
+  caddy_config:
+  munchkin_data:
+
+networks:
+  frontend:
+  backend:

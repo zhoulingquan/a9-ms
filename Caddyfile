@@ -1,0 +1,45 @@
+:8484 {
+	# 安全提取 a9-email cookie:用 map 指令预先评估 placeholder
+	# cookie 存在时 {xfu} = 邮箱值;不存在时 {xfu} = 空字符串
+	# 避免 Caddy 直接使用 {http.request.cookie.a9-email} 时
+	# 在 cookie 不存在的情况下发送字面字符串
+	map {http.request.cookie.a9-email} {xfu} {
+		~^(.+)$ "$1"
+		default ""
+	}
+
+	# 没有 a9-email cookie 的请求分两类处理:
+	# 1) API/WS 请求(/api/* /dw/*)→ 返回 401 JSON,避免跨域重定向导致 fetch 失败
+	# 2) 页面请求(/o/* /doc/*)→ 重定向到 A9 登录页
+	# 静态资源(/v/*)不检查 cookie,允许直接访问
+	@need_auth_api {
+		expression {xfu} == ""
+		path /api/* /dw/*
+	}
+	handle @need_auth_api {
+		respond "{\"error\":\"未登录\",\"code\":\"AUTH_REQUIRED\"}" 401
+	}
+
+	@need_auth_page {
+		expression {xfu} == ""
+		path /o/* /doc/*
+	}
+	handle @need_auth_page {
+		redir http://localhost:3000/login
+	}
+
+	# 有 a9-email cookie 时反代到 Grist
+	reverse_proxy grist:8484 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+		header_up X-Forwarded-User "{xfu}"
+	}
+
+	log {
+		output stdout
+		format console
+		level INFO
+	}
+}

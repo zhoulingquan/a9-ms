@@ -44,6 +44,23 @@ test('returns user widgets after saving', () => {
   ]);
 });
 
+test('preserves 1x1 grid sizes for all widget types', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'a9-widgets-'));
+  const store = createDashboardWidgetStore({ dir, docId: 'doc123' });
+
+  const result = store.saveUserWidgets('alice@example.com', [
+    { id: 'metric-1x1', title: '迷你指标', type: 'metric', tableId: 'Table2', metric: { type: 'count' }, w: 1, h: 1 },
+    { id: 'chart-1x1', title: '迷你图表', type: 'bar', tableId: 'Table2', dimension: 'C', metric: { type: 'count' }, w: 1, h: 1 },
+    { id: 'map-1x1', title: '迷你地图', type: 'map', w: 1, h: 1 },
+  ]);
+
+  assert.deepEqual(result.widgets.map(w => [w.id, w.w, w.h]), [
+    ['metric-1x1', 1, 1],
+    ['chart-1x1', 1, 1],
+    ['map-1x1', 1, 1],
+  ]);
+});
+
 test('rejects native chart widgets without table or metric config', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'a9-widgets-'));
   const store = createDashboardWidgetStore({ dir, docId: 'doc123' });

@@ -41,6 +41,7 @@ const config = {
     dashboardPath: process.env.GRIST_DASHBOARD_PATH || '',
     dbPath: process.env.GRIST_DB_PATH || path.join(__dirname, '..', 'data', 'grist', 'home.sqlite3'),
     container: process.env.GRIST_CONTAINER || 'a9-ms-grist-1',
+    containerDbPath: process.env.GRIST_CONTAINER_DB_PATH || '/persist/home.sqlite3',
     directDb: process.env.GRIST_DB_DIRECT === 'true',
   },
 
@@ -48,12 +49,19 @@ const config = {
     secret: process.env.SESSION_SECRET || '',
     dir: process.env.SESSION_DIR || path.join(__dirname, '..', 'data', 'sessions'),
     secureCookie: parseBool(process.env.SESSION_COOKIE_SECURE, false),
-    trustProxy: parseBool(process.env.TRUST_PROXY, false),
+    trustProxy: parseBool(process.env.TRUST_PROXY, process.env.NODE_ENV === 'production'),
   },
 
   dashboardWidgets: {
     dir: process.env.DASHBOARD_WIDGETS_DIR || path.join(__dirname, '..', 'data', 'dashboard-widgets'),
   },
+
+  // 管理员邮箱白名单（逗号分隔）。命中即视为管理员，可访问用户管理后台。
+  // 兜底默认值：兼容旧版 GRIST_ADMIN_EMAIL / GRIST_DEFAULT_EMAIL
+  adminEmails: (process.env.ADMIN_EMAILS || process.env.GRIST_ADMIN_EMAIL || process.env.GRIST_DEFAULT_EMAIL || '')
+    .split(',')
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean),
 
   isProduction: process.env.NODE_ENV === 'production',
 };
@@ -62,6 +70,11 @@ const config = {
 if (!config.session.secret) {
   console.error('错误：SESSION_SECRET 环境变量未设置，请配置后重启');
   process.exit(1);
+}
+
+// 生产环境 apiKey 缺失警告
+if (config.isProduction && !config.grist.apiKey) {
+  console.warn('[Config] 警告：生产环境未配置 GRIST_API_KEY，部分 Grist API 功能可能受限');
 }
 
 module.exports = config;

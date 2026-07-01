@@ -68,6 +68,18 @@ test('computes pie chart data using sum aggregation', async () => {
   assert.deepEqual(data.values, [300, 300]);
 });
 
+test('computes chart data using max and min aggregations', async () => {
+  const maxData = await computeChartData(gristApi, {
+    type: 'bar', tableId: 'Table2', dimension: 'B', metric: { type: 'max', field: 'J' }, title: '最高预算'
+  });
+  const minData = await computeChartData(gristApi, {
+    type: 'bar', tableId: 'Table2', dimension: 'B', metric: { type: 'min', field: 'J' }, title: '最低预算'
+  });
+
+  assert.deepEqual(maxData.values, [200, 300]);
+  assert.deepEqual(minData.values, [100, 300]);
+});
+
 test('computes metric data using count aggregation', async () => {
   const data = await computeChartData(gristApi, {
     type: 'metric', tableId: 'Table2', metric: { type: 'count' }, title: '客户总数'

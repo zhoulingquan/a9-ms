@@ -1,5 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const bcrypt = require('bcryptjs');
 
 const { requireAuth, createAuthRouter } = require('../app/auth');
 
@@ -79,6 +80,7 @@ test('allows admin login with ADMIN_PASSWORD when Grist has no password hash', a
       regenerate(callback) { callback(); },
       save(callback) { callback(); },
     },
+    app: { locals: { adminEmails: ['admin@a9.com'], localUserStore: { findByEmail: () => null } } },
   };
   let payload = null;
   const res = {
@@ -96,6 +98,111 @@ test('allows admin login with ADMIN_PASSWORD when Grist has no password hash', a
 
   assert.equal(payload.success, true);
   assert.deepEqual(req.session.user, { email: 'admin@a9.com', displayName: 'admin@a9.com' });
+});
+
+test('registers a local A9 user and starts a session', async () => {
+  const users = new Map();
+  const userStore = {
+    findByEmail(email) {
+      return users.get(email.toLowerCase()) || null;
+    },
+    async createUser({ email, password }) {
+      const passwordHash = await bcrypt.hash(password, 4);
+      const user = { email: email.toLowerCase(), name: email.toLowerCase(), passwordHash };
+      users.set(user.email, user);
+      return user;
+    },
+  };
+  const router = createAuthRouter({
+    gristDb: {
+      findUserByEmail() {
+        return null;
+      },
+    },
+    userStore,
+    gristApi: {
+      autoLoginToGrist() {
+        return Promise.resolve(['grist_core=session; Path=/; HttpOnly; SameSite=Lax']);
+      },
+    },
+    gristApiKey: 'service-api-key',
+  });
+
+  const registerLayer = router.stack.find(layer => layer.route?.path === '/register');
+  const handler = registerLayer.route.stack[0].handle;
+  const req = {
+    body: { email: 'NewUser@Example.com', password: 'Secret123!' },
+    session: {
+      regenerate(callback) { callback(); },
+      save(callback) { callback(); },
+    },
+    app: { locals: { adminEmails: [], localUserStore: userStore } },
+  };
+  let payload = null;
+  let setCookies = [];
+  const res = {
+    setHeader(name, value) {
+      if (name.toLowerCase() === 'set-cookie') setCookies = value;
+    },
+    status() { return this; },
+    json(body) { payload = body; return this; },
+  };
+
+  await handler(req, res);
+
+  assert.equal(payload.success, true);
+  assert.deepEqual(req.session.user, { email: 'newuser@example.com', displayName: 'newuser@example.com' });
+  assert.equal(users.has('newuser@example.com'), true);
+  assert.equal(setCookies[0].startsWith('grist_core='), true);
+});
+
+test('allows a registered local A9 user to log in', async () => {
+  const passwordHash = await bcrypt.hash('Secret123!', 4);
+  const router = createAuthRouter({
+    gristDb: {
+      findUserByEmail() {
+        return null;
+      },
+      getUserApiKey() {
+        return null;
+      },
+    },
+    userStore: {
+      findByEmail(email) {
+        if (email.toLowerCase() !== 'local@example.com') return null;
+        return { email: 'local@example.com', name: 'local@example.com', passwordHash };
+      },
+    },
+    gristApi: {
+      autoLoginToGrist() {
+        return Promise.resolve([]);
+      },
+    },
+    gristApiKey: 'service-api-key',
+  });
+
+  const loginLayer = router.stack.find(layer => layer.route?.path === '/login');
+  const handler = loginLayer.route.stack[0].handle;
+  const req = {
+    ip: '127.0.0.201',
+    body: { email: 'local@example.com', password: 'Secret123!' },
+    session: {
+      regenerate(callback) { callback(); },
+      save(callback) { callback(); },
+    },
+    app: { locals: { adminEmails: [], localUserStore: { findByEmail: (email) => email.toLowerCase() === 'local@example.com' ? { email: 'local@example.com', name: 'local@example.com', passwordHash } : null } } },
+  };
+  let payload = null;
+  const res = {
+    setHeader() {},
+    status() { return this; },
+    json(body) { payload = body; return this; },
+  };
+
+  await handler(req, res);
+
+  assert.equal(payload.success, true);
+  assert.deepEqual(req.session.user, { email: 'local@example.com', displayName: 'local@example.com' });
 });
 
 test('logout clears current and legacy A9 session cookies', async () => {

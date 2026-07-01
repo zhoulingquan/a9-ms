@@ -7,6 +7,8 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" />
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js" integrity="sha384-o5uz97et3bErHvpKfD4Jz4n0JfhJDWABFuF4NP+iEEDxE1VwMWJ19QGR0lqFZnr6" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@12.6.0/dist/gridstack.min.css" integrity="sha384-v0+pyCGvaIDMe1HS4sAK/N5W4dvvEUFvTvAW9CmGumaXgHxaYO56Ow3DULWhd/kO" crossorigin="anonymous" />
+<script src="https://cdn.jsdelivr.net/npm/gridstack@12.6.0/dist/gridstack-all.js" integrity="sha384-1/7H0y8C8vVEG2on7YuZQxUTtB+qMc+96SMFWVVl+0T6UVSVkgHg16yRwYVTFFoP" crossorigin="anonymous"></script>
 
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -44,11 +46,13 @@
     --g-login-shadow: 0 8px 32px rgba(38,38,51,0.24);
     --g-popup-bg: #ffffff;
     --g-popup-border: #e8e8e8;
-    --g-sidebar-bg: #1e1e2e;
-    --g-sidebar-text: #a4a4b1;
+    --g-sidebar-bg: #f0f0f0;
+    --g-sidebar-text: #494949;
     --g-sidebar-active-bg: rgba(22,179,120,0.15);
-    --g-sidebar-active-text: #16b378;
-    --g-sidebar-hover-bg: rgba(255,255,255,0.05);
+    --g-sidebar-active-text: #009058;
+    --g-sidebar-hover-bg: rgba(0,0,0,0.04);
+    --g-resize-grip: rgba(73,73,73,0.42);
+    --g-resize-grip-bg: rgba(255,255,255,0.88);
     --g-sidebar-width: 220px;
     --g-sidebar-collapsed-width: 56px;
   }
@@ -86,11 +90,13 @@
     --g-login-shadow: 0 8px 32px rgba(0,0,0,0.5);
     --g-popup-bg: #32323f;
     --g-popup-border: #60606d;
-    --g-sidebar-bg: #1a1a28;
-    --g-sidebar-text: #a4a4b1;
+    --g-sidebar-bg: #2a2a3a;
+    --g-sidebar-text: #d5d5d5;
     --g-sidebar-active-bg: rgba(22,179,120,0.18);
     --g-sidebar-active-text: #17b378;
     --g-sidebar-hover-bg: rgba(255,255,255,0.05);
+    --g-resize-grip: rgba(213,213,213,0.56);
+    --g-resize-grip-bg: rgba(50,50,63,0.88);
   }
 
   html { font-size: 14px; }
@@ -109,7 +115,7 @@
   }
   .sidebar-brand {
     padding: 10px 10px; display: flex; align-items: center; gap: 8px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid var(--g-border-light);
     position: relative; min-height: 48px;
   }
   .sidebar-brand .logo {
@@ -117,14 +123,14 @@
     display: flex; align-items: center; justify-content: center;
     font-weight: 700; color: #fff; font-size: 13px; flex-shrink: 0;
   }
-  .sidebar-brand h1 { font-size: 14px; font-weight: 600; color: #fff; white-space: nowrap; }
+  .sidebar-brand h1 { font-size: 14px; font-weight: 600; color: var(--g-body); white-space: nowrap; }
   .sidebar-toggle {
     margin-left: auto; width: 24px; height: 24px; border-radius: 3px;
-    border: 1px solid rgba(255,255,255,0.1); background: transparent; color: var(--g-sidebar-text);
+    border: 1px solid var(--g-border); background: transparent; color: var(--g-sidebar-text);
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     font-size: 14px; line-height: 1; transition: background .1s, color .1s, border-color .1s;
   }
-  .sidebar-toggle:hover { background: var(--g-sidebar-hover-bg); color: #fff; border-color: rgba(255,255,255,0.18); }
+  .sidebar-toggle:hover { background: var(--g-sidebar-hover-bg); color: var(--g-body); border-color: var(--g-primary); }
   .sidebar-nav { flex: 1; padding: 4px 0; overflow-y: auto; }
   .sidebar-section { padding: 10px 12px 4px; font-size: 11px; color: var(--g-sidebar-text); text-transform: uppercase; letter-spacing: .5px; opacity: .5; }
   .nav-item {
@@ -134,12 +140,15 @@
     background: none; width: calc(100% - 12px); text-align: left; font-family: inherit;
     border-radius: 3px; border-left: 3px solid transparent;
   }
-  .nav-item:hover { background: var(--g-sidebar-hover-bg); color: #fff; }
+  .nav-item:hover { background: var(--g-sidebar-hover-bg); color: var(--g-body); }
   .nav-item.active { background: var(--g-sidebar-active-bg); color: var(--g-sidebar-active-text); border-left-color: var(--g-primary); }
   .nav-item .nav-icon { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; text-align: center; font-size: 15px; flex-shrink: 0; opacity: .75; line-height: 1; }
   .nav-item.active .nav-icon { opacity: 1; }
+  /* 长按拖动排序样式 */
+  .nav-item.dragging { opacity: 0.4; }
+  .nav-item.drag-over { border-top: 2px solid var(--g-primary); margin-top: 0; }
   .sidebar-footer {
-    padding: 10px 12px; border-top: 1px solid rgba(255,255,255,0.06);
+    padding: 10px 12px; border-top: 1px solid var(--g-border-light);
     display: flex; align-items: center; gap: 8px;
   }
   .sidebar-footer .avatar {
@@ -147,7 +156,7 @@
     display: flex; align-items: center; justify-content: center;
     color: #fff; font-size: 11px; font-weight: 600; flex-shrink: 0;
   }
-  .sidebar-footer .user-name { color: #fff; font-size: 13px; font-weight: 400; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sidebar-footer .user-name { color: var(--g-body); font-size: 13px; font-weight: 400; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sidebar-footer .btn-logout {
     padding: 2px 6px; border-radius: 3px; background: none; border: none;
     color: var(--g-sidebar-text); font-size: 11px; cursor: pointer; font-family: inherit;
@@ -333,33 +342,230 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
   #map .leaflet-right .leaflet-control { margin-right: 10px; }
   .map-controls { display: flex; align-items: center; gap: 6px; }
   .btn-fullscreen {
-    background: var(--g-bg); border: 1px solid var(--g-border); color: var(--g-medium-text);
-    padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 12px;
+    all: unset;
+    display: inline;
+    color: var(--g-medium-text);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    padding: 2px 4px;
   }
-  .btn-fullscreen:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
+  .btn-fullscreen:hover, .btn-fullscreen:focus, .btn-fullscreen:active, .btn-fullscreen:focus-visible {
+    color: var(--g-primary-dark);
+    outline: none;
+  }
 
   /* ---- Native Chart Widgets ---- */
   .dashboard-row { margin-bottom: 12px; }
   .chart-widgets-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .chart-widget-card { border: 1px solid var(--g-border-light); border-radius: 3px; overflow: hidden; background: var(--g-bg); }
+  .chart-widget-card.span-2 { grid-column: span 2; }
+  .chart-widget-card.editing { grid-column: 1 / -1; }
   .chart-widget-header { min-height: 38px; padding: 7px 10px; border-bottom: 1px solid var(--g-border-light); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .chart-widget-title { font-size: 12px; font-weight: 600; color: var(--g-medium-text); }
   .chart-widget-scope { color: var(--g-light-text); font-size: 11px; font-weight: 400; margin-left: 6px; }
   .chart-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .chart-action-btn { background: var(--g-bg); border: 1px solid var(--g-border); color: var(--g-medium-text); padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; font-family: inherit; }
   .chart-action-btn:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
+  .chart-action-btn.primary { background: var(--g-primary); border-color: var(--g-primary); color: #fff; }
+  .chart-action-btn.primary:hover { background: var(--g-primary-dark); border-color: var(--g-primary-dark); color: #fff; }
+  .chart-edit-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; border-top: 1px solid var(--g-border-light); }
+
+  /* ---- Widget 操作菜单（"⋯" 下拉） ---- */
+  .widget-menu { position: relative; flex-shrink: 0; }
+  .widget-menu-btn {
+    width: 18px; height: 18px; border: none; background: transparent;
+    color: var(--g-light-text); cursor: pointer; font-size: 13px; line-height: 1;
+    border-radius: 3px; display: flex; align-items: center; justify-content: center;
+    transition: background .12s, color .12s; font-family: inherit;
+  }
+  .widget-menu-btn:hover { background: var(--g-selection); color: var(--g-primary-dark); }
+  .widget-menu-dropdown {
+    display: none; position: absolute; top: calc(100% + 2px); right: 0;
+    min-width: 100px; background: var(--g-popup-bg); border: 1px solid var(--g-popup-border);
+    border-radius: 4px; box-shadow: 0 4px 14px rgba(38,38,51,0.18);
+    z-index: 100; overflow: hidden; padding: 4px 0;
+  }
+  .widget-menu-dropdown.open { display: block; }
+  .widget-menu-item {
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 12px;
+    background: none; border: none; color: var(--g-medium-text); cursor: pointer;
+    font-size: 12px; font-family: inherit; text-align: left; transition: background .1s, color .1s;
+  }
+  .widget-menu-item:hover { background: var(--g-selection); color: var(--g-primary-dark); }
+  .widget-menu-item.is-danger:hover { background: rgba(208,2,27,0.1); color: var(--g-error); }
+  .widget-menu-item .widget-menu-icon { width: 14px; text-align: center; flex-shrink: 0; font-size: 13px; }
+  .widget-menu-divider { height: 1px; background: var(--g-border-light); margin: 4px 0; }
+  /* 编辑态时隐藏"⋯"菜单 */
+  .grid-stack-item.editing .widget-menu { display: none; }
+  /* 锁定状态：隐藏 widget 操作入口（菜单/收起/添加按钮），禁止拖拽手柄 */
+  body.dashboard-locked .widget-menu,
+  body.dashboard-locked .map-controls,
+  body.dashboard-locked .add-widget-switcher { display: none !important; }
+  body.dashboard-locked .grid-stack-item { cursor: default !important; }
+
+  /* 添加组件按钮（下拉菜单风格，与主题切换器一致） */
+  .add-widget-switcher { position: relative; display: inline-flex; }
+  .add-widget-dropdown {
+    display: none; position: absolute; top: calc(100% + 4px); right: 0;
+    min-width: 140px; background: var(--g-popup-bg); border: 1px solid var(--g-popup-border);
+    border-radius: 3px; box-shadow: 0 4px 16px rgba(38,38,51,0.18); z-index: 300;
+    padding: 4px 0;
+  }
+  .add-widget-dropdown.open { display: block; }
+  .add-widget-item {
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 12px;
+    background: none; border: none; color: var(--g-medium-text); cursor: pointer;
+    font-size: 12px; font-family: inherit; text-align: left; transition: background .1s, color .1s;
+  }
+  .add-widget-item:hover { background: var(--g-selection); color: var(--g-primary-dark); }
+  .add-widget-item .add-widget-icon { width: 14px; text-align: center; flex-shrink: 0; font-size: 13px; }
   .native-chart { width: 100%; height: 320px; }
 
+  /* ---- Gridstack 看板布局（参考 gridstackjs.cn 演示风格） ---- */
+  .grid-stack {
+    background: var(--g-bg-secondary);
+    background-image:
+      linear-gradient(to right, var(--g-border-light) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--g-border-light) 1px, transparent 1px);
+    background-size: calc((100% - 11 * var(--gs-margin, 8px)) / 12 + var(--gs-margin, 8px)) 70px;
+    border-radius: 4px;
+    padding: 4px;
+  }
+  .grid-stack-item {
+    border: 1px solid var(--g-border-light); border-radius: 4px; overflow: hidden;
+    background: var(--g-bg);
+    box-shadow: 0 1px 2px rgba(38,38,51,0.06);
+    min-width: 0;
+    transition: box-shadow .15s, border-color .15s;
+  }
+  .grid-stack-item:hover {
+    border-color: var(--g-primary);
+    box-shadow: 0 2px 8px rgba(22,179,120,0.18);
+  }
+  /* 拖拽/缩放进行中：高亮 + 阴影 + 轻微上浮 */
+  .grid-stack-item.ui-draggable-dragging,
+  .grid-stack-item.ui-resizable-resizing {
+    box-shadow: 0 8px 24px rgba(38,38,51,0.28);
+    z-index: 100;
+    border-color: var(--g-primary);
+    opacity: 0.95;
+    transition: none;
+  }
+  .grid-stack-item-content {
+    /* 必须保留 gridstack 默认的绝对定位撑满父级，否则 flex 子项高度塌陷、echarts 不渲染 */
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+    padding: 0; display: flex; flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .grid-stack-item > .ui-resizable-handle {
+    z-index: 120 !important;
+    touch-action: none;
+  }
+  .grid-stack-item > .ui-resizable-e {
+    width: 18px;
+    top: 16px;
+    right: 0;
+    bottom: 36px;
+    z-index: 120 !important;
+  }
+  .grid-stack-item > .ui-resizable-s {
+    height: 18px;
+    right: 36px;
+    bottom: 0;
+    left: 16px;
+    z-index: 120 !important;
+  }
+  /* 缩放手柄：右下角可见的角点抓手 */
+  .grid-stack-item > .ui-resizable-se {
+    width: 36px; height: 36px; right: 0; bottom: 0;
+    background: transparent !important; background-image: none !important;
+    border-radius: 0 0 4px 0; opacity: 0; transition: opacity .15s;
+    display: block !important;
+    transform: none !important;
+    cursor: nwse-resize !important; z-index: 140 !important;
+  }
+  .grid-stack-item > .ui-resizable-se::before {
+    content: "";
+    position: absolute;
+    width: 20px; height: 20px; right: 6px; bottom: 6px;
+    border-radius: 0 0 2px 0;
+    pointer-events: none;
+    background:
+      linear-gradient(135deg, transparent 0 43%, var(--g-resize-grip) 45% 55%, transparent 57%) 11px 11px / 8px 8px no-repeat,
+      linear-gradient(135deg, transparent 0 45%, var(--g-resize-grip) 47% 55%, transparent 57%) 6px 9px / 13px 13px no-repeat,
+      linear-gradient(135deg, transparent 0 46%, var(--g-resize-grip) 48% 55%, transparent 57%) 1px 7px / 18px 18px no-repeat;
+    filter: drop-shadow(0 1px 0 var(--g-resize-grip-bg));
+    transition: background .15s, filter .15s;
+  }
+  .grid-stack-item:hover > .ui-resizable-se { opacity: 0.82; }
+  .grid-stack-item > .ui-resizable-se:hover,
+  .grid-stack-item.ui-resizable-resizing > .ui-resizable-se { opacity: 1; }
+  .grid-stack-item > .ui-resizable-se:hover::before,
+  .grid-stack-item.ui-resizable-resizing > .ui-resizable-se::before {
+    background:
+      linear-gradient(135deg, transparent 0 43%, var(--g-primary) 45% 55%, transparent 57%) 11px 11px / 8px 8px no-repeat,
+      linear-gradient(135deg, transparent 0 45%, var(--g-primary) 47% 55%, transparent 57%) 6px 9px / 13px 13px no-repeat,
+      linear-gradient(135deg, transparent 0 46%, var(--g-primary) 48% 55%, transparent 57%) 1px 7px / 18px 18px no-repeat;
+    filter: drop-shadow(0 1px 0 var(--g-resize-grip-bg));
+  }
+  body.dashboard-locked .grid-stack-item > .ui-resizable-se { opacity: 0; pointer-events: none; }
+  .grid-stack .widget-header {
+    min-height: 14px; padding: 0 4px; border-bottom: 1px solid var(--g-border-light);
+    display: flex; align-items: center; justify-content: space-between; gap: 2px; flex-shrink: 0;
+    min-width: 0;
+    cursor: move; /* 提示可拖拽 */
+  }
+  .grid-stack .widget-title { min-width: 0; font-size: 11px; font-weight: 600; color: var(--g-medium-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .grid-stack .widget-menu { min-width: 0; }
+  .grid-stack .widget-body { flex: 1; min-width: 0; min-height: 0; position: relative; }
+  .grid-stack .widget-body .native-chart { width: 100%; height: 100%; min-height: 0; }
+  .grid-stack .widget-body .metric-value {
+    display: flex; align-items: center; justify-content: center; height: 100%;
+    font-size: 28px; font-weight: 700; color: var(--g-primary-dark);
+  }
+  .grid-stack .widget-body .metric-label { font-size: 11px; color: var(--g-light-text); text-align: center; padding: 6px 10px 0; }
+  /* metric 卡片隐藏拖拽手柄的视觉，但仍可拖 */
+  .grid-stack .grid-stack-item.is-metric .widget-body { display: flex; flex-direction: column; }
+  .grid-stack .grid-stack-item.is-metric .widget-header { min-height: 16px; padding: 0 4px; }
+  /* 拖拽占位符：虚线轮廓提示放置位置 */
+  .grid-stack .grid-stack-placeholder {
+    border: 2px dashed var(--g-primary); border-radius: 4px;
+    background: var(--g-primary-light); opacity: 0.6;
+  }
+  .grid-stack .grid-stack-placeholder > .placeholder-content { display: none; }
+  /* 添加按钮 */
+  .widget-add-btn {
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    border: 2px dashed var(--g-border); border-radius: 3px; min-height: 80px;
+    transition: border-color .15s, background .15s; background: transparent;
+  }
+  .widget-add-btn:hover { border-color: var(--g-primary); background: var(--g-primary-light); }
+
   /* ---- Chart Edit Form ---- */
-  .chart-edit-form { padding: 16px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; }
-  .chart-edit-field label { display: block; font-size: 11px; color: var(--g-light-text); margin-bottom: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: .3px; }
-  .chart-edit-field select { width: 100%; padding: 6px 8px; border: 1px solid var(--g-border); border-radius: 3px; background: var(--g-bg); color: var(--g-body); font-size: 13px; font-family: inherit; }
-  .chart-edit-metric { display: flex; gap: 6px; }
-  .chart-edit-metric select { flex: 1; min-width: 0; }
-  .chart-edit-type-group { display: flex; gap: 4px; }
-  .chart-type-btn { flex: 1; padding: 6px 4px; border: 1px solid var(--g-border); border-radius: 3px; background: var(--g-bg); color: var(--g-medium-text); cursor: pointer; font-size: 12px; font-family: inherit; transition: all .1s; }
+  .chart-edit-form { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 12px; background: var(--g-bg); }
+  .chart-editor-section { padding-top: 12px; border-top: 1px solid var(--g-border-light); }
+  .chart-editor-section:first-child { padding-top: 0; border-top: 0; }
+  .chart-editor-section-title { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 11px; font-weight: 600; color: var(--g-medium-text); }
+  .chart-editor-section-icon { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; color: var(--g-primary-dark); font-size: 14px; line-height: 1; }
+  .chart-editor-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .chart-editor-layout.single { grid-template-columns: 1fr; }
+  .chart-edit-field label { display: block; font-size: 11px; color: var(--g-light-text); margin-bottom: 4px; font-weight: 500; }
+  .chart-edit-field input,
+  .chart-edit-field select { width: 100%; min-height: 32px; padding: 6px 8px; border: 1px solid var(--g-border); border-radius: 3px; background: var(--g-bg); color: var(--g-body); font-size: 13px; font-family: inherit; }
+  .chart-edit-field input:focus,
+  .chart-edit-field select:focus { outline: none; border-color: var(--g-primary); box-shadow: 0 0 0 2px var(--g-primary-light); }
+  .chart-edit-field select:disabled { color: var(--g-light-text); background: var(--g-bg-secondary); cursor: not-allowed; }
+  .chart-edit-metric { display: grid; grid-template-columns: minmax(98px, .8fr) minmax(140px, 1.2fr); gap: 8px; }
+  .chart-edit-metric select { min-width: 0; }
+  .chart-edit-hint { margin-top: 4px; color: var(--g-light-text); font-size: 11px; line-height: 1.35; }
+  .chart-edit-type-group { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .chart-type-btn { min-height: 34px; padding: 6px 8px; border: 1px solid var(--g-border); border-radius: 3px; background: var(--g-bg); color: var(--g-medium-text); cursor: pointer; font-size: 12px; font-family: inherit; transition: all .1s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+  .chart-type-icon { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; color: var(--g-light-text); font-size: 14px; line-height: 1; }
   .chart-type-btn:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
   .chart-type-btn.active { border-color: var(--g-primary); background: var(--g-primary-light); color: var(--g-primary-dark); font-weight: 600; }
+  .chart-type-btn.active .chart-type-icon { color: var(--g-primary-dark); }
 
   /* ---- Add Chart Placeholder ---- */
   .chart-add-btn { border: 2px dashed var(--g-border); border-radius: 3px; height: 120px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border-color .15s, background .15s; background: transparent; }
@@ -368,37 +574,66 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
   .chart-add-inner .plus { font-size: 28px; line-height: 1; }
   .chart-add-inner .text { font-size: 13px; margin-top: 4px; }
 
-  /* ---- Map Fullscreen ---- */
-  body.map-fullscreen-active {
-    overflow: hidden;
-  }
-  body.map-fullscreen-active .sidebar,
-  body.map-fullscreen-active .topbar {
+  /* ---- Map Collapse ---- */
+  #mapPanel.map-collapsed #map, .grid-stack-item.is-map-widget.map-collapsed #map {
     display: none;
   }
-  body.map-fullscreen-active .main-area {
-    margin-left: 0;
-    width: 100vw;
-    max-width: 100vw;
-    min-height: 100vh;
-    z-index: 10000;
+  /* 地图 widget 内 #map 撑满 widget-body */
+  .grid-stack-item.is-map-widget .widget-body { position: relative; min-height: 0; }
+  .grid-stack-item.is-map-widget #map { width: 100%; height: 100%; margin: 0; position: relative; z-index: 0; }
+
+  /* ---- Admin Panel ---- */
+  .admin-panel {
+    background: var(--g-bg); border: 1px solid var(--g-border-light);
+    border-radius: 4px; padding: 20px 24px;
   }
-  body.map-fullscreen-active .content {
-    padding: 0;
+  .admin-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
   }
-  #mapPanel.map-fullscreen {
-    position: fixed; inset: 0; z-index: 10000; border-radius: 0; border: none; margin: 0;
-    display: flex; flex-direction: column; box-shadow: none;
+  .admin-header h3 { font-size: 16px; font-weight: 600; color: var(--g-body); }
+  .admin-tip {
+    font-size: 12px; color: var(--g-light-text); margin: 0 0 16px;
+    line-height: 1.6;
   }
-  #mapPanel.map-fullscreen .panel-header {
-    flex: 0 0 auto; padding: 12px 16px; border-bottom: 1px solid var(--g-border);
+  .admin-table-wrap { overflow-x: auto; }
+  .admin-table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
   }
-  #mapPanel.map-fullscreen #map {
-    flex: 1 1 auto; min-height: 0; height: auto; margin-bottom: 0;
+  .admin-table th, .admin-table td {
+    padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--g-border-light);
   }
-  #mapPanel.map-collapsed #map {
-    display: none;
+  .admin-table th {
+    font-weight: 600; color: var(--g-medium-text); background: var(--g-bg-secondary);
+    font-size: 12px; text-transform: uppercase; letter-spacing: .3px;
   }
+  .admin-table tr:hover td { background: var(--g-selection); }
+  .admin-table .admin-empty {
+    text-align: center; color: var(--g-light-text); padding: 28px;
+  }
+  .admin-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 11px; font-weight: 500;
+  }
+  .admin-badge.source-local { background: var(--g-primary-light); color: var(--g-primary-dark); }
+  .admin-badge.source-grist { background: var(--g-bg-tertiary); color: var(--g-medium-text); }
+  .admin-badge.role-admin { background: var(--g-badge-a); color: #fff; }
+  .admin-badge.role-user { background: var(--g-bg-tertiary); color: var(--g-medium-text); }
+  .admin-toggle {
+    position: relative; display: inline-block; width: 36px; height: 20px; cursor: pointer;
+  }
+  .admin-toggle input { opacity: 0; width: 0; height: 0; }
+  .admin-toggle .slider {
+    position: absolute; inset: 0; background: var(--g-border); border-radius: 10px;
+    transition: background .15s;
+  }
+  .admin-toggle .slider::before {
+    content: ''; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px;
+    background: #fff; border-radius: 50%; transition: transform .15s;
+  }
+  .admin-toggle input:checked + .slider { background: var(--g-primary); }
+  .admin-toggle input:checked + .slider::before { transform: translateX(16px); }
+  .admin-toggle input:disabled + .slider { opacity: .5; cursor: not-allowed; }
 
   /* ---- Overlays ---- */
   .login-overlay {
@@ -454,18 +689,10 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
   .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
   body.login-active .sidebar,
   body.login-active .main-area { filter: blur(4px); pointer-events: none; user-select: none; transition: filter .3s; }
-  .grist-overlay { display: none; position: fixed; inset: 0; z-index: 500; background: var(--g-bg); flex-direction: column; }
-  .grist-overlay.active { display: flex; }
-  body.grist-active .sidebar,
-  body.grist-active .main-area { display: none; }
-  .grist-overlay-bar { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; border-bottom: 1px solid var(--g-border-light); background: var(--g-bg); }
-  .grist-close-btn { padding: 4px 10px; border: 1px solid var(--g-border); border-radius: 3px; background: var(--g-bg); color: var(--g-medium-text); cursor: pointer; font-size: 12px; font-family: inherit; }
-  .grist-close-btn:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
-  .grist-overlay iframe { flex: 1; width: 100%; border: none; }
 
   /* ---- Print ---- */
   @media print {
-    .sidebar, .topbar, .btn-fullscreen, .footer, .grist-overlay { display: none !important; }
+    .sidebar, .topbar, .btn-fullscreen, .footer { display: none !important; }
     .main-area { margin-left: 0; }
     .panel { box-shadow: none; border: 1px solid #ddd; page-break-inside: avoid; }
     .stat-card { box-shadow: none; border: 1px solid #ddd; }
@@ -491,6 +718,9 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
     .main-area { margin-left: var(--g-sidebar-collapsed-width); }
     .stats-grid { gap: 8px; }
     .stat-card .value { font-size: 1.3rem; }
+    .chart-editor-layout,
+    .chart-edit-metric,
+    .chart-edit-type-group { grid-template-columns: 1fr; }
     #map { height: 320px; }
     .content { padding: 12px; }
   }
@@ -510,6 +740,9 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
     <button class="nav-item active" data-page="dashboard" onclick="switchPage('dashboard')">
       <span class="nav-icon">▦</span><span class="nav-label">数据看板</span>
     </button>
+    <button class="nav-item" id="navAdmin" data-page="admin" onclick="switchPage('admin')" style="display:none;">
+      <span class="nav-icon">⚙</span><span class="nav-label">账户管理</span>
+    </button>
   </nav>
   <div class="sidebar-footer" id="sidebarFooter" style="display:none;">
     <div class="avatar" id="sidebarAvatar">A</div>
@@ -526,8 +759,17 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
       <span class="topbar-title" id="topbarTitle">数据看板</span>
     </div>
     <div class="topbar-right">
-      <button class="btn-action primary" onclick="openGrist()"><span class="btn-symbol">▤</span>多维表格</button>
-      <button class="btn-action" onclick="loadStats()"><span class="btn-symbol">↻</span>刷新</button>
+      <button class="btn-action primary" id="btnOpenGrist" onclick="openGrist()"><span class="btn-symbol">▤</span>多维表格</button>
+      <button class="btn-icon" id="btnLock" onclick="toggleLock()" title="锁定/解锁看板" aria-label="锁定/解锁看板">⊙</button>
+      <div class="add-widget-switcher">
+        <button class="btn-icon" id="addWidgetBtn" onclick="toggleAddWidgetMenu()" title="添加组件">＋</button>
+        <div class="add-widget-dropdown" id="addWidgetDropdown">
+          <button class="add-widget-item" onclick="addWidget('metric'); closeAddWidgetMenu()"><span class="add-widget-icon">#</span>指标卡片</button>
+          <button class="add-widget-item" onclick="addWidget('bar'); closeAddWidgetMenu()"><span class="add-widget-icon">▤</span>柱状图</button>
+          <button class="add-widget-item" onclick="addWidget('pie'); closeAddWidgetMenu()"><span class="add-widget-icon">◐</span>饼图</button>
+          <button class="add-widget-item" onclick="addWidget('line'); closeAddWidgetMenu()"><span class="add-widget-icon">⌇</span>折线图</button>
+        </div>
+      </div>
       <div class="theme-switcher">
         <button class="btn-icon" id="themeBtn" onclick="toggleThemeMenu()" title="切换主题">◐</button>
         <div class="theme-dropdown" id="themeDropdown">
@@ -547,31 +789,42 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
 
   <!-- Content -->
   <div class="content">
-    <!-- Metric Widgets -->
-    <div class="dashboard-row metrics-row">
-      <div class="stats-grid" id="metricWidgetsGrid"></div>
+    <!-- Page: Dashboard -->
+    <div id="pageDashboard">
+      <!-- Widget Grid (metric + chart + map 统一用 gridstack 管理) -->
+      <div class="dashboard-row widgets-row">
+        <div class="grid-stack" id="widgetGrid"></div>
+      </div>
+
+      <div class="footer" id="footerInfo">数据加载中…</div>
     </div>
 
-    <!-- Map -->
-    <div class="dashboard-row map-row">
-      <div class="panel" id="mapPanel">
-        <div class="panel-header">
-          <span><span class="btn-symbol">◇</span> 客户地域分布</span>
-          <div class="map-controls">
-            <button class="btn-fullscreen" id="btnFullscreen" onclick="toggleFullscreen()" aria-pressed="false">⛶ 全屏</button>
-            <button class="btn-fullscreen" id="btnCollapse" onclick="toggleCollapse()">▴ 收起</button>
-          </div>
+    <!-- Page: Admin -->
+    <div id="pageAdmin" style="display:none;">
+      <div class="admin-panel">
+        <div class="admin-header">
+          <h3>用户管理</h3>
+          <button class="btn-action" onclick="loadAdminUsers()"><span class="btn-symbol">↻</span>刷新</button>
         </div>
-        <div id="map"></div>
+        <p class="admin-tip">勾选「允许访问 Grist」后，该用户在前端将看到「多维表格」入口按钮；未勾选则隐藏。管理员邮箱由环境变量 ADMIN_EMAILS 配置。</p>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>邮箱</th>
+                <th>姓名</th>
+                <th>来源</th>
+                <th>角色</th>
+                <th>Grist 访问</th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersTbody">
+              <tr><td colspan="5" class="admin-empty">加载中…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
-
-    <!-- Native Charts -->
-    <div class="dashboard-row charts-row">
-      <div class="chart-widgets-grid" id="chartWidgetsGrid"></div>
-    </div>
-
-    <div class="footer" id="footerInfo">数据加载中…</div>
   </div>
 </div>
 
@@ -595,19 +848,11 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
         </div>
         <div class="login-error" id="loginError"></div>
       </div>
-      <p style="text-align:center;color:var(--g-light-text);margin:8px 0 0;font-size:12px;">
-        未注册？<a href="/grist/signup" target="_blank" style="color:var(--g-primary);">前往 Grist 注册</a>
-      </p>
     </div>
     <div class="login-footer">
       <button class="btn-login" id="loginBtn" onclick="doLogin()">登 录</button>
     </div>
   </div>
-</div>
-
-<!-- Grist iframe overlay -->
-<div class="grist-overlay" id="gristOverlay">
-  <iframe id="gristFrame" src="about:blank" allow="clipboard-read; clipboard-write"></iframe>
 </div>
 
 <script>
@@ -625,9 +870,45 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
       .replace(/'/g, '&#39;');
   }
 
+  // 安全写入 localStorage：隐私模式/配额满时静默降级，不抛错中断业务逻辑
+  function safeLocalStorage(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      // localStorage 不可用，忽略
+    }
+  }
+
   let map, markersLayer, currentBasemapLayer, currentBasemapKey;
-  let isFullscreen = false;
+  let _lastByRegion = [];  // 缓存最近一次 stats 数据，map 重建后用其恢复 markers
   let currentUser = null;
+  let dashboardWidgets = [];
+  let chartSchema = null;
+  const chartInstances = new Map();
+  const CHART_THEME_PALETTES = {
+    light: {
+      colors: ['#16b378', '#3b82f6', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16'],
+      barStart: '#36d399',
+      barEnd: '#0f9f6e',
+      lineAreaStart: 'rgba(59,130,246,0.22)',
+      lineAreaEnd: 'rgba(59,130,246,0.02)',
+      tooltipBg: 'rgba(255,255,255,0.96)',
+      tooltipBorder: '#d9d9d9',
+      tooltipText: '#262633',
+      pieBorder: '#ffffff'
+    },
+    dark: {
+      colors: ['#2dd4bf', '#60a5fa', '#a78bfa', '#fbbf24', '#38bdf8', '#fb7185', '#a3e635'],
+      barStart: '#5eead4',
+      barEnd: '#14b8a6',
+      lineAreaStart: 'rgba(96,165,250,0.26)',
+      lineAreaEnd: 'rgba(96,165,250,0.03)',
+      tooltipBg: 'rgba(38,38,51,0.96)',
+      tooltipBorder: '#60606d',
+      tooltipText: '#efefef',
+      pieBorder: '#32323f'
+    }
+  };
   const MAP_TILE_SIZE = 256;
   const MAP_WORLD_BOUNDS = [[-85.05112878, -180], [85.05112878, 180]];
 
@@ -652,13 +933,14 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
   function applyTheme(resolvedTheme) {
     document.documentElement.setAttribute('data-theme', resolvedTheme);
     syncMapBasemapWithTheme(resolvedTheme);
+    rerenderNativeChartsForTheme();
   }
 
   // 设置主题模式（前端→Grist 联动入口）
   window.setTheme = function(mode) {
     currentThemeMode = mode;
     // 持久化到 localStorage
-    localStorage.setItem(THEME_KEY, mode);
+    safeLocalStorage(THEME_KEY, mode);
     const resolved = resolveTheme(mode);
     setThemeCookie(resolved);
     applyTheme(resolved);
@@ -670,8 +952,8 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
       bc.postMessage({ type: 'theme-change', mode: mode });
       bc.close();
     } catch (_) {}
-    // 同步主题到 Grist（用户主动切换，需重载 iframe）
-    sendThemeToGrist(true);
+    // 同步主题到 Grist（Grist 独立标签页，仅写后端偏好）
+    sendThemeToGrist();
   };
 
   function updateThemeUI(mode) {
@@ -696,6 +978,7 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
 
   document.addEventListener('click', function(e) {
     if (!e.target.closest('.theme-switcher')) closeThemeMenu();
+    if (!e.target.closest('.add-widget-switcher')) closeAddWidgetMenu();
   });
 
   // 同步模式到前端（Grist→前端 联动入口）
@@ -703,7 +986,7 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
     if (!mode || !['light', 'dark', 'system'].includes(mode) || mode === currentThemeMode) return;
     currentThemeMode = mode;
     // 持久化
-    localStorage.setItem(THEME_KEY, mode);
+    safeLocalStorage(THEME_KEY, mode);
     applyTheme(resolveTheme(mode));
     updateThemeUI(mode);
   }
@@ -730,13 +1013,13 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
     }
     applyTheme(resolveTheme(currentThemeMode));
     updateThemeUI(currentThemeMode);
-    localStorage.setItem(THEME_KEY, currentThemeMode);
+    safeLocalStorage(THEME_KEY, currentThemeMode);
 
     // 监听系统主题变化（跟随系统模式下实时响应）
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
       if (currentThemeMode === 'system') {
         applyTheme(resolveTheme('system'));
-        sendThemeToGrist(true);
+        sendThemeToGrist();
       }
     });
 
@@ -767,7 +1050,7 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
         _lastCookieTheme = current;
         if (current === 'dark' || current === 'light') {
           currentThemeMode = current;
-          localStorage.setItem(THEME_KEY, current);
+          safeLocalStorage(THEME_KEY, current);
           applyTheme(current);
           updateThemeUI(current);
         }
@@ -778,30 +1061,16 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
   initTheme();
 
   /* ============================================================
-   *  Grist iframe 管理
+   *  Grist 入口（新标签页打开，独立于门户）
    * ============================================================ */
-  // 使用代理路径（同源），注入的主题同步脚本可通过 postMessage 通信
-  const GRIST_PROXY_PATH = '/grist/';
+  // Grist 外部地址：与门户同机部署时默认 8484，服务器部署时通过此变量切换
+  const GRIST_URL = window.GRIST_URL || (location.protocol + '//' + location.hostname + ':8484');
   let gristIframeReady = false;
 
   async function getGristOpenPath() {
-    try {
-      const res = await fetch('/api/health');
-      if (!res.ok) return GRIST_PROXY_PATH;
-      const health = await res.json();
-      if (health.gristDashboardPath) {
-        return health.gristDashboardPath;
-      }
-      if (health.gristDoc && health.gristDoc !== '(未配置)') {
-        return '/grist/doc/' + encodeURIComponent(health.gristDoc);
-      }
-    } catch (_) {}
-    return GRIST_PROXY_PATH;
+    return GRIST_URL;
   }
 
-  let dashboardWidgets = [];
-  let chartSchema = null;
-  const chartInstances = new Map();
   const LEAFLET_FALLBACK_URL = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
 
   function loadScript(src) {
@@ -838,62 +1107,493 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
       if (!res.ok) return;
       const data = await res.json();
       dashboardWidgets = data.widgets || [];
+      // 注入地图 widget（首次使用时；scope='user' 会随布局一起保存到账户）
+      if (!dashboardWidgets.find(function(w) { return w.id === 'map-widget'; })) {
+        dashboardWidgets.unshift({
+          id: 'map-widget',
+          title: '客户地域分布',
+          type: 'map',
+          x: 0, y: 0, w: 12, h: 6,
+          scope: 'user',
+        });
+      }
       await renderDashboardWidgets();
     } catch (_) {}
   }
 
+  const GRID_WIDGET_MIN_W = 1;
+  const GRID_WIDGET_MIN_H = 1;
+
+  function gridUnit(value, fallback, minimum) {
+    var parsed = parseInt(value, 10);
+    if (!Number.isFinite(parsed)) parsed = parseInt(fallback, 10);
+    if (!Number.isFinite(parsed)) parsed = minimum;
+    return Math.max(minimum, parsed);
+  }
+
+  function widgetConstraintOptions() {
+    return {
+      minW: GRID_WIDGET_MIN_W,
+      minH: GRID_WIDGET_MIN_H,
+      maxW: 12,
+      maxH: 12,
+    };
+  }
+
+  function applyWidgetNodeConstraints(node, el) {
+    if (!node) return;
+    var constraints = widgetConstraintOptions();
+    node.minW = constraints.minW;
+    node.minH = constraints.minH;
+    node.maxW = constraints.maxW;
+    node.maxH = constraints.maxH;
+    var itemEl = el || node.el;
+    if (itemEl) {
+      itemEl.setAttribute('gs-min-w', String(constraints.minW));
+      itemEl.setAttribute('gs-min-h', String(constraints.minH));
+      itemEl.setAttribute('gs-max-w', String(constraints.maxW));
+      itemEl.setAttribute('gs-max-h', String(constraints.maxH));
+    }
+  }
+
+  function gridUnitsFromElementRect(el) {
+    var gridEl = document.getElementById('widgetGrid');
+    if (!gridEl || !el) return null;
+    var gridRect = gridEl.getBoundingClientRect();
+    var rect = el.getBoundingClientRect();
+    var columns = widgetGrid && widgetGrid.getColumn ? widgetGrid.getColumn() : 12;
+    var cellHeight = widgetGrid && widgetGrid.opts ? parseFloat(widgetGrid.opts.cellHeight) : 70;
+    if (!Number.isFinite(cellHeight)) {
+      cellHeight = parseFloat(getComputedStyle(gridEl).getPropertyValue('--gs-cell-height')) || 70;
+    }
+    var colWidth = gridRect.width / columns;
+    if (!(rect.width > 0 && rect.height > 0 && colWidth > 0 && cellHeight > 0)) return null;
+    return {
+      x: Math.max(0, Math.round((rect.left - gridRect.left) / colWidth)),
+      y: Math.max(0, Math.round((rect.top - gridRect.top) / cellHeight)),
+      w: Math.max(GRID_WIDGET_MIN_W, Math.min(12, Math.round(rect.width / colWidth))),
+      h: Math.max(GRID_WIDGET_MIN_H, Math.min(12, Math.round(rect.height / cellHeight))),
+    };
+  }
+
+  function getWidgetLayoutFromElement(el) {
+    if (!el) return null;
+    var node = el.gridstackNode || (widgetGrid && widgetGrid.getNodeByEl && widgetGrid.getNodeByEl(el));
+    if (node) applyWidgetNodeConstraints(node, el);
+    var id = (node && node.id) || el.getAttribute('gs-id');
+    if (!id) return null;
+    var rectLayout = gridUnitsFromElementRect(el);
+    return {
+      id: id,
+      node: node,
+      x: rectLayout ? rectLayout.x : gridUnit(el.getAttribute('gs-x'), node && node.x, 0),
+      y: rectLayout ? rectLayout.y : gridUnit(el.getAttribute('gs-y'), node && node.y, 0),
+      // GridStack 不写 gs-w/gs-h 时代表 1；这里必须把缺省当作 1，而不是回退到旧 widget.w。
+      // 拖到 1 格时 node 可能还保留拖动前尺寸，所以保存时 DOM 布局属性优先。
+      w: rectLayout ? rectLayout.w : gridUnit(el.getAttribute('gs-w') || 1, node && node.w, GRID_WIDGET_MIN_W),
+      h: rectLayout ? rectLayout.h : gridUnit(el.getAttribute('gs-h') || 1, node && node.h, GRID_WIDGET_MIN_H),
+    };
+  }
+
+  function refreshWidgetResizeConstraints(el) {
+    if (!widgetGrid || !el) return;
+    var node = el.gridstackNode || widgetGrid.getNodeByEl(el);
+    if (!node) return;
+    applyWidgetNodeConstraints(node, el);
+    widgetGrid.update(el, widgetConstraintOptions());
+  }
+
+  function refreshAllWidgetResizeConstraints() {
+    if (!widgetGrid) return;
+    widgetGrid.getGridItems().forEach(refreshWidgetResizeConstraints);
+  }
+
+  function syncWidgetLayoutFromNode(node, options) {
+    if (!node || !node.id) return null;
+    applyWidgetNodeConstraints(node);
+    var widget = dashboardWidgets.find(function(w) { return w.id === node.id; });
+    if (!widget) return null;
+    widget.x = gridUnit(node.x, widget.x, 0);
+    widget.y = gridUnit(node.y, widget.y, 0);
+    if (!options || options.size !== false) {
+      widget.w = gridUnit(node.w, widget.w, GRID_WIDGET_MIN_W);
+      widget.h = gridUnit(node.h, widget.h, GRID_WIDGET_MIN_H);
+    }
+    return widget;
+  }
+
+  function syncWidgetLayoutFromElement(el, options) {
+    var layout = getWidgetLayoutFromElement(el);
+    if (!layout) return null;
+    var widget = dashboardWidgets.find(function(w) { return w.id === layout.id; });
+    if (!widget) return null;
+    widget.x = layout.x;
+    widget.y = layout.y;
+    if (!options || options.size !== false) {
+      widget.w = layout.w;
+      widget.h = layout.h;
+    }
+    return widget;
+  }
+
   async function saveUserDashboardWidgets() {
-    await fetch('/api/dashboard-widgets', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ widgets: dashboardWidgets.filter(widget => widget.scope === 'user') }),
+    try {
+      if (!widgetGrid) return;
+      var payload = [];
+      widgetGrid.getGridItems().forEach(function(el) {
+        var widget = syncWidgetLayoutFromElement(el);
+        if (!widget) return;
+        var copy = {};
+        for (var k in widget) { if (widget.hasOwnProperty(k)) copy[k] = widget[k]; }
+        payload.push(copy);
+      });
+      payload = payload.filter(function(w) { return w.scope === 'user'; });
+      var savedSignature = getCurrentLayoutSignature();
+      const res = await fetch('/api/dashboard-widgets', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ widgets: payload }),
+      });
+      if (!res.ok) {
+        var footer = document.getElementById('footerInfo');
+        if (footer) footer.textContent = '布局保存失败（HTTP ' + res.status + '）';
+      } else {
+        var currentSignature = getCurrentLayoutSignature();
+        if (currentSignature && savedSignature && currentSignature !== savedSignature) {
+          lastLayoutSignature = currentSignature;
+          scheduleSaveLayout(80);
+        } else {
+          lastLayoutSignature = currentSignature || savedSignature;
+        }
+      }
+    } catch (e) {
+      var footer = document.getElementById('footerInfo');
+      if (footer) footer.textContent = '布局保存失败：' + e.message;
+    }
+  }
+
+  // ============================================================
+  //  Gridstack 看板布局
+  // ============================================================
+  let widgetGrid = null;          // gridstack 实例
+  let layoutSaveTimer = null;     // 持久化防抖
+  let layoutMutationObserver = null;
+  let layoutWatchTimer = null;
+  let lastLayoutSignature = '';
+
+  // 4 档预设尺寸（w, h），基于 12 列网格
+  const SIZE_PRESETS = {
+    small:  { w: 1,  h: 1, label: '最小 (1x1)' },
+    medium: { w: 6,  h: 4, label: '中 (半宽)' },
+    large:  { w: 6,  h: 6, label: '大 (半宽·高)' },
+    xlarge: { w: 12, h: 5, label: '横长条 (整行)' },
+  };
+
+  function initWidgetGrid() {
+    if (widgetGrid || !window.GridStack) return;
+    widgetGrid = GridStack.init({
+      column: 12,
+      cellHeight: 70,
+      margin: 8,
+      float: false,        // 自动堆叠：拖动后其他 widget 上移填充空白
+      minRow: 1,
+      alwaysShowResizeHandle: true,
+      disableOneColumnMode: false,
+      oneColumnModeDomSort: true,
+      // 缩放配置：显示右下、右、下三个方向的手柄
+      resizable: { handles: 'e, se, s' },
+      // 拖拽配置：按住标题栏拖动，但点击菜单/地图控件时不触发
+      draggable: { handle: '.widget-header', cancel: '.widget-menu, .map-controls, .chart-edit-actions' },
+      // 占位符：拖拽时显示虚线轮廓
+      placeholderClass: 'grid-stack-placeholder',
+      placeholderText: '',
+    });
+
+    // 拖拽/缩放过程中：实时 resize echarts/leaflet（gridstack v12 的 'resize'/'drag' 事件持续触发）
+    function resizeWidgetContent(el) {
+      if (!el) return;
+      var bodyEl = el.querySelector('.widget-body');
+      var chartEl = bodyEl && bodyEl.querySelector('.native-chart');
+      if (chartEl) {
+        var inst = echarts.getInstanceByDom(chartEl);
+        if (inst) inst.resize();
+      }
+      if (el.classList.contains('is-map-widget') && map) {
+        map.invalidateSize({ pan: false });
+      }
+    }
+    widgetGrid.on('resize', function(event, el) {
+      resizeWidgetContent(el);
+      // resize 持续触发时实时更新 widget 尺寸（仅内存，不触发保存；保存由 resizestop 负责）
+      // 避免 resize 在 resizestop 之后仍可能触发一次，携带中间态数值覆盖正确值导致保存错误
+      if (el) {
+        syncWidgetLayoutFromElement(el);
+      }
+    });
+    widgetGrid.on('drag', function(event, el) {
+      resizeWidgetContent(el);
+      if (el) {
+        syncWidgetLayoutFromElement(el, { size: false });
+      }
+    });
+
+    // 兜底：用 ResizeObserver 监听每个 widget-body 尺寸变化（覆盖窗口缩放等场景）
+    if (window.ResizeObserver) {
+      var ro = new ResizeObserver(function(entries) {
+        entries.forEach(function(entry) {
+          var bodyEl = entry.target;
+          var chartEl = bodyEl.querySelector('.native-chart');
+          if (chartEl) {
+            var inst = echarts.getInstanceByDom(chartEl);
+            if (inst) inst.resize();
+          }
+        });
+      });
+      // 在 load 后观察所有 widget-body
+      var _origLoad = widgetGrid.load.bind(widgetGrid);
+      widgetGrid.load = function(items) {
+        var ret = _origLoad(items);
+        widgetGrid.getGridItems().forEach(function(el) {
+          var bodyEl = el.querySelector('.widget-body');
+          if (bodyEl) ro.observe(bodyEl);
+        });
+        return ret;
+      };
+    }
+
+    // 拖拽/缩放结束后：触发保存 + 最后一次 resize
+    widgetGrid.on('dragstop resizestop', function(event, el) {
+      if (!el) return;
+      resizeWidgetContent(el);
+      syncWidgetLayoutFromElement(el, { size: !(event && event.type === 'dragstop') });
+      scheduleSaveLayout(event && event.type === 'resizestop' ? 80 : 500);
+    });
+
+    // gridstack 的 change 事件：完成任何布局变更后（拖拽/缩放/增删）触发保存
+    // 比 resizestop 更可靠，因为它在内部所有计算完成后才触发
+    widgetGrid.on('change', function() {
+      if (window._gsLoading) return;  // 跳过初始加载
+      scheduleSaveLayout();
+    });
+
+    // 应用持久化的锁定状态
+    applyLockState();
+    observeGridLayoutChanges();
+    startLayoutWatch();
+  }
+
+  function observeGridLayoutChanges() {
+    const gridEl = document.getElementById('widgetGrid');
+    if (!gridEl || !window.MutationObserver) return;
+    if (layoutMutationObserver) layoutMutationObserver.disconnect();
+    layoutMutationObserver = new MutationObserver(function(records) {
+      if (window._gsLoading) return;
+      var changed = records.some(function(record) {
+        return record.target && record.target.classList && record.target.classList.contains('grid-stack-item');
+      });
+      if (changed) scheduleSaveLayout(120);
+    });
+    layoutMutationObserver.observe(gridEl, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['gs-x', 'gs-y', 'gs-w', 'gs-h'],
     });
   }
 
-  async function renderDashboardWidgets() {
-    const metricGrid = document.getElementById('metricWidgetsGrid');
-    const chartGrid = document.getElementById('chartWidgetsGrid');
-    if (!metricGrid || !chartGrid) return;
-    metricGrid.innerHTML = '';
-    chartGrid.innerHTML = '';
-    chartInstances.clear();
-    for (const widget of dashboardWidgets) {
-      if (widget.type === 'metric') {
-        metricGrid.insertAdjacentHTML('beforeend', renderMetricShell(widget));
-      } else {
-        chartGrid.insertAdjacentHTML('beforeend', renderChartShell(widget));
+  function getCurrentLayoutSignature() {
+    if (!widgetGrid) return '';
+    return widgetGrid.getGridItems().map(function(el) {
+      var layout = gridUnitsFromElementRect(el);
+      return [
+        el.getAttribute('gs-id') || '',
+        layout ? layout.x : (el.getAttribute('gs-x') || '0'),
+        layout ? layout.y : (el.getAttribute('gs-y') || '0'),
+        layout ? layout.w : (el.getAttribute('gs-w') || '1'),
+        layout ? layout.h : (el.getAttribute('gs-h') || '1'),
+      ].join(':');
+    }).join('|');
+  }
+
+  function rememberCurrentLayoutSignature() {
+    lastLayoutSignature = getCurrentLayoutSignature();
+  }
+
+  function startLayoutWatch() {
+    if (layoutWatchTimer) return;
+    layoutWatchTimer = setInterval(function() {
+      if (window._gsLoading || !widgetGrid) return;
+      var signature = getCurrentLayoutSignature();
+      if (!signature) return;
+      if (!lastLayoutSignature) {
+        lastLayoutSignature = signature;
+        return;
       }
-      await renderNativeChartWidget(widget);
+      if (signature !== lastLayoutSignature) {
+        lastLayoutSignature = signature;
+        scheduleSaveLayout(80);
+      }
+    }, 150);
+  }
+
+  let layoutInteractionActive = false;
+  document.addEventListener('mousedown', function(e) {
+    if (!widgetGrid || isDashboardLocked) return;
+    if (e.target.closest('#widgetGrid .ui-resizable-handle, #widgetGrid .widget-header')) {
+      layoutInteractionActive = true;
     }
-    metricGrid.insertAdjacentHTML('beforeend', '<div class="metric-add-btn" onclick="addNewMetric()"><div class="metric-add-inner"><div class="plus">+</div><div class="text">添加统计</div></div></div>');
-    chartGrid.insertAdjacentHTML('beforeend', '<div class="chart-add-btn" onclick="addNewChart()"><div class="chart-add-inner"><div class="plus">+</div><div class="text">添加新图表</div></div></div>');
+  }, true);
+  document.addEventListener('touchstart', function(e) {
+    if (!widgetGrid || isDashboardLocked) return;
+    if (e.target.closest('#widgetGrid .ui-resizable-handle, #widgetGrid .widget-header')) {
+      layoutInteractionActive = true;
+    }
+  }, true);
+
+  function finishLayoutInteraction() {
+    if (!layoutInteractionActive) return;
+    layoutInteractionActive = false;
+    scheduleSaveLayout(120);
+  }
+  document.addEventListener('mouseup', finishLayoutInteraction, true);
+  document.addEventListener('touchend', finishLayoutInteraction, true);
+  document.addEventListener('touchcancel', finishLayoutInteraction, true);
+
+  function scheduleSaveLayout(delay) {
+    if (layoutSaveTimer) clearTimeout(layoutSaveTimer);
+    layoutSaveTimer = setTimeout(function() {
+      saveUserDashboardWidgets();
+      layoutSaveTimer = null;
+    }, typeof delay === 'number' ? delay : 500);
   }
 
-  function renderMetricShell(widget) {
-    return '<div class="stat-card accent" data-widget-id="' + escapeHtml(widget.id) + '">' +
-      '<button class="metric-close-btn" onclick="closeMetricWidget(this)" title="关闭">✕</button>' +
-      '<div class="label">' + escapeHtml(widget.title) + '</div>' +
-      '<div class="value metric-widget-value" id="widget-' + escapeHtml(widget.id) + '">-</div>' +
-    '</div>';
+  async function renderDashboardWidgets() {
+    const gridEl = document.getElementById('widgetGrid');
+    if (!gridEl) return;
+    // 清理前先 dispose 所有 echarts 实例，避免内存泄漏
+    chartInstances.forEach(function(inst) { if (inst && inst.dispose) inst.dispose(); });
+    chartInstances.clear();
+
+    // 清理 leaflet 实例：removeAll 会销毁 #map DOM，需先释放 map 再重建
+    if (map) {
+      map.remove();
+      map = null;
+      markersLayer = null;
+      currentBasemapLayer = null;
+      currentBasemapKey = null;  // 必须重置，否则 syncMapBasemapWithTheme 会跳过底图创建
+    }
+
+    // 首次初始化 gridstack
+    if (!widgetGrid) initWidgetGrid();
+    if (!widgetGrid) return;
+
+    window._gsLoading = true;  // 阻止 change 事件在初始加载期间触发保存
+    // 清空网格（会触发 change 事件）
+    widgetGrid.removeAll(true);
+
+    // float: true 确保 load 时精确保存位置，不触发 auto-stack 避免相邻 widget 被推移
+    var prevFloat = widgetGrid.float;
+    widgetGrid.float = true;
+
+    // 加载所有 widget（metric + chart + map 统一管理）
+    // 注意：不使用 gridstack 的 content 字段（v12 行为不一致），改用 load 后手动注入 innerHTML
+    const items = dashboardWidgets.map(function(widget) {
+      var isMap = widget.type === 'map';
+      return {
+        id: widget.id,
+        x: parseInt(widget.x, 10) || 0,
+        y: parseInt(widget.y, 10) || 0,
+        w: parseInt(widget.w, 10) || (isMap ? 12 : (widget.type === 'metric' ? 3 : 6)),
+        h: parseInt(widget.h, 10) || (isMap ? 6 : (widget.type === 'metric' ? 2 : 4)),
+        minW: GRID_WIDGET_MIN_W,
+        maxW: 12,
+        minH: GRID_WIDGET_MIN_H,
+        maxH: 12,
+      };
+    });
+
+    widgetGrid.load(items);
+    widgetGrid.getGridItems().forEach(function(el) {
+      refreshWidgetResizeConstraints(el);
+    });
+
+    // 恢复 float 状态
+    widgetGrid.float = prevFloat;
+
+    // 手动渲染每个 widget 的 HTML 内容（避免 gridstack content 注入的版本差异）
+    widgetGrid.getGridItems().forEach(function(el) {
+      var node = el.gridstackNode;
+      if (!node) return;
+      var widget = dashboardWidgets.find(function(w) { return w.id === node.id; });
+      if (!widget) return;
+      var contentEl = el.querySelector('.grid-stack-item-content');
+      if (contentEl) {
+        contentEl.innerHTML = renderWidgetInner(widget);
+        if (widget.type === 'metric') el.classList.add('is-metric');
+        if (widget.type === 'map') el.classList.add('is-map-widget');
+      }
+    });
+
+    // 渲染每个 widget 的数据（单个失败不影响其他 widget）
+    for (const widget of dashboardWidgets) {
+      try {
+        await renderNativeChartWidget(widget);
+      } catch (e) {
+        // 在该 widget 容器内显示空状态提示
+        const widgetBody = findWidgetItem(widget.id) && findWidgetItem(widget.id).querySelector('.widget-body');
+        if (widgetBody) widgetBody.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--g-light-text);font-size:12px;">加载失败</div>';
+      }
+    }
+    window._gsLoading = false;
+    rememberCurrentLayoutSignature();
   }
 
-  function renderChartShell(widget) {
-    return '<div class="chart-widget-card" data-widget-id="' + escapeHtml(widget.id) + '">' +
-      '<div class="chart-widget-header">' +
-        '<div class="chart-widget-title">' + escapeHtml(widget.title) + '</div>' +
-        '<div class="chart-actions">' +
-          '<button class="chart-action-btn chart-view-btn" onclick="refreshGristWidget(this)">刷新</button>' +
-          '<button class="chart-action-btn chart-view-btn" onclick="editGristWidget(this)">编辑</button>' +
-          '<button class="chart-action-btn chart-edit-btn" onclick="saveGristWidget(this)" style="display:none">保存</button>' +
-          '<button class="chart-action-btn chart-edit-btn" onclick="cancelEditGristWidget(this)" style="display:none">取消</button>' +
-          '<button class="chart-action-btn" onclick="closeGristWidget(this)">✕</button>' +
+  function renderWidgetInner(widget) {
+    var isMetric = widget.type === 'metric';
+    var isMap = widget.type === 'map';
+    var header;
+    if (isMap) {
+      // 地图 widget：标题 + 全屏/收起按钮，无编辑/删除
+      header = '<div class="widget-header">' +
+        '<div class="widget-title"><span class="btn-symbol">◇</span> ' + escapeHtml(widget.title) + '</div>' +
+        '<div class="map-controls">' +
+          '<button class="btn-fullscreen" id="btnCollapse" onclick="toggleCollapse()">▴ 收起</button>' +
+        '</div>' +
+      '</div>';
+      var mapBody = '<div class="widget-body"><div id="map"></div></div>';
+      return header + mapBody;
+    }
+    header = '<div class="widget-header">' +
+      '<div class="widget-title">' + escapeHtml(widget.title) + '</div>' +
+      '<div class="widget-menu">' +
+        '<button class="widget-menu-btn" onclick="toggleWidgetMenu(this)" aria-label="操作">⋯</button>' +
+        '<div class="widget-menu-dropdown">' +
+          '<button class="widget-menu-item" onclick="refreshGristWidget(this); closeWidgetMenu(this)"><span class="widget-menu-icon">⟳</span>刷新</button>' +
+          '<button class="widget-menu-item" onclick="editGristWidget(this)"><span class="widget-menu-icon">✎</span>编辑</button>' +
+          '<div class="widget-menu-divider"></div>' +
+          '<button class="widget-menu-item is-danger" onclick="closeGristWidget(this)"><span class="widget-menu-icon">✕</span>删除</button>' +
         '</div>' +
       '</div>' +
-      '<div class="native-chart" id="widget-' + escapeHtml(widget.id) + '" style="height:' + (parseInt(widget.height, 10) || 320) + 'px"></div>' +
     '</div>';
+    var body = isMetric
+      ? '<div class="widget-body"><div class="metric-label">' + escapeHtml(widget.title) + '</div><div class="metric-value" id="widget-' + escapeHtml(widget.id) + '">-</div></div>'
+      : '<div class="widget-body"><div class="native-chart" id="widget-' + escapeHtml(widget.id) + '"></div></div>';
+    return header + body;
   }
 
   async function renderNativeChartWidget(widget) {
+    // 地图 widget：初始化 leaflet（仅首次），不请求 chart-data
+    if (widget.type === 'map') {
+      var mapEl = document.getElementById('map');
+      if (mapEl && !map) {
+        initMap();
+        // 用缓存的 stats 数据恢复 markers（避免重新 fetch；首次加载时 _lastByRegion 为空，由 onLoginSuccess 的 loadStats 填充）
+        if (_lastByRegion.length) updateMap(_lastByRegion);
+      } else if (map) {
+        // 地图已初始化，只需刷新尺寸
+        setTimeout(refreshDashboardLayout, 100);
+      }
+      return;
+    }
     const el = document.getElementById('widget-' + widget.id);
     if (!el) return;
     const res = await fetch('/api/chart-data', {
@@ -902,46 +1602,114 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
       cache: 'no-store',
       body: JSON.stringify(widget),
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      // 请求失败时在容器内显示友好提示，避免空白
+      el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--g-light-text);font-size:12px;">暂无数据</div>';
+      return;
+    }
     const data = await res.json();
     if (data.type === 'metric') {
       el.textContent = data.value != null ? Number(data.value).toLocaleString() : '-';
       return;
+    }
+    const existing = chartInstances.get(widget.id);
+    if (existing) {
+      existing.dispose();
+      chartInstances.delete(widget.id);
     }
     const instance = echarts.init(el);
     chartInstances.set(widget.id, instance);
     instance.setOption(buildChartOption(data), true);
   }
 
+  function getCurrentChartPalette() {
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+    return CHART_THEME_PALETTES[theme];
+  }
+
+  function rerenderNativeChartsForTheme() {
+    if (!window.echarts || !dashboardWidgets.length) return;
+    dashboardWidgets
+      .filter(function(widget) { return widget.type !== 'metric'; })
+      .forEach(function(widget) { renderNativeChartWidget(widget); });
+  }
+
+  function createVerticalGradient(topColor, bottomColor) {
+    return new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+      { offset: 0, color: topColor },
+      { offset: 1, color: bottomColor }
+    ]);
+  }
+
   function buildChartOption(data) {
     const cs = getComputedStyle(document.documentElement);
+    const palette = getCurrentChartPalette();
+    const axisColor = cs.getPropertyValue('--g-chart-axis').trim();
+    const splitColor = cs.getPropertyValue('--g-chart-split').trim();
+    const tooltip = {
+      backgroundColor: palette.tooltipBg,
+      borderColor: palette.tooltipBorder,
+      borderWidth: 1,
+      textStyle: { color: palette.tooltipText }
+    };
     if (data.type === 'pie') {
       return {
-        tooltip: { trigger: 'item' },
-        series: [{ type: 'pie', radius: ['40%', '70%'], data: data.labels.map((label, i) => ({ name: label, value: data.values[i] })) }],
+        color: palette.colors,
+        tooltip: Object.assign({ trigger: 'item' }, tooltip),
+        legend: { bottom: 4, textStyle: { color: axisColor }, itemWidth: 10, itemHeight: 10 },
+        series: [{
+          type: 'pie',
+          radius: ['42%', '70%'],
+          center: ['50%', '45%'],
+          avoidLabelOverlap: true,
+          itemStyle: { borderColor: palette.pieBorder, borderWidth: 2 },
+          label: { color: axisColor },
+          data: data.labels.map((label, i) => ({ name: label, value: data.values[i] }))
+        }],
       };
     }
+    const isLine = data.type === 'line';
     return {
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      color: palette.colors,
+      tooltip: Object.assign({ trigger: 'axis', axisPointer: { type: isLine ? 'line' : 'shadow' } }, tooltip),
       grid: { left: 48, right: 16, bottom: 48, top: 24 },
-      xAxis: { type: 'category', data: data.labels, axisLabel: { color: cs.getPropertyValue('--g-chart-axis').trim(), rotate: data.labels.length > 8 ? 30 : 0 } },
-      yAxis: { type: 'value', splitLine: { lineStyle: { color: cs.getPropertyValue('--g-chart-split').trim() } } },
-      series: [{ type: data.type === 'line' ? 'line' : 'bar', data: data.values, itemStyle: { color: cs.getPropertyValue('--g-primary').trim() } }],
+      xAxis: {
+        type: 'category',
+        data: data.labels,
+        axisTick: { show: false },
+        axisLine: { lineStyle: { color: splitColor } },
+        axisLabel: { color: axisColor, rotate: data.labels.length > 8 ? 30 : 0 }
+      },
+      yAxis: {
+        type: 'value',
+        axisLabel: { color: axisColor },
+        splitLine: { lineStyle: { color: splitColor } }
+      },
+      series: [{
+        type: isLine ? 'line' : 'bar',
+        data: data.values,
+        smooth: isLine,
+        symbol: isLine ? 'circle' : 'none',
+        symbolSize: isLine ? 6 : 0,
+        barMaxWidth: 42,
+        lineStyle: isLine ? { width: 3, color: palette.colors[1] } : undefined,
+        areaStyle: isLine ? { opacity: 0.18, color: createVerticalGradient(palette.lineAreaStart, palette.lineAreaEnd) } : undefined,
+        itemStyle: isLine
+          ? { color: palette.colors[1] }
+          : { color: createVerticalGradient(palette.barStart, palette.barEnd), borderRadius: [3, 3, 0, 0] }
+      }],
     };
   }
 
   window.refreshGristWidget = function(button) {
-    const card = button.closest('.chart-widget-card');
-    const widget = dashboardWidgets.find(item => item.id === card?.dataset.widgetId);
+    const card = button.closest('.grid-stack-item') || button.closest('.chart-widget-card');
+    let widgetId = card?.dataset.widgetId || (card?.gridstackNode && card.gridstackNode.id);
+    if (!widgetId) {
+      const inner = card && card.querySelector('[id^="widget-"]');
+      if (inner) widgetId = inner.id.replace('widget-', '');
+    }
+    const widget = dashboardWidgets.find(item => item.id === widgetId);
     if (widget) renderNativeChartWidget(widget);
-  };
-
-  window.deleteGristWidget = async function(button) {
-    const card = button.closest('.chart-widget-card');
-    if (!card) return;
-    dashboardWidgets = dashboardWidgets.filter(widget => widget.id !== card.dataset.widgetId || widget.scope !== 'user');
-    await renderDashboardWidgets();
-    await saveUserDashboardWidgets();
   };
 
   function getTableSchema(tableId) {
@@ -949,65 +1717,201 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
     return chartSchema.tables.find(function(t) { return t.id === tableId; });
   }
 
+  function isNumericChartField(field) {
+    var type = String((field && field.type) || '').toLowerCase();
+    return type.indexOf('numeric') !== -1 || type.indexOf('number') !== -1 || type.indexOf('int') !== -1 || type.indexOf('float') !== -1;
+  }
+
+  function getFieldOptions(fields, selectedField, includeEmptyLabel) {
+    var options = includeEmptyLabel ? '<option value="">' + escapeHtml(includeEmptyLabel) + '</option>' : '';
+    options += fields.map(function(f) {
+      var selected = f.id === selectedField ? ' selected' : '';
+      return '<option value="' + escapeHtml(f.id) + '"' + selected + '>' + escapeHtml(f.label || f.id) + '</option>';
+    }).join('');
+    return options;
+  }
+
+  function getMetricTypeOptions(selectedType) {
+    var types = [
+      { key: 'count', label: '计数' },
+      { key: 'sum', label: '求和' },
+      { key: 'avg', label: '平均值' },
+      { key: 'max', label: '最大值' },
+      { key: 'min', label: '最小值' }
+    ];
+    return types.map(function(t) {
+      var selected = t.key === selectedType ? ' selected' : '';
+      return '<option value="' + t.key + '"' + selected + '>' + t.label + '</option>';
+    }).join('');
+  }
+
+  function getMetricFieldOptions(fields, metricType, selectedField) {
+    if (metricType === 'count') return '<option value="">计数不需要选择字段</option>';
+    var numericFields = fields.filter(isNumericChartField);
+    var sourceFields = numericFields.length ? numericFields.slice() : fields.slice();
+    if (selectedField && !sourceFields.some(function(f) { return f.id === selectedField; })) {
+      var selected = fields.find(function(f) { return f.id === selectedField; });
+      if (selected) sourceFields.unshift(selected);
+    }
+    if (!sourceFields.length) return '<option value="">没有可用字段</option>';
+    return getFieldOptions(sourceFields, selectedField);
+  }
+
+  function getMetricFieldHint(fields, metricType) {
+    if (metricType === 'count') return '计数不需要选择字段';
+    return fields.some(isNumericChartField) ? '仅显示可计算的数值字段' : '未识别到数值字段，暂显示全部字段';
+  }
+
+  function updateMetricFieldOptions(card, selectedField) {
+    if (!card) return;
+    var tableSelect = card.querySelector('.edit-table-id');
+    var metricTypeSelect = card.querySelector('.edit-metric-type');
+    var metricFieldSelect = card.querySelector('.edit-metric-field');
+    if (!tableSelect || !metricTypeSelect || !metricFieldSelect) return;
+    var tableSchema = getTableSchema(tableSelect.value);
+    var fields = (tableSchema && tableSchema.fields) || [];
+    var metricType = metricTypeSelect.value || 'count';
+    var previousField = selectedField || metricFieldSelect.value;
+    metricFieldSelect.innerHTML = getMetricFieldOptions(fields, metricType, previousField);
+    metricFieldSelect.disabled = metricType === 'count';
+    if (!metricFieldSelect.disabled && !metricFieldSelect.value && metricFieldSelect.options.length) {
+      metricFieldSelect.selectedIndex = 0;
+    }
+    var hint = card.querySelector('.edit-metric-field-hint');
+    if (hint) hint.textContent = getMetricFieldHint(fields, metricType);
+  }
+
   function buildChartEditFormHTML(widget) {
     var tables = (chartSchema && chartSchema.tables) || [];
     var tableOptions = tables.map(function(t) {
       var selected = t.id === widget.tableId ? ' selected' : '';
-      return '<option value="' + escapeHtml(t.id) + '"' + selected + '>' + escapeHtml(t.id) + '</option>';
+      // 显示中文视图名(如"重大客户区域分级总览"),没有时回退到 table.id
+      var displayName = t.label || t.id;
+      return '<option value="' + escapeHtml(t.id) + '"' + selected + '>' + escapeHtml(displayName) + '</option>';
     }).join('');
     var tableSchema = getTableSchema(widget.tableId);
     var fields = (tableSchema && tableSchema.fields) || [];
-    var dimensionOptions = fields.map(function(f) {
-      var selected = f.id === widget.dimension ? ' selected' : '';
-      return '<option value="' + escapeHtml(f.id) + '"' + selected + '>' + escapeHtml(f.label || f.id) + '</option>';
-    }).join('');
-    var metricTypeOptions = ['count', 'sum', 'avg'].map(function(t) {
-      var selected = t === widget.metric.type ? ' selected' : '';
-      var label = t === 'count' ? '计数' : t === 'sum' ? '求和' : '平均值';
-      return '<option value="' + t + '"' + selected + '>' + label + '</option>';
-    }).join('');
-    var metricFieldOptions = fields.map(function(f) {
-      var selected = f.id === widget.metric.field ? ' selected' : '';
-      return '<option value="' + escapeHtml(f.id) + '"' + selected + '>' + escapeHtml(f.label || f.id) + '</option>';
-    }).join('');
-    var metricFieldDisabled = widget.metric.type === 'count' ? ' disabled' : '';
+    var metricType = (widget.metric && widget.metric.type) || 'count';
+    var dimensionOptions = getFieldOptions(fields, widget.dimension);
+    var metricTypeOptions = getMetricTypeOptions(metricType);
+    var metricFieldOptions = getMetricFieldOptions(fields, metricType, widget.metric && widget.metric.field);
+    var metricFieldDisabled = metricType === 'count' ? ' disabled' : '';
+    var metricFieldHint = getMetricFieldHint(fields, metricType);
     var types = [
-      { key: 'bar', label: '柱状图' },
-      { key: 'pie', label: '饼图' },
-      { key: 'line', label: '折线图' }
+      { key: 'bar', label: '柱状图', icon: '▥' },
+      { key: 'line', label: '折线图', icon: '⌁' },
+      { key: 'pie', label: '饼图', icon: '◔' }
     ];
     var typeButtons = types.map(function(t) {
       var cls = t.key === widget.type ? ' active' : '';
-      return '<button type="button" class="chart-type-btn' + cls + '" data-type="' + t.key + '" onclick="selectChartType(this)">' + t.label + '</button>';
+      return '<button type="button" class="chart-type-btn' + cls + '" data-type="' + t.key + '" onclick="selectChartType(this)"><span class="chart-type-icon">' + t.icon + '</span><span>' + t.label + '</span></button>';
+    }).join('');
+    // 4 档预设尺寸（所有 widget 类型均可选）
+    var currentW = parseInt(widget.w, 10) || (widget.type === 'metric' ? 3 : 6);
+    var currentH = parseInt(widget.h, 10) || (widget.type === 'metric' ? 2 : 4);
+    var currentPresetKey = 'medium';
+    Object.keys(SIZE_PRESETS).forEach(function(k) {
+      if (SIZE_PRESETS[k].w === currentW && SIZE_PRESETS[k].h === currentH) currentPresetKey = k;
+    });
+    var presetButtonsHtml = Object.keys(SIZE_PRESETS).map(function(k) {
+      var p = SIZE_PRESETS[k];
+      var cls = k === currentPresetKey ? ' active' : '';
+      return '<button type="button" class="chart-type-btn preset-size-btn' + cls +
+        ' data-preset="' + k + '" data-w="' + p.w + '" data-h="' + p.h + '" onclick="selectPresetSize(this)">' +
+        '<span>' + p.label + '</span></button>';
     }).join('');
     return '<div class="chart-edit-form">' +
-      '<div class="chart-edit-field">' +
-        '<label>数据表</label>' +
-        '<select class="edit-table-id" onchange="changeEditTable(this)">' + tableOptions + '</select>' +
-      '</div>' +
-      '<div class="chart-edit-field">' +
-        '<label>分组字段</label>' +
-        '<select class="edit-dimension">' + dimensionOptions + '</select>' +
-      '</div>' +
-      '<div class="chart-edit-field">' +
-        '<label>统计指标</label>' +
-        '<div class="chart-edit-metric">' +
-          '<select class="edit-metric-type" onchange="toggleEditMetricField(this)">' + metricTypeOptions + '</select>' +
-          '<select class="edit-metric-field"' + metricFieldDisabled + '>' + metricFieldOptions + '</select>' +
+      '<div class="chart-editor-section">' +
+        '<div class="chart-editor-section-title"><span class="chart-editor-section-icon">▤</span><span>数据来源</span></div>' +
+        '<div class="chart-editor-layout">' +
+          '<div class="chart-edit-field">' +
+            '<label>图表标题</label>' +
+            '<input type="text" class="edit-title" value="' + escapeHtml(widget.title || '自定义图表') + '" placeholder="自定义图表">' +
+          '</div>' +
+          '<div class="chart-edit-field">' +
+            '<label>数据表</label>' +
+            '<select class="edit-table-id" onchange="changeEditTable(this)">' + tableOptions + '</select>' +
+          '</div>' +
+          '<div class="chart-edit-field">' +
+            '<label>分类字段</label>' +
+            '<select class="edit-dimension">' + dimensionOptions + '</select>' +
+          '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="chart-edit-field">' +
-        '<label>图表类型</label>' +
+      '<div class="chart-editor-section">' +
+        '<div class="chart-editor-section-title"><span class="chart-editor-section-icon">∑</span><span>统计指标</span></div>' +
+        '<div class="chart-editor-layout single">' +
+          '<div class="chart-edit-field">' +
+            '<label>计算方式 / 数值字段</label>' +
+            '<div class="chart-edit-metric">' +
+              '<select class="edit-metric-type" onchange="toggleEditMetricField(this)">' + metricTypeOptions + '</select>' +
+              '<select class="edit-metric-field"' + metricFieldDisabled + '>' + metricFieldOptions + '</select>' +
+            '</div>' +
+            '<div class="chart-edit-hint edit-metric-field-hint">' + escapeHtml(metricFieldHint) + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="chart-editor-section">' +
+        '<div class="chart-editor-section-title"><span class="chart-editor-section-icon">▦</span><span>展示方式</span></div>' +
         '<div class="chart-edit-type-group">' + typeButtons + '</div>' +
+      '</div>' +
+      '<div class="chart-editor-section">' +
+        '<div class="chart-editor-section-title"><span class="chart-editor-section-icon">⤢</span><span>预设尺寸（也可关闭编辑后直接拖拽角点调整）</span></div>' +
+        '<div class="chart-edit-type-group">' + presetButtonsHtml + '</div>' +
+      '</div>' +
+      '<div class="chart-edit-actions">' +
+        '<button class="chart-action-btn primary" onclick="saveGristWidget(this)">保存</button>' +
+        '<button class="chart-action-btn" onclick="cancelEditGristWidget(this)">取消</button>' +
       '</div>' +
     '</div>';
   }
 
+  window.selectPresetSize = function(button) {
+    if (button.disabled) return;
+    var card = button.closest('.grid-stack-item') || button.closest('.chart-widget-card');
+    if (!card) return;
+    card.querySelectorAll('.preset-size-btn').forEach(function(b) { b.classList.remove('active'); });
+    button.classList.add('active');
+    card.dataset.pendingW = button.dataset.w;
+    card.dataset.pendingH = button.dataset.h;
+  };
+
   function setChartWidgetEditMode(card, editing) {
     if (!card) return;
-    card.querySelectorAll('.chart-view-btn').forEach(function(btn) { btn.style.display = editing ? 'none' : ''; });
-    card.querySelectorAll('.chart-edit-btn').forEach(function(btn) { btn.style.display = editing ? '' : 'none'; });
+    card.classList.toggle('editing', editing);
+    // 编辑态由 CSS 隐藏 "⋯" 菜单；保存/取消按钮已移入编辑表单
   }
+
+  // ---- "⋯" 菜单开关（单一 document 监听 + 当前打开菜单引用，避免监听器泄漏） ----
+  let _openWidgetMenu = null;
+  window.toggleWidgetMenu = function(btn) {
+    var dropdown = btn.parentElement.querySelector('.widget-menu-dropdown');
+    if (!dropdown) return;
+    var willOpen = !dropdown.classList.contains('open');
+    // 先关闭其他已打开的菜单
+    if (_openWidgetMenu && _openWidgetMenu !== dropdown) {
+      _openWidgetMenu.classList.remove('open');
+    }
+    if (willOpen) {
+      dropdown.classList.add('open');
+      _openWidgetMenu = dropdown;
+    } else {
+      dropdown.classList.remove('open');
+      _openWidgetMenu = null;
+    }
+  };
+  window.closeWidgetMenu = function(btn) {
+    var dropdown = btn.closest('.widget-menu-dropdown');
+    if (dropdown) dropdown.classList.remove('open');
+    _openWidgetMenu = null;
+  };
+  // 单一 document 监听：点击 .widget-menu 外部时关闭当前打开的菜单
+  document.addEventListener('click', function(e) {
+    if (_openWidgetMenu && !e.target.closest('.widget-menu')) {
+      _openWidgetMenu.classList.remove('open');
+      _openWidgetMenu = null;
+    }
+  });
 
   window.selectChartType = function(btn) {
     btn.parentElement.querySelectorAll('.chart-type-btn').forEach(function(b) { b.classList.remove('active'); });
@@ -1015,289 +1919,199 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
   };
 
   window.toggleEditMetricField = function(select) {
-    var card = select.closest('.chart-widget-card');
-    if (!card) return;
-    var fieldSelect = card.querySelector('.edit-metric-field');
-    if (fieldSelect) fieldSelect.disabled = select.value === 'count';
+    updateMetricFieldOptions(select.closest('.grid-stack-item, .chart-widget-card, .stat-card'));
   };
 
   window.changeEditTable = function(select) {
-    var card = select.closest('.chart-widget-card');
+    var card = select.closest('.grid-stack-item, .chart-widget-card, .stat-card');
     if (!card) return;
     var tableId = select.value;
     var tableSchema = getTableSchema(tableId);
     var fields = (tableSchema && tableSchema.fields) || [];
     var dimensionSelect = card.querySelector('.edit-dimension');
-    var metricFieldSelect = card.querySelector('.edit-metric-field');
     if (dimensionSelect) {
-      dimensionSelect.innerHTML = fields.map(function(f) {
-        return '<option value="' + escapeHtml(f.id) + '">' + escapeHtml(f.label || f.id) + '</option>';
-      }).join('');
+      var includeEmptyLabel = card.classList.contains('stat-card') ? '(无)' : null;
+      dimensionSelect.innerHTML = getFieldOptions(fields, '', includeEmptyLabel);
     }
-    if (metricFieldSelect) {
-      metricFieldSelect.innerHTML = fields.map(function(f) {
-        return '<option value="' + escapeHtml(f.id) + '">' + escapeHtml(f.label || f.id) + '</option>';
-      }).join('');
-    }
+    updateMetricFieldOptions(card);
   };
 
+  // 查找 widget 所在的 grid-stack-item 元素
+  function findWidgetItem(widgetId) {
+    if (!widgetGrid) return null;
+    var items = widgetGrid.getGridItems();
+    for (var i = 0; i < items.length; i++) {
+      var el = items[i].querySelector('[id="widget-' + widgetId + '"]');
+      if (el) return items[i];
+    }
+    return null;
+  }
+
   window.editGristWidget = function(button) {
-    var card = button.closest('.chart-widget-card');
+    var card = button.closest('.grid-stack-item') || button.closest('.chart-widget-card');
     if (!card) return;
-    var widgetId = card.dataset.widgetId;
+    var widgetId = card.dataset.widgetId || (card.gridstackNode && card.gridstackNode.id);
+    // 兜底：从内部 DOM 找 widget id
+    if (!widgetId) {
+      var inner = card.querySelector('[id^="widget-"]');
+      if (inner) widgetId = inner.id.replace('widget-', '');
+    }
     var widget = dashboardWidgets.find(function(w) { return w.id === widgetId; });
     if (!widget) return;
-    var chartEl = card.querySelector('.native-chart');
-    if (chartEl) {
-      var instance = chartInstances.get(widgetId);
-      if (instance) { instance.dispose(); chartInstances.delete(widgetId); }
-      chartEl.style.display = 'none';
-      var existing = card.querySelector('.chart-edit-form');
-      if (existing) existing.remove();
-      chartEl.insertAdjacentHTML('afterend', buildChartEditFormHTML(widget));
-    }
+    var bodyEl = card.querySelector('.widget-body');
+    if (!bodyEl) return;
+    // 清空原内容，渲染编辑表单
+    bodyEl.innerHTML = '';
+    bodyEl.insertAdjacentHTML('beforeend', buildChartEditFormHTML(widget));
     setChartWidgetEditMode(card, true);
   };
 
   window.saveGristWidget = async function(button) {
-    var card = button.closest('.chart-widget-card');
+    var card = button.closest('.grid-stack-item') || button.closest('.chart-widget-card');
     if (!card) return;
-    var widgetId = card.dataset.widgetId;
+    var widgetId = card.dataset.widgetId || (card.gridstackNode && card.gridstackNode.id);
+    if (!widgetId) {
+      var inner = card.querySelector('[id^="widget-"]');
+      if (inner) widgetId = inner.id.replace('widget-', '');
+    }
     var widget = dashboardWidgets.find(function(w) { return w.id === widgetId; });
     if (!widget) return;
+    var titleInput = card.querySelector('.edit-title');
+    widget.title = (titleInput && titleInput.value.trim()) || '自定义图表';
     widget.tableId = card.querySelector('.edit-table-id').value;
     widget.dimension = card.querySelector('.edit-dimension').value;
     widget.metric.type = card.querySelector('.edit-metric-type').value;
     var metricFieldSelect = card.querySelector('.edit-metric-field');
     widget.metric.field = metricFieldSelect && !metricFieldSelect.disabled ? metricFieldSelect.value : undefined;
-    var activeTypeBtn = card.querySelector('.chart-type-btn.active');
+    var activeTypeBtn = card.querySelector('.chart-type-btn.active:not(.preset-size-btn)');
     if (activeTypeBtn) widget.type = activeTypeBtn.dataset.type;
-    var editForm = card.querySelector('.chart-edit-form');
-    if (editForm) editForm.remove();
-    var chartEl = card.querySelector('.native-chart');
-    if (chartEl) {
-      chartEl.style.display = '';
-      chartEl.innerHTML = '';
+    // 读取预设尺寸
+    if (card.dataset.pendingW) widget.w = parseInt(card.dataset.pendingW, 10);
+    if (card.dataset.pendingH) widget.h = parseInt(card.dataset.pendingH, 10);
+
+    // 通过 gridstack API 更新 widget 尺寸 + 内容
+    if (widgetGrid) {
+      var node = card.gridstackNode;
+      if (node) {
+        applyWidgetNodeConstraints(node);
+        widgetGrid.update(card, { w: widget.w, h: widget.h, minW: GRID_WIDGET_MIN_W, minH: GRID_WIDGET_MIN_H });
+      }
+    }
+    // 重新渲染内容
+    var contentEl = card.querySelector('.grid-stack-item-content');
+    if (contentEl) {
+      contentEl.innerHTML = renderWidgetInner(widget);
     }
     setChartWidgetEditMode(card, false);
     await renderNativeChartWidget(widget);
+    // echarts resize 一次以适配新尺寸
+    var chartEl = document.getElementById('widget-' + widget.id);
+    if (chartEl) {
+      var inst = echarts.getInstanceByDom(chartEl);
+      if (inst) inst.resize();
+    }
     if (widget.scope === 'user') await saveUserDashboardWidgets();
   };
 
   window.cancelEditGristWidget = function(button) {
-    var card = button.closest('.chart-widget-card');
+    var card = button.closest('.grid-stack-item') || button.closest('.chart-widget-card');
     if (!card) return;
-    var editForm = card.querySelector('.chart-edit-form');
-    if (editForm) editForm.remove();
-    var chartEl = card.querySelector('.native-chart');
-    if (chartEl) {
-      chartEl.style.display = '';
-      chartEl.innerHTML = '';
+    var widgetId = card.dataset.widgetId || (card.gridstackNode && card.gridstackNode.id);
+    if (!widgetId) {
+      var inner = card.querySelector('[id^="widget-"]');
+      if (inner) widgetId = inner.id.replace('widget-', '');
+    }
+    var widget = dashboardWidgets.find(function(w) { return w.id === widgetId; });
+    var contentEl = card.querySelector('.grid-stack-item-content');
+    if (contentEl && widget) {
+      contentEl.innerHTML = renderWidgetInner(widget);
     }
     setChartWidgetEditMode(card, false);
-    var widgetId = card.dataset.widgetId;
-    var widget = dashboardWidgets.find(function(w) { return w.id === widgetId; });
     if (widget) renderNativeChartWidget(widget);
   };
 
   window.closeGristWidget = async function(button) {
-    var card = button.closest('.chart-widget-card');
+    var card = button.closest('.grid-stack-item') || button.closest('.chart-widget-card');
     if (!card) return;
-    var widgetId = card.dataset.widgetId;
+    var widgetId = card.dataset.widgetId || (card.gridstackNode && card.gridstackNode.id);
+    if (!widgetId) {
+      var inner = card.querySelector('[id^="widget-"]');
+      if (inner) widgetId = inner.id.replace('widget-', '');
+    }
     dashboardWidgets = dashboardWidgets.filter(function(w) { return w.id !== widgetId; });
     await renderDashboardWidgets();
     var hasUserWidgets = dashboardWidgets.some(function(w) { return w.scope === 'user'; });
     if (hasUserWidgets) await saveUserDashboardWidgets();
   };
 
-  window.closeMetricWidget = async function(button) {
-    var card = button.closest('.stat-card');
-    if (!card) return;
-    var widgetId = card.dataset.widgetId;
-    dashboardWidgets = dashboardWidgets.filter(function(w) { return w.id !== widgetId; });
-    await renderDashboardWidgets();
-    await saveUserDashboardWidgets();
-  };
+  window.closeMetricWidget = window.closeGristWidget;
 
-  window.addNewMetric = async function() {
+  // 统一的添加组件入口：根据类型创建 widget 并进入编辑模式
+  window.addWidget = async function(type) {
+    if (isDashboardLocked) return;  // 锁定态禁止添加
     await loadChartSchema();
-    if (!chartSchema || !chartSchema.tables || !chartSchema.tables.length) return;
-    var table = chartSchema.tables[0];
-    var widgetId = 'user-metric-' + Date.now();
-    var newWidget = {
-      id: widgetId,
-      title: '自定义统计',
-      type: 'metric',
-      tableId: table.id,
-      metric: { type: 'count' },
-      height: 140,
-      scope: 'user'
-    };
-    dashboardWidgets.push(newWidget);
-    await renderDashboardWidgets();
-    var card = document.querySelector('.stat-card[data-widget-id="' + widgetId + '"]');
-    if (card) {
-      editMetricWidget(card);
+    if (!chartSchema || !chartSchema.tables || !chartSchema.tables.length) {
+      const footer = document.getElementById('footerInfo');
+      if (footer) footer.innerHTML = '<span style="color:var(--g-warning);">暂无数据表，请先在 Grist 中导入表格</span>';
+      return;
     }
-  };
-
-  function editMetricWidget(card) {
-    var widgetId = card.dataset.widgetId;
-    var widget = dashboardWidgets.find(function(w) { return w.id === widgetId; });
-    if (!widget) return;
-    var tables = (chartSchema && chartSchema.tables) || [];
-    var tableOptions = tables.map(function(t) {
-      var selected = t.id === widget.tableId ? ' selected' : '';
-      return '<option value="' + escapeHtml(t.id) + '"' + selected + '>' + escapeHtml(t.id) + '</option>';
-    }).join('');
-    var tableSchema = getTableSchema(widget.tableId);
-    var fields = (tableSchema && tableSchema.fields) || [];
-    var dimensionOptions = '<option value="">(无)</option>' + fields.map(function(f) {
-      var selected = f.id === widget.dimension ? ' selected' : '';
-      return '<option value="' + escapeHtml(f.id) + '"' + selected + '>' + escapeHtml(f.label || f.id) + '</option>';
-    }).join('');
-    var metricTypeOptions = ['count', 'sum', 'avg'].map(function(t) {
-      var selected = t === widget.metric.type ? ' selected' : '';
-      var label = t === 'count' ? '计数' : t === 'sum' ? '求和' : '平均值';
-      return '<option value="' + t + '"' + selected + '>' + label + '</option>';
-    }).join('');
-    var metricFieldOptions = fields.map(function(f) {
-      var selected = f.id === widget.metric.field ? ' selected' : '';
-      return '<option value="' + escapeHtml(f.id) + '"' + selected + '>' + escapeHtml(f.label || f.id) + '</option>';
-    }).join('');
-    var metricFieldDisabled = widget.metric.type === 'count' ? ' disabled' : '';
-    var form = document.createElement('div');
-    form.className = 'metric-edit-form';
-    form.innerHTML = '<div class="metric-edit-field"><label>标题</label><input type="text" class="edit-title" value="' + escapeHtml(widget.title) + '"></div>' +
-      '<div class="metric-edit-field"><label>数据表</label><select class="edit-table-id" onchange="changeEditTable(this)">' + tableOptions + '</select></div>' +
-      '<div class="metric-edit-field"><label>筛选字段</label><select class="edit-dimension">' + dimensionOptions + '</select></div>' +
-      '<div class="metric-edit-field"><label>统计指标</label><div class="chart-edit-metric"><select class="edit-metric-type" onchange="toggleEditMetricField(this)">' + metricTypeOptions + '</select><select class="edit-metric-field"' + metricFieldDisabled + '>' + metricFieldOptions + '</select></div></div>' +
-      '<div class="metric-edit-actions"><button class="chart-action-btn" onclick="saveMetricWidget(this)">保存</button><button class="chart-action-btn" onclick="cancelMetricEdit(this)">取消</button></div>';
-    card.innerHTML = '';
-    card.appendChild(form);
-  }
-
-  window.saveMetricWidget = async function(button) {
-    var card = button.closest('.stat-card');
-    if (!card) return;
-    var widgetId = card.dataset.widgetId;
-    var widget = dashboardWidgets.find(function(w) { return w.id === widgetId; });
-    if (!widget) return;
-    widget.title = card.querySelector('.edit-title').value || '自定义统计';
-    widget.tableId = card.querySelector('.edit-table-id').value;
-    var dimSelect = card.querySelector('.edit-dimension');
-    widget.dimension = dimSelect.value || undefined;
-    widget.metric.type = card.querySelector('.edit-metric-type').value;
-    var metricFieldSelect = card.querySelector('.edit-metric-field');
-    widget.metric.field = metricFieldSelect && !metricFieldSelect.disabled ? metricFieldSelect.value : undefined;
-    await renderDashboardWidgets();
-    await saveUserDashboardWidgets();
-  };
-
-  window.cancelMetricEdit = async function(button) {
-    var card = button.closest('.stat-card');
-    if (!card) return;
-    var widgetId = card.dataset.widgetId;
-    var isNew = widgetId.startsWith('user-metric-');
-    if (isNew) {
-      dashboardWidgets = dashboardWidgets.filter(function(w) { return w.id !== widgetId; });
-    }
-    await renderDashboardWidgets();
-  };
-
-  window.addNewChart = async function() {
-    await loadChartSchema();
-    if (!chartSchema || !chartSchema.tables || !chartSchema.tables.length) return;
     var table = chartSchema.tables[0];
     var firstField = (table.fields && table.fields.length) ? table.fields[0].id : '';
-    var widgetId = 'user-chart-' + Date.now();
+    var isMetric = type === 'metric';
+    var widgetId = 'user-' + (isMetric ? 'metric-' : 'chart-') + Date.now();
     var newWidget = {
       id: widgetId,
-      title: '自定义图表',
-      type: 'bar',
+      title: isMetric ? '自定义统计' : '自定义图表',
+      type: type,
       tableId: table.id,
-      dimension: firstField,
       metric: { type: 'count' },
-      height: 320,
+      w: isMetric ? 3 : 6,
+      h: isMetric ? 2 : 4,
       scope: 'user'
     };
+    if (!isMetric) newWidget.dimension = firstField;
     dashboardWidgets.push(newWidget);
     await renderDashboardWidgets();
-    var card = document.querySelector('.chart-widget-card[data-widget-id="' + widgetId + '"]');
-    if (card) {
-      var editBtn = card.querySelector('.chart-view-btn[onclick*="editGristWidget"]');
-      if (editBtn) editGristWidget(editBtn);
+    // 自动进入编辑模式
+    var item = findWidgetItem(widgetId);
+    if (item) {
+      editGristWidget(item.querySelector('.widget-menu-btn') || item);
     }
   };
 
-
+  // 添加组件下拉菜单开关
+  window.toggleAddWidgetMenu = function() {
+    var dropdown = document.getElementById('addWidgetDropdown');
+    if (dropdown) dropdown.classList.toggle('open');
+  };
+  window.closeAddWidgetMenu = function() {
+    var dropdown = document.getElementById('addWidgetDropdown');
+    if (dropdown) dropdown.classList.remove('open');
+  };
 
   window.openGrist = async function() {
+    // 前端兜底：管理员后台关闭了 gristAccess 则拒绝打开
+    if (currentUser && currentUser.gristAccess === false) {
+      alert('您没有访问 Grist 多维表格的权限，请联系管理员开通。');
+      return;
+    }
     var path = await getGristOpenPath();
     window.open(path, '_blank');
   };
 
-  window.closeGrist = function() {
-    const overlay = document.getElementById('gristOverlay');
-    const frame = document.getElementById('gristFrame');
-    if (overlay) overlay.classList.remove('active');
-    if (frame) frame.src = 'about:blank';
-    gristIframeReady = false;
-    document.body.classList.remove('grist-active');
-    sessionStorage.removeItem('grist-open');
-    refreshDashboardLayout();
-  };
-
-  // 监听 Grist iframe 的 postMessage（主题变更通知）
-  window.addEventListener('message', function(e) {
-    if (e.origin !== window.location.origin) return;
-    if (!e.data) return;
-    // Grist iframe 就绪
-    if (e.data.type === 'grist-iframe-ready') {
-      gristIframeReady = true;
-      // iframe 就绪后仅同步主题偏好到后端，不重载 iframe
-      sendThemeToGrist(false);
-    }
-    // Grist 主题变更 → 同步到前端
-    if (e.data.type === 'grist-theme-changed') {
-      var mode = null;
-      if (e.data.syncWithOS) mode = 'system';
-      else if (e.data.appearance === 'dark') mode = 'dark';
-      else if (e.data.appearance === 'light') mode = 'light';
-      if (mode) syncModeFromGrist(mode);
-    }
-  });
-
-  // 向 Grist 同步主题
-  // reloadIframe: true = 用户主动切换主题，需要重载 iframe 使 Grist 生效
-  function sendThemeToGrist(reloadIframe) {
+  // 向 Grist 同步主题（Grist 独立标签页，仅写后端偏好，不重载 iframe）
+  function sendThemeToGrist() {
     var resolved = resolveTheme(currentThemeMode);
     var appearance = resolved === 'dark' ? 'dark' : 'light';
     var syncWithOS = currentThemeMode === 'system';
-    var frame = document.getElementById('gristFrame');
-    var overlay = document.getElementById('gristOverlay');
-    var gristIsOpen = overlay && overlay.classList.contains('active');
-
     fetch('/api/grist-theme', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ appearance: appearance, syncWithOS: syncWithOS }),
-    }).then(function(res) {
-      if (res.ok && reloadIframe && gristIsOpen && frame) {
-        frame.src = frame.src;
-      }
     }).catch(function(err) {
       console.warn('[Theme] Grist 主题同步失败:', err.message);
     });
   }
-
-  // ESC 键关闭 Grist iframe
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-      var overlay = document.getElementById('gristOverlay');
-      if (overlay && overlay.classList.contains('active')) closeGrist();
-    }
-  });
 
   /* ============================================================
    *  Sidebar Navigation
@@ -1343,14 +2157,109 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
     refreshDashboardLayout();
   }
 
+  // 侧边栏菜单项排序（持久化到 localStorage）
+  const SIDEBAR_ORDER_KEY = 'a9-sidebar-order';
+
   function initSidebar() {
     const collapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1';
     applySidebarCollapsed(collapsed);
+    applySidebarOrder();
+    initSidebarDrag();
+  }
+
+  // 按持久化顺序重排菜单项
+  function applySidebarOrder() {
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav) return;
+    const order = JSON.parse(localStorage.getItem(SIDEBAR_ORDER_KEY) || '[]');
+    if (!order.length) return;
+    const section = nav.querySelector('.sidebar-section');
+    const items = Array.from(nav.querySelectorAll('.nav-item'));
+    // 按 order 顺序重新插入，未在 order 中的项保持原相对顺序追加在后
+    const sorted = order.map(page => items.find(it => it.dataset.page === page)).filter(Boolean);
+    items.forEach(it => { if (!sorted.includes(it)) sorted.push(it); });
+    // 重新插入到 section 之后
+    sorted.forEach(it => nav.appendChild(it));
+  }
+
+  // 长按拖动排序（pointer events 实现，兼容鼠标/触摸）
+  function initSidebarDrag() {
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav) return;
+    let dragItem = null;
+    let pressTimer = null;
+    let isDragging = false;
+    const LONG_PRESS_MS = 350;
+
+    nav.addEventListener('pointerdown', function(e) {
+      const item = e.target.closest('.nav-item');
+      if (!item) return;
+      // 阻止立即触发 click
+      const startX = e.clientX, startY = e.clientY;
+      pressTimer = setTimeout(function() {
+        isDragging = true;
+        dragItem = item;
+        item.classList.add('dragging');
+        e.preventDefault();
+      }, LONG_PRESS_MS);
+      // 提前松手或移动则取消长按计时
+      function cancel() {
+        if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+        document.removeEventListener('pointerup', cancel);
+        document.removeEventListener('pointermove', onMove);
+      }
+      function onMove(ev) {
+        if (Math.abs(ev.clientX - startX) > 5 || Math.abs(ev.clientY - startY) > 5) cancel();
+      }
+      document.addEventListener('pointerup', cancel);
+      document.addEventListener('pointermove', onMove);
+    });
+
+    nav.addEventListener('pointermove', function(e) {
+      if (!isDragging || !dragItem) return;
+      const target = e.target.closest('.nav-item');
+      if (!target || target === dragItem) return;
+      // 判断鼠标在目标项的上半还是下半，决定插入位置
+      const rect = target.getBoundingClientRect();
+      const after = (e.clientY - rect.top) > rect.height / 2;
+      nav.querySelectorAll('.nav-item').forEach(it => it.classList.remove('drag-over'));
+      target.classList.add('drag-over');
+      e.preventDefault();
+    });
+
+    document.addEventListener('pointerup', function(e) {
+      if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+      if (!isDragging || !dragItem) return;
+      isDragging = false;
+      const target = e.target.closest('.nav-item');
+      if (target && target !== dragItem) {
+        const rect = target.getBoundingClientRect();
+        const after = (e.clientY - rect.top) > rect.height / 2;
+        if (after) target.parentNode.insertBefore(dragItem, target.nextSibling);
+        else target.parentNode.insertBefore(dragItem, target);
+        // 持久化新顺序
+        const order = Array.from(nav.querySelectorAll('.nav-item')).map(it => it.dataset.page).filter(Boolean);
+        safeLocalStorage(SIDEBAR_ORDER_KEY, JSON.stringify(order));
+      }
+      dragItem.classList.remove('dragging');
+      nav.querySelectorAll('.nav-item').forEach(it => it.classList.remove('drag-over'));
+      // 阻止拖动结束后误触发 click 切换页面
+      const suppressed = dragItem;
+      if (suppressed) {
+        const blocker = function(ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          document.removeEventListener('click', blocker, true);
+        };
+        document.addEventListener('click', blocker, true);
+      }
+      dragItem = null;
+    });
   }
 
   window.toggleSidebar = function() {
     const collapsed = !document.body.classList.contains('sidebar-collapsed');
-    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
+    safeLocalStorage(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
     applySidebarCollapsed(collapsed);
   };
 
@@ -1358,9 +2267,90 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
     document.querySelectorAll('.nav-item[data-page]').forEach(item => {
       item.classList.toggle('active', item.dataset.page === page);
     });
-    const titles = { dashboard: '数据看板' };
+    const titles = { dashboard: '数据看板', admin: '用户管理' };
     const titleEl = document.getElementById('topbarTitle');
     if (titleEl) titleEl.textContent = titles[page] || '数据看板';
+    // 切换页面容器
+    const pages = ['dashboard', 'admin'];
+    pages.forEach(p => {
+      const el = document.getElementById('page' + p.charAt(0).toUpperCase() + p.slice(1));
+      if (el) el.style.display = (p === page) ? '' : 'none';
+    });
+    // 进入管理页时自动加载用户列表
+    if (page === 'admin') loadAdminUsers();
+  };
+
+  /* ============================================================
+   *  Admin Panel — 用户管理 + Grist 权限开关
+   * ============================================================ */
+  async function loadAdminUsers() {
+    const tbody = document.getElementById('adminUsersTbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" class="admin-empty">加载中…</td></tr>';
+    try {
+      const res = await fetch('/api/admin/users');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        tbody.innerHTML = '<tr><td colspan="5" class="admin-empty">' + escapeHtml(data.error || '加载失败') + '</td></tr>';
+        return;
+      }
+      const data = await res.json();
+      const users = data.users || [];
+      if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="admin-empty">暂无用户</td></tr>';
+        return;
+      }
+      tbody.innerHTML = users.map(u => {
+        const sourceLabel = u.source === 'grist' ? 'Grist' : 'A9';
+        const roleLabel = u.isAdmin ? '管理员' : '用户';
+        const roleClass = u.isAdmin ? 'role-admin' : 'role-user';
+        const sourceClass = u.source === 'grist' ? 'source-grist' : 'source-local';
+        // 管理员自身不允许关闭自己的 Grist 访问，避免误锁
+        const disabled = u.isAdmin ? 'disabled' : '';
+        const checked = u.gristAccess ? 'checked' : '';
+        return '<tr>' +
+          '<td>' + escapeHtml(u.email) + '</td>' +
+          '<td>' + escapeHtml(u.name || '-') + '</td>' +
+          '<td><span class="admin-badge ' + sourceClass + '">' + sourceLabel + '</span></td>' +
+          '<td><span class="admin-badge ' + roleClass + '">' + roleLabel + '</span></td>' +
+          '<td>' +
+            '<label class="admin-toggle" title="' + (u.isAdmin ? '管理员默认允许访问' : '勾选后该用户可见 Grist 入口') + '">' +
+              '<input type="checkbox" ' + checked + ' ' + disabled + ' data-email="' + escapeHtml(u.email) + '" />' +
+              '<span class="slider"></span>' +
+            '</label>' +
+          '</td>' +
+        '</tr>';
+      }).join('');
+      // 事后绑定 change 事件，避免邮箱被注入到内联 JS 字符串
+      tbody.querySelectorAll('input[type="checkbox"][data-email]').forEach(function(input) {
+        if (input.disabled) return;
+        input.addEventListener('change', function() {
+          setUserGristAccess(this.dataset.email, this.checked);
+        });
+      });
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="5" class="admin-empty">网络错误：' + escapeHtml(e.message) + '</td></tr>';
+    }
+  }
+
+  window.loadAdminUsers = loadAdminUsers;
+
+  window.setUserGristAccess = async function(email, access) {
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(email)}/grist-access`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access: !!access }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || '设置失败');
+        loadAdminUsers(); // 失败时回滚 UI
+      }
+    } catch (e) {
+      alert('网络错误：' + e.message);
+      loadAdminUsers();
+    }
   };
 
   /* ============================================================
@@ -1404,32 +2394,53 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
     return true;
   }
 
-  window.toggleFullscreen = function() {
-    const panel = document.getElementById('mapPanel');
-    const button = document.getElementById('btnFullscreen');
-    isFullscreen = !isFullscreen;
-    document.body.classList.toggle('map-fullscreen-active', isFullscreen);
-    panel.classList.toggle('map-fullscreen', isFullscreen);
-    button.textContent = isFullscreen ? '✕ 退出' : '⛶ 全屏';
-    button.setAttribute('aria-pressed', String(isFullscreen));
 
-    const resizeMap = () => {
-      refreshDashboardLayout();
-    };
-    requestAnimationFrame(() => {
-      resizeMap();
-      setTimeout(resizeMap, 250);
-    });
+  // 看板锁定状态（持久化到 localStorage，默认锁定）
+  const LOCK_KEY = 'a9-dashboard-locked';
+  let isDashboardLocked = localStorage.getItem(LOCK_KEY) !== '0';
+  window.toggleLock = function() {
+    isDashboardLocked = !isDashboardLocked;
+    safeLocalStorage(LOCK_KEY, isDashboardLocked ? '1' : '0');
+    applyLockState();
   };
+  function applyLockState() {
+    const btn = document.getElementById('btnLock');
+    if (btn) btn.textContent = isDashboardLocked ? '⊙' : '○';
+    document.body.classList.toggle('dashboard-locked', isDashboardLocked);
+    if (widgetGrid) {
+      // gridstack v12: enable(false) 等同于 disable，禁止拖拽与缩放
+      if (isDashboardLocked) widgetGrid.disable();
+      else {
+        refreshAllWidgetResizeConstraints();
+        widgetGrid.enable();
+        refreshAllWidgetResizeConstraints();
+      }
+    }
+  }
 
   let isCollapsed = false;
+  let _mapWidgetPrevH = null;  // 记住收起前的高度
   window.toggleCollapse = function() {
-    const panel = document.getElementById('mapPanel');
+    const panel = document.querySelector('.grid-stack-item.is-map-widget');
     const button = document.getElementById('btnCollapse');
     isCollapsed = !isCollapsed;
-    panel.classList.toggle('map-collapsed', isCollapsed);
-    button.textContent = isCollapsed ? '▾ 展开' : '▴ 收起';
-    if (!isCollapsed && map) {
+    if (panel) panel.classList.toggle('map-collapsed', isCollapsed);
+    if (button) button.textContent = isCollapsed ? '▾ 展开' : '▴ 收起';
+
+    // 通过 gridstack API 改变 widget 高度：收起时缩到 1（只剩标题栏），展开时恢复
+    if (panel && widgetGrid && panel.gridstackNode) {
+      var node = panel.gridstackNode;
+      if (isCollapsed) {
+        _mapWidgetPrevH = node.h;
+        widgetGrid.update(panel, { h: GRID_WIDGET_MIN_H, minH: GRID_WIDGET_MIN_H });
+      } else {
+        widgetGrid.update(panel, { h: _mapWidgetPrevH || 6, minH: GRID_WIDGET_MIN_H });
+        if (map) {
+          // 展开后刷新地图尺寸
+          setTimeout(refreshDashboardLayout, 100);
+        }
+      }
+    } else if (!isCollapsed && map) {
       refreshDashboardLayout();
     }
   };
@@ -1463,6 +2474,8 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
     }
   }
 
+  let _emptyPollTimer = null;
+
   window.loadStats = async function() {
     try {
       const resp = await fetch('/api/stats', { cache: 'no-store' });
@@ -1472,16 +2485,22 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
         throw new Error(errData.error || '请求失败: ' + resp.status);
       }
       const data = await resp.json();
-      updateMap(data.byRegion);
-      const genTime = data.generated_at ? new Date(data.generated_at).toLocaleString('zh-CN') : '未知';
-      document.getElementById('footerInfo').textContent = '数据生成于：' + genTime + ' ｜ 数据来源：Grist';
+      _lastByRegion = data.byRegion || [];
+      updateMap(_lastByRegion);
+      const hasData = data.totals && data.totals.customers > 0;
+      if (hasData) {
+        if (_emptyPollTimer) { clearInterval(_emptyPollTimer); _emptyPollTimer = null; }
+        const genTime = data.generated_at ? new Date(data.generated_at).toLocaleString('zh-CN') : '未知';
+        document.getElementById('footerInfo').textContent = '数据生成于：' + genTime + ' ｜ 数据来源：Grist';
+      } else {
+        document.getElementById('footerInfo').innerHTML = '<span style="color:var(--g-light-text);">暂无数据，请在 Grist 中导入表格（导入后将自动刷新）</span>';
+        if (!_emptyPollTimer) {
+          _emptyPollTimer = setInterval(() => { if (currentUser) loadStats(); }, 20000);
+        }
+      }
     } catch (err) {
       console.error('加载统计数据失败:', err);
-      const msg = err.message || '';
-      let hint = msg;
-      if (msg.includes('GRIST_DOC_ID')) hint = '请先配置 GRIST_DOC_ID 环境变量。';
-      else if (msg.includes('Customers') || msg.includes('表不存在')) hint = '请在 Grist 文档中创建 Customers 表。';
-      document.getElementById('footerInfo').innerHTML = '<span style="color:var(--g-error);">数据加载失败：' + escapeHtml(hint) + '</span>';
+      document.getElementById('footerInfo').innerHTML = '<span style="color:var(--g-light-text);">暂无数据，请在 Grist 中导入表格</span>';
     }
   };
 
@@ -1520,6 +2539,12 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
       if (avatar) avatar.textContent = (user.displayName || user.email || 'U').charAt(0).toUpperCase();
       if (name) name.textContent = user.displayName || user.email || '';
     }
+    // 管理员入口：仅管理员可见
+    const navAdmin = document.getElementById('navAdmin');
+    if (navAdmin) navAdmin.style.display = user?.isAdmin ? '' : 'none';
+    // Grist 入口按钮：无权限则隐藏
+    const btnOpenGrist = document.getElementById('btnOpenGrist');
+    if (btnOpenGrist) btnOpenGrist.style.display = user?.gristAccess === false ? 'none' : '';
   }
 
   window.doLogin = async function() {
@@ -1567,7 +2592,9 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
         }
       }
       // 不再自动从 Grist 会话同步认证信息，必须通过 A9 登录
-    } catch (e) {}
+    } catch (e) {
+      console.warn('[Auth] checkAuth failed:', e.message);
+    }
     return false;
   }
 
@@ -1575,21 +2602,23 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
 
   async function onLoginSuccess() {
     updateUserUI(currentUser);
+    // 地图初始化移到 renderDashboardWidgets 中（#map 元素在 gridstack widget 内动态创建）
     const mapReady = await ensureLeafletLoaded();
-    if (mapReady) initMap();
-    else document.getElementById('footerInfo').textContent = '地图组件加载失败，其他看板数据仍可使用';
+    if (!mapReady) document.getElementById('footerInfo').textContent = '地图组件加载失败，其他看板数据仍可使用';
+    applyLockState();        // 首次渲染前应用锁定状态（按钮图标 + body class）
+    // 先渲染看板（含 map widget 初始化），再加载统计数据
+    // 避免 loadStats 的 updateMap 与 renderDashboardWidgets 的 map 重建产生竞态
+    await loadDashboardWidgets();
     loadStats();
-    loadDashboardWidgets();
     if (!_dashboardListenersAttached) {
       _dashboardListenersAttached = true;
       window.addEventListener('resize', refreshDashboardLayout);
-      document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && isFullscreen) toggleFullscreen();
-      });
     }
   }
 
   window.doLogout = async function() {
+    // 清除空数据轮询定时器，避免登出后继续触发 loadStats
+    if (_emptyPollTimer) { clearInterval(_emptyPollTimer); _emptyPollTimer = null; }
     try {
       const res = await fetch('/api/auth/logout', { method: 'POST' });
       if (res.ok) {
@@ -1619,6 +2648,1335 @@ min-width: 0; overflow-x: clip; overflow-y: visible;
   });
 
 })();
+
+  /* ============================================================
+   *  AI 助手浮窗（Munchkin）—— UI 原型
+   *  - 右下角悬浮按钮（Munchkin logo）
+   *  - 点击展开对话框，浮于页面之上
+   *  - 可最小化/关闭，支持主题切换
+   *  - 当前为原型：模拟回复，未接真实 WebSocket
+   * ============================================================ */
+  (function() {
+    // ---------- DOM 注入 ----------
+    const fabHtml = `
+      <button id="agentFab" class="agent-fab" title="Munchkin" aria-label="Munchkin">
+        <svg class="agent-fab-icon" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
+          <circle cx="16" cy="16" r="15" fill="var(--g-primary)"/>
+          <path d="M11 11.5h10v9.5h-2v3l-3-3h-5z" fill="#fff"/>
+          <circle cx="13.5" cy="16" r="1.2" fill="var(--g-primary)"/>
+          <circle cx="18.5" cy="16" r="1.2" fill="var(--g-primary)"/>
+        </svg>
+        <span class="agent-fab-badge" id="agentFabBadge" style="display:none;">1</span>
+      </button>
+    `;
+    const panelHtml = `
+      <div id="agentPanel" class="agent-panel" style="display:none;">
+        <div class="agent-header">
+          <div class="agent-header-left">
+            <svg class="agent-header-logo" viewBox="0 0 32 32" width="20" height="20" aria-hidden="true">
+              <circle cx="16" cy="16" r="15" fill="var(--g-primary)"/>
+              <path d="M11 11.5h10v9.5h-2v3l-3-3h-5z" fill="#fff"/>
+              <circle cx="13.5" cy="16" r="1.2" fill="var(--g-primary)"/>
+              <circle cx="18.5" cy="16" r="1.2" fill="var(--g-primary)"/>
+            </svg>
+            <span class="agent-title">Munchkin</span>
+            <span class="agent-status" id="agentStatus">未连接</span>
+          </div>
+          <div class="agent-header-actions">
+            <button class="agent-icon-btn" id="agentMinBtn" title="最小化" aria-label="最小化">—</button>
+            <button class="agent-icon-btn" id="agentCloseBtn" title="关闭" aria-label="关闭">×</button>
+          </div>
+        </div>
+        <div class="agent-messages" id="agentMessages">
+          <div class="agent-msg agent-msg-bot">
+            <div class="agent-msg-bubble">你好！我是 Munchkin，可以读取 Grist 数据并在看板生成图表 widget。试试这些示例：<br>· 「统计客户总数，生成指标卡」<br>· 「按区域统计客户数并画柱状图」<br>· 「按客户级别分布画饼图」<br>· 「按区域统计项目数量画折线图」</div>
+          </div>
+        </div>
+        <div class="agent-typing" id="agentTyping" style="display:none;">
+          <span class="agent-dot"></span><span class="agent-dot"></span><span class="agent-dot"></span>
+        </div>
+        <div class="agent-input-area">
+          <textarea id="agentInput" class="agent-input" placeholder="输入消息，Enter 发送，Shift+Enter 换行" rows="1"></textarea>
+          <button id="agentSendBtn" class="agent-send-btn" title="发送" aria-label="发送">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 11l18-8-8 18-2-7-8-3z" fill="currentColor"/></svg>
+          </button>
+        </div>
+        <div class="agent-footer">
+          <span class="agent-tool-hint" id="agentToolHint"></span>
+          <div class="agent-footer-right">
+            <span class="agent-model-tag" id="agentModelTag">deepseek-v4-flash-free</span>
+            <button class="agent-settings-btn" id="agentSettingsBtn" title="Munchkin 设置" aria-label="Munchkin 设置">
+              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="agent-resize-handle" id="agentResizeHandle" aria-hidden="true"></div>
+      </div>
+    `;
+    // 样式（复用主题变量）
+    const styleHtml = `
+      <style>
+        .agent-fab {
+          position: fixed; right: 24px; bottom: 24px; z-index: 9999;
+          width: 56px; height: 56px; border-radius: 50%; border: none;
+          background: var(--g-bg); color: var(--g-body);
+          box-shadow: 0 4px 16px rgba(0,0,0,0.2); cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          transition: transform .2s, box-shadow .2s;
+        }
+        .agent-fab:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.28); }
+        .agent-fab:active { transform: translateY(0); }
+        .agent-fab-icon { display: block; }
+        .agent-fab-badge {
+          position: absolute; top: -2px; right: -2px;
+          min-width: 18px; height: 18px; border-radius: 9px;
+          background: var(--g-error); color: #fff;
+          font-size: 11px; line-height: 18px; text-align: center;
+          padding: 0 5px; font-weight: 600;
+        }
+        .agent-panel {
+          position: fixed; right: 24px; bottom: 92px; z-index: 9999;
+          width: 380px; max-width: calc(100vw - 48px);
+          height: 560px; max-height: calc(100vh - 120px);
+          background: var(--g-bg); color: var(--g-body);
+          border: 1px solid var(--g-border); border-radius: 12px;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.28);
+          display: flex; flex-direction: column; overflow: hidden;
+          animation: agentSlideUp .2s ease-out;
+        }
+        @keyframes agentSlideUp { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .agent-header {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 10px 14px; background: var(--g-bg-secondary);
+          border-bottom: 1px solid var(--g-border-light); min-height: 44px;
+          cursor: move; user-select: none;
+        }
+        .agent-header-left { display: flex; align-items: center; gap: 8px; }
+        .agent-header-logo { display: block; }
+        .agent-title { font-weight: 600; font-size: 14px; color: var(--g-body); }
+        .agent-status {
+          font-size: 11px; color: var(--g-light-text);
+          padding: 2px 6px; background: var(--g-bg-tertiary); border-radius: 8px;
+        }
+        .agent-status.connected { color: var(--g-primary); }
+        .agent-header-actions { display: flex; gap: 4px; }
+        .agent-icon-btn {
+          width: 26px; height: 26px; border: none; background: transparent;
+          color: var(--g-medium-text); cursor: pointer; border-radius: 6px;
+          font-size: 16px; line-height: 1; display: flex; align-items: center; justify-content: center;
+        }
+        .agent-icon-btn:hover { background: var(--g-sidebar-hover-bg); color: var(--g-body); }
+        .agent-messages {
+          flex: 1; overflow-y: auto; padding: 14px;
+          display: flex; flex-direction: column; gap: 12px;
+          background: var(--g-bg);
+        }
+        .agent-msg { display: flex; max-width: 88%; }
+        .agent-msg-bot { align-self: flex-start; }
+        .agent-msg-user { align-self: flex-end; }
+        .agent-msg-bubble {
+          padding: 9px 12px; border-radius: 12px; font-size: 13px; line-height: 1.5;
+          word-wrap: break-word; white-space: pre-wrap;
+        }
+        .agent-msg-bot .agent-msg-bubble {
+          background: var(--g-bg-secondary); color: var(--g-body);
+          border-bottom-left-radius: 4px;
+        }
+        .agent-msg-user .agent-msg-bubble {
+          background: var(--g-primary); color: #fff;
+          border-bottom-right-radius: 4px;
+        }
+        .agent-msg-tool {
+          align-self: flex-start; max-width: 88%;
+          font-size: 11px; color: var(--g-light-text);
+          background: var(--g-bg-tertiary); padding: 4px 8px; border-radius: 6px;
+          font-family: ui-monospace,Monaco,Consolas,monospace;
+        }
+        .agent-typing {
+          padding: 0 14px 6px; display: flex; gap: 4px; align-items: center;
+        }
+        .agent-dot {
+          width: 6px; height: 6px; border-radius: 50%; background: var(--g-light-text);
+          animation: agentBlink 1.4s infinite both;
+        }
+        .agent-dot:nth-child(2) { animation-delay: .2s; }
+        .agent-dot:nth-child(3) { animation-delay: .4s; }
+        @keyframes agentBlink { 0%,80%,100% { opacity: .3; } 40% { opacity: 1; } }
+        .agent-input-area {
+          display: flex; align-items: flex-end; gap: 8px;
+          padding: 10px 14px; border-top: 1px solid var(--g-border-light);
+          background: var(--g-bg);
+        }
+        .agent-input {
+          flex: 1; resize: none; border: 1px solid var(--g-border);
+          border-radius: 8px; padding: 8px 10px; font-size: 13px;
+          font-family: inherit; background: var(--g-bg); color: var(--g-body);
+          max-height: 120px; line-height: 1.4; outline: none;
+        }
+        .agent-input:focus { border-color: var(--g-primary); }
+        .agent-send-btn {
+          width: 34px; height: 34px; border: none; border-radius: 8px;
+          background: var(--g-primary); color: #fff; cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0; transition: background .15s;
+        }
+        .agent-send-btn:hover { background: var(--g-primary-dark); }
+        .agent-send-btn:disabled { opacity: .5; cursor: not-allowed; }
+        .agent-footer {
+          padding: 6px 14px; border-top: 1px solid var(--g-border-light);
+          display: flex; justify-content: space-between; align-items: center;
+          font-size: 11px; color: var(--g-light-text); background: var(--g-bg-secondary);
+          min-height: 26px;
+        }
+        .agent-footer-right { display: flex; align-items: center; gap: 6px; }
+        .agent-settings-btn {
+          width: 22px; height: 22px; border: none; background: transparent;
+          color: var(--g-light-text); cursor: pointer; border-radius: 4px;
+          display: flex; align-items: center; justify-content: center; padding: 0;
+          transition: color .15s, background .15s;
+        }
+        .agent-settings-btn:hover { color: var(--g-body); background: var(--g-sidebar-hover-bg); }
+        .agent-model-tag {
+          padding: 2px 6px; background: var(--g-bg-tertiary); border-radius: 8px;
+          font-family: ui-monospace,Monaco,Consolas,monospace;
+        }
+        .agent-tool-hint { font-style: italic; }
+        .agent-resize-handle {
+          position: absolute; left: 0; bottom: 0; width: 16px; height: 16px;
+          cursor: sw-resize; z-index: 10;
+          background: linear-gradient(45deg, transparent 50%, var(--g-light-text) 50%, var(--g-light-text) 60%, transparent 60%, transparent 70%, var(--g-light-text) 70%, var(--g-light-text) 80%, transparent 80%);
+          opacity: .5; transition: opacity .15s;
+        }
+        .agent-resize-handle:hover { opacity: 1; }
+        @media (max-width: 480px) {
+          .agent-panel { right: 0; bottom: 0; width: 100%; height: 100%; max-height: 100%; border-radius: 0; }
+          .agent-fab { right: 16px; bottom: 16px; }
+        }
+        /* ---------- Munchkin 设置浮层 ---------- */
+        .munchkin-overlay {
+          position: fixed; inset: 0; z-index: 10000;
+          background: var(--g-overlay-bg);
+          display: none; align-items: stretch; justify-content: center;
+          animation: munchkinFade .15s ease-out;
+        }
+        .munchkin-overlay.open { display: flex; }
+        @keyframes munchkinFade { from { opacity: 0; } to { opacity: 1; } }
+        .munchkin-modal {
+          background: var(--g-bg); border-radius: 3px; overflow: hidden;
+          width: min(560px, 92vw); height: min(680px, 88vh);
+          margin: auto; display: flex; flex-direction: column;
+          box-shadow: 0 8px 32px var(--g-overlay-bg);
+          animation: munchkinPop .2s ease-out;
+        }
+        @keyframes munchkinPop { from { transform: scale(.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .munchkin-modal-header {
+          height: 40px; flex-shrink: 0; display: flex; align-items: center;
+          justify-content: space-between; padding: 0 10px 0 14px;
+          border-bottom: 1px solid var(--g-border-light); background: var(--g-bg);
+        }
+        .munchkin-modal-title { font-size: 14px; font-weight: 600; color: var(--g-body); display: flex; align-items: center; gap: 8px; }
+        .munchkin-modal-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--g-primary); }
+        .munchkin-modal-close {
+          width: 28px; height: 28px; border-radius: 3px; border: none;
+          background: transparent; color: var(--g-light-text); cursor: pointer;
+          display: flex; align-items: center; justify-content: center; font-size: 18px;
+          transition: background .1s, color .1s;
+        }
+        .munchkin-modal-close:hover { background: var(--g-sidebar-hover-bg); color: var(--g-error); }
+        .munchkin-modal-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; background: var(--g-bg-secondary); }
+        /* 设置页面专用样式 */
+        .mk-section {
+          background: var(--g-bg); border: 1px solid var(--g-border-light);
+          border-radius: 3px; padding: 14px 16px; margin-bottom: 12px;
+        }
+        .mk-section-title {
+          font-size: 12px; font-weight: 600; color: var(--g-medium-text);
+          text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px;
+          display: flex; align-items: center; gap: 6px;
+        }
+        .mk-section-title::before {
+          content: ''; width: 3px; height: 12px; background: var(--g-primary); border-radius: 2px;
+        }
+        .mk-status-grid {
+          display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        }
+        .mk-status-item {
+          background: var(--g-bg-secondary); border-radius: 3px; padding: 10px 12px;
+          display: flex; flex-direction: column; gap: 4px;
+        }
+        .mk-status-label { font-size: 11px; color: var(--g-light-text); }
+        .mk-status-value { font-size: 13px; font-weight: 500; color: var(--g-body); display: flex; align-items: center; gap: 6px; }
+        .mk-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .mk-status-dot.ok { background: var(--g-primary); }
+        .mk-status-dot.err { background: var(--g-error); }
+        .mk-status-dot.warn { background: var(--g-warning); }
+        .mk-status-dot.unknown { background: var(--g-light-text); }
+        .mk-field { margin-bottom: 10px; }
+        .mk-field:last-child { margin-bottom: 0; }
+        .mk-field label {
+          display: block; font-size: 11px; color: var(--g-light-text);
+          margin-bottom: 4px; font-weight: 500;
+        }
+        .mk-field input, .mk-field select {
+          width: 100%; height: 30px; padding: 0 10px;
+          border: 1px solid var(--g-border); border-radius: 3px;
+          background: var(--g-bg); color: var(--g-body); font-size: 13px;
+          font-family: inherit; transition: border-color .1s;
+        }
+        .mk-field input:focus, .mk-field select:focus {
+          outline: none; border-color: var(--g-primary);
+        }
+        .mk-field-hint { font-size: 10px; color: var(--g-light-text); margin-top: 3px; }
+        .mk-modal-footer {
+          height: 48px; flex-shrink: 0; display: flex; align-items: center;
+          justify-content: flex-end; gap: 8px; padding: 0 14px;
+          border-top: 1px solid var(--g-border-light); background: var(--g-bg);
+        }
+        .mk-btn {
+          height: 30px; padding: 0 14px; border-radius: 3px; border: 1px solid var(--g-border);
+          background: var(--g-bg); color: var(--g-medium-text); cursor: pointer;
+          font-size: 12px; font-weight: 500; font-family: inherit; transition: all .1s;
+          display: inline-flex; align-items: center; gap: 5px;
+        }
+        .mk-btn:hover { border-color: var(--g-primary); color: var(--g-primary-dark); }
+        .mk-btn.primary { background: var(--g-primary); border-color: var(--g-primary); color: #fff; }
+        .mk-btn.primary:hover { background: var(--g-primary-dark); border-color: var(--g-primary-dark); }
+        .mk-btn:disabled { opacity: .5; cursor: not-allowed; }
+        .mk-toast {
+          position: absolute; bottom: 56px; left: 50%; transform: translateX(-50%);
+          background: var(--g-body); color: var(--g-bg); padding: 6px 14px;
+          border-radius: 3px; font-size: 12px; opacity: 0; transition: opacity .2s;
+          pointer-events: none; white-space: nowrap; z-index: 10;
+        }
+        .mk-toast.show { opacity: 1; }
+        /* Skills / MCP 列表项 */
+        .mk-list-item {
+          display: flex; align-items: flex-start; gap: 10px;
+          padding: 9px 12px; background: var(--g-bg-secondary);
+          border-radius: 3px; margin-bottom: 6px; border: 1px solid transparent;
+          transition: border-color .1s;
+        }
+        .mk-list-item:hover { border-color: var(--g-border-light); }
+        .mk-list-item:last-child { margin-bottom: 0; }
+        .mk-list-item-body { flex: 1; min-width: 0; }
+        .mk-list-item-title {
+          font-size: 12px; font-weight: 600; color: var(--g-body);
+          display: flex; align-items: center; gap: 6px;
+        }
+        .mk-list-item-emoji { font-size: 13px; }
+        .mk-list-item-desc {
+          font-size: 11px; color: var(--g-light-text); margin-top: 2px;
+          line-height: 1.4;
+        }
+        .mk-list-item-meta {
+          font-size: 10px; color: var(--g-light-text); margin-top: 3px;
+        }
+        .mk-list-item-meta .tag {
+          display: inline-block; padding: 1px 6px; border-radius: 2px;
+          background: var(--g-selection); color: var(--g-medium-text); margin-right: 4px;
+        }
+        .mk-list-item-meta .tag.always { background: var(--g-primary-light); color: var(--g-primary-dark); }
+        .mk-list-item-meta .tag.requires { background: rgba(208,2,27,0.08); color: var(--g-error); }
+        .mk-toggle {
+          position: relative; width: 30px; height: 16px; flex-shrink: 0;
+          background: var(--g-border); border-radius: 8px; cursor: pointer;
+          transition: background .15s; margin-top: 2px;
+        }
+        .mk-toggle::after {
+          content: ''; position: absolute; top: 2px; left: 2px;
+          width: 12px; height: 12px; background: #fff; border-radius: 50%;
+          transition: transform .15s;
+        }
+        .mk-toggle.on { background: var(--g-primary); }
+        .mk-toggle.on::after { transform: translateX(14px); }
+        .mk-toggle.disabled { opacity: .4; cursor: not-allowed; }
+        /* MCP 工具列表 */
+        .mk-mcp-tools {
+          margin-top: 6px; padding: 6px 8px; background: var(--g-bg);
+          border-radius: 2px; font-size: 10px; color: var(--g-medium-text);
+          font-family: ui-monospace, monospace; line-height: 1.6;
+          word-break: break-all;
+        }
+        .mk-mcp-tools-label { color: var(--g-light-text); margin-right: 4px; }
+        /* 列表项操作按钮 */
+        .mk-list-actions {
+          display: flex; gap: 4px; flex-shrink: 0; margin-top: 2px;
+        }
+        .mk-icon-btn {
+          width: 22px; height: 22px; border: 1px solid transparent;
+          background: transparent; color: var(--g-light-text); cursor: pointer;
+          border-radius: 2px; font-size: 11px; font-family: inherit;
+          display: inline-flex; align-items: center; justify-content: center;
+          transition: all .1s;
+        }
+        .mk-icon-btn:hover { border-color: var(--g-border); background: var(--g-selection); color: var(--g-body); }
+        .mk-icon-btn.danger:hover { border-color: var(--g-error); color: var(--g-error); background: rgba(208,2,27,0.08); }
+        .mk-icon-btn:disabled { opacity: .3; cursor: not-allowed; }
+        .mk-section-header {
+          display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+        }
+        .mk-add-btn {
+          height: 22px; padding: 0 10px; font-size: 11px; font-weight: 500;
+          border: 1px solid var(--g-primary); background: var(--g-primary-light);
+          color: var(--g-primary-dark); border-radius: 2px; cursor: pointer;
+          font-family: inherit; transition: all .1s;
+        }
+        .mk-add-btn:hover { background: var(--g-primary); color: #fff; }
+        /* 编辑模态框 */
+        .mk-edit-modal {
+          position: fixed; inset: 0; background: rgba(0,0,0,.4);
+          display: none; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .mk-edit-modal.open { display: flex; }
+        .mk-edit-dialog {
+          width: 90%; max-width: 560px; max-height: 85vh; background: var(--g-bg);
+          border-radius: 4px; border: 1px solid var(--g-border); display: flex; flex-direction: column;
+          box-shadow: 0 8px 32px rgba(0,0,0,.15);
+        }
+        .mk-edit-header {
+          height: 40px; padding: 0 16px; border-bottom: 1px solid var(--g-border-light);
+          display: flex; align-items: center; justify-content: space-between;
+          font-size: 13px; font-weight: 600; color: var(--g-body);
+        }
+        .mk-edit-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px; }
+        .mk-edit-footer {
+          height: 44px; padding: 0 12px; border-top: 1px solid var(--g-border-light);
+          display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+        }
+        .mk-edit-body textarea {
+          width: 100%; min-height: 240px; padding: 8px 10px; resize: vertical;
+          border: 1px solid var(--g-border); border-radius: 3px;
+          background: var(--g-bg-secondary); color: var(--g-body);
+          font-family: ui-monospace, 'SF Mono', monospace; font-size: 12px; line-height: 1.5;
+        }
+        .mk-edit-body textarea:focus { outline: none; border-color: var(--g-primary); }
+        .mk-edit-body .mk-field input, .mk-edit-body .mk-field select { background: var(--g-bg-secondary); }
+        .mk-checkbox-row {
+          display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--g-body);
+          cursor: pointer; user-select: none;
+        }
+        .mk-checkbox-row input { margin: 0; }
+        .mk-source-tag {
+          display: inline-block; padding: 1px 6px; border-radius: 2px; font-size: 10px;
+          background: var(--g-selection); color: var(--g-light-text); margin-left: 6px;
+        }
+        .mk-source-tag.builtin { background: rgba(0,122,255,.1); color: #007aff; }
+        .mk-source-tag.workspace { background: rgba(52,199,89,.1); color: #34c759; }
+      </style>
+    `;
+    document.head.insertAdjacentHTML('beforeend', styleHtml);
+    // 设置浮层 HTML
+    const overlayHtml = `
+      <div class="munchkin-overlay" id="munchkinOverlay">
+        <div class="munchkin-modal">
+          <div class="munchkin-modal-header">
+            <span class="munchkin-modal-title"><span class="dot"></span>Munchkin 设置</span>
+            <button class="munchkin-modal-close" id="munchkinOverlayClose" title="关闭" aria-label="关闭">×</button>
+          </div>
+          <div class="munchkin-modal-body" id="munchkinSettingsBody">
+            <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--g-light-text);font-size:13px;">加载中…</div>
+          </div>
+          <div class="mk-modal-footer">
+            <div class="mk-toast" id="mkToast"></div>
+            <button class="mk-btn" id="mkRestartBtn" title="重启 munchkin 进程">重启服务</button>
+            <button class="mk-btn primary" id="mkSaveBtn">保存配置</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', fabHtml + panelHtml + overlayHtml);
+
+    // ---------- 元素引用 ----------
+    const fab = document.getElementById('agentFab');
+    const badge = document.getElementById('agentFabBadge');
+    const panel = document.getElementById('agentPanel');
+    const minBtn = document.getElementById('agentMinBtn');
+    const closeBtn = document.getElementById('agentCloseBtn');
+    const messages = document.getElementById('agentMessages');
+    const typing = document.getElementById('agentTyping');
+    const input = document.getElementById('agentInput');
+    const sendBtn = document.getElementById('agentSendBtn');
+    const statusEl = document.getElementById('agentStatus');
+    const toolHint = document.getElementById('agentToolHint');
+    const resizeHandle = document.getElementById('agentResizeHandle');
+    const header = panel.querySelector('.agent-header');
+
+    let isOpen = false;
+    let unread = 0;
+
+    // ---------- WebSocket 连接管理 ----------
+    let ws = null;
+    let chatId = null;
+    let isStreaming = false;
+    let currentBotBubble = null;   // 当前流式回复的气泡
+    let currentBotText = '';       // 当前流式回复的累积文本
+
+    async function connectWebSocket() {
+      if (ws && ws.readyState <= 1) return; // 已连接或正在连接
+      statusEl.textContent = '连接中...';
+      statusEl.classList.remove('connected');
+      try {
+        const resp = await fetch('/api/agent/bootstrap');
+        if (!resp.ok) throw new Error('bootstrap 失败');
+        const data = await resp.json();
+        const token = data.token || '';
+        const wsUrl = `ws://${location.host}/api/agent/ws?token=${encodeURIComponent(token)}`;
+        ws = new WebSocket(wsUrl);
+        ws.onopen = () => { statusEl.textContent = '已连接'; statusEl.classList.add('connected'); };
+        ws.onmessage = (ev) => handleWsMessage(ev);
+        ws.onclose = () => {
+          statusEl.textContent = '已断开';
+          statusEl.classList.remove('connected');
+          chatId = null;
+          // 自动重连（5 秒后，面板打开时才重连）
+          if (isOpen) setTimeout(() => { if (isOpen) connectWebSocket(); }, 5000);
+        };
+        ws.onerror = () => { statusEl.textContent = '连接错误'; };
+      } catch (err) {
+        statusEl.textContent = '连接失败';
+        console.warn('[Munchkin] 连接失败:', err.message);
+      }
+    }
+
+    function handleWsMessage(ev) {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch { return; }
+      switch (msg.event) {
+        case 'ready':
+          chatId = msg.chat_id;
+          break;
+        case 'attached':
+          chatId = msg.chat_id;
+          break;
+        case 'delta':
+          // 流式文本追加
+          if (!currentBotBubble) {
+            currentBotBubble = createBotBubble();
+            currentBotText = '';
+          }
+          currentBotText += msg.text || '';
+          currentBotBubble.textContent = currentBotText;
+          messages.scrollTop = messages.scrollHeight;
+          break;
+        case 'stream_end':
+          // 当前流段结束，保留气泡，下一段会创建新气泡
+          currentBotBubble = null;
+          currentBotText = '';
+          break;
+        case 'reasoning_delta':
+          // 思考过程（暂不显示，可扩展）
+          break;
+        case 'reasoning_end':
+          break;
+        case 'message':
+          if (msg.kind === 'tool_hint' || msg.kind === 'progress') {
+            // 工具调用提示
+            appendToolHint(msg.text || '');
+            if (msg.tool_events) {
+              for (const te of msg.tool_events) {
+                if (te.phase === 'start') {
+                  toolHint.textContent = `调用 ${te.name}...`;
+                }
+              }
+            }
+          } else if (msg.text) {
+            // 完整回复
+            appendMessage(msg.text, 'bot');
+          }
+          break;
+        case 'goal_status':
+          if (msg.status === 'running') {
+            typing.style.display = 'flex';
+            isStreaming = true;
+          } else if (msg.status === 'idle') {
+            typing.style.display = 'none';
+          }
+          break;
+        case 'turn_end':
+          // agent 完全停止
+          typing.style.display = 'none';
+          isStreaming = false;
+          toolHint.textContent = '';
+          currentBotBubble = null;
+          currentBotText = '';
+          sendBtn.disabled = false;
+          if (!isOpen) {
+            unread++;
+            badge.textContent = unread;
+            badge.style.display = '';
+          }
+          // 检查是否有新 widget，刷新看板
+          if (typeof loadDashboardWidgets === 'function') {
+            loadDashboardWidgets();
+          }
+          break;
+        case 'error':
+          appendMessage('错误: ' + (msg.detail || '未知错误'), 'bot');
+          typing.style.display = 'none';
+          isStreaming = false;
+          sendBtn.disabled = false;
+          break;
+      }
+    }
+
+    function createBotBubble() {
+      const wrap = document.createElement('div');
+      wrap.className = 'agent-msg agent-msg-bot';
+      const bubble = document.createElement('div');
+      bubble.className = 'agent-msg-bubble';
+      wrap.appendChild(bubble);
+      messages.appendChild(wrap);
+      return bubble;
+    }
+
+    // ---------- 交互逻辑 ----------
+    function openPanel() {
+      panel.style.display = 'flex';
+      fab.style.display = 'none';
+      isOpen = true;
+      unread = 0;
+      badge.style.display = 'none';
+      setTimeout(() => input.focus(), 50);
+      // 连接 WebSocket
+      if (!ws || ws.readyState > 1) {
+        connectWebSocket();
+      }
+    }
+    function closePanel() {
+      panel.style.display = 'none';
+      fab.style.display = 'flex';
+      isOpen = false;
+    }
+    function minimizePanel() {
+      panel.style.display = 'none';
+      fab.style.display = 'flex';
+      isOpen = false;
+      unread++;
+      badge.textContent = unread;
+      badge.style.display = '';
+    }
+
+    fab.addEventListener('click', openPanel);
+    closeBtn.addEventListener('click', closePanel);
+    minBtn.addEventListener('click', minimizePanel);
+
+    // ---------- Munchkin 设置浮层（A9 自建，非 iframe） ----------
+    const munchkinOverlay = document.getElementById('munchkinOverlay');
+    const munchkinSettingsBody = document.getElementById('munchkinSettingsBody');
+    const munchkinOverlayClose = document.getElementById('munchkinOverlayClose');
+    const mkSaveBtn = document.getElementById('mkSaveBtn');
+    const mkRestartBtn = document.getElementById('mkRestartBtn');
+    const mkToast = document.getElementById('mkToast');
+    let mkConfigCache = null; // 缓存配置数据
+
+    function mkShowToast(msg, isError) {
+      mkToast.textContent = msg;
+      mkToast.style.background = isError ? 'var(--g-error)' : 'var(--g-body)';
+      mkToast.classList.add('show');
+      setTimeout(() => mkToast.classList.remove('show'), 2500);
+    }
+
+    function mkDot(status) {
+      const cls = status === 'running' || status === 'connected' || status === true || status === 'ok' ? 'ok'
+        : status === 'stopped' || status === 'error' || status === false || status === 'err' ? 'err'
+        : status === 'starting' || status === 'warn' ? 'warn' : 'unknown';
+      return `<span class="mk-status-dot ${cls}"></span>`;
+    }
+
+    function mkStatusLabel(status) {
+      const map = { running: '运行中', starting: '启动中', stopped: '已停止', unknown: '未知',
+        connected: '已连接', error: '错误', true: '可达', false: '不可达' };
+      return map[status] !== undefined ? map[status] : status;
+    }
+
+    // 渲染设置页面
+    function mkRender(cfg, status) {
+      const providers = Object.keys(cfg.providers || {});
+      const currentProvider = cfg.provider || providers[0] || '';
+      const providerInfo = cfg.providers?.[currentProvider] || {};
+      const params = cfg.parameters || {};
+      const mcpServers = cfg.mcpServers || [];
+      const skills = cfg.skills || [];
+      const mcpServerStatus = status.mcpServerStatus || {};
+
+      // 渲染 Skills 列表
+      const skillsHtml = skills.length > 0 ? skills.map(s => {
+        const tags = [];
+        if (s.requiresBins && s.requiresBins.length > 0) {
+          tags.push(`<span class="tag requires">需要 ${s.requiresBins.join(', ')}</span>`);
+        }
+        const sourceTag = s.source === 'workspace'
+          ? '<span class="mk-source-tag workspace">自建</span>'
+          : '<span class="mk-source-tag builtin">内置</span>';
+        // 内置 skill:状态灯(常驻已激活,不可禁用);workspace skill:开关 + 编辑/删除
+        const isBuiltin = s.source === 'builtin';
+        const canEdit = !isBuiltin;
+        const actionsHtml = canEdit
+          ? `<div class="mk-list-actions">
+              <button class="mk-icon-btn" data-action="edit-skill" data-name="${s.name}" title="编辑">✎</button>
+              <button class="mk-icon-btn danger" data-action="delete-skill" data-name="${s.name}" title="删除">✕</button>
+            </div>`
+          : '';
+        // 内置 skill 在 title 前加绿色状态灯 + "常驻"说明;workspace skill 右侧保留开关
+        const titleDot = isBuiltin ? mkDot('ok') : '';
+        const builtinHint = isBuiltin && s.always
+          ? '<span style="font-size:10px;color:var(--g-light-text);font-weight:400;">· 常驻已激活</span>'
+          : '';
+        const toggleHtml = isBuiltin
+          ? ''
+          : `<div class="mk-toggle ${s.disabled ? '' : 'on'}" data-skill="${s.name}" title="${s.disabled ? '已禁用' : '已启用'}"></div>`;
+        return `
+          <div class="mk-list-item">
+            <div class="mk-list-item-body">
+              <div class="mk-list-item-title">
+                ${titleDot}
+                ${s.emoji ? `<span class="mk-list-item-emoji">${s.emoji}</span>` : ''}
+                <span>${s.name}</span>
+                ${sourceTag}
+                ${builtinHint}
+              </div>
+              <div class="mk-list-item-desc">${s.description || '无描述'}</div>
+              ${tags.length > 0 ? `<div class="mk-list-item-meta">${tags.join('')}</div>` : ''}
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:8px;">
+              ${toggleHtml}
+              ${actionsHtml}
+            </div>
+          </div>
+        `;
+      }).join('') : '<div class="mk-field-hint">未找到 skills</div>';
+
+      // 渲染 MCP servers 列表
+      const mcpHtml = mcpServers.length > 0 ? mcpServers.map(s => {
+        const runtimeStatus = mcpServerStatus[s.name] || {};
+        const statusText = runtimeStatus.status === 'connected' ? '已连接' : runtimeStatus.status === 'error' ? '错误' : '未连接';
+        const toolsList = (runtimeStatus.tools && runtimeStatus.tools.length > 0)
+          ? runtimeStatus.tools
+          : (s.enabledTools && s.enabledTools.length > 0 && s.enabledTools[0] === '*' ? [] : s.enabledTools);
+        const toolsCount = runtimeStatus.toolsCount || 0;
+        // 内置 MCP:状态灯 + 只读;自建 MCP:开关 + 编辑/删除
+        if (s.builtin) {
+          return `
+          <div class="mk-list-item" style="flex-direction:column;align-items:stretch;">
+            <div style="display:flex;align-items:flex-start;gap:10px;width:100%;">
+              <div class="mk-list-item-body">
+                <div class="mk-list-item-title">
+                  ${mkDot(runtimeStatus.status === 'connected' ? 'ok' : runtimeStatus.status === 'error' ? 'err' : 'unknown')}
+                  <span>${s.name}</span>
+                  <span class="mk-source-tag builtin">内置</span>
+                  <span style="font-size:10px;color:var(--g-light-text);font-weight:400;">· ${s.type} · ${statusText}${toolsCount > 0 ? ' · ' + toolsCount + ' 工具' : ''}</span>
+                </div>
+                <div class="mk-list-item-desc" style="font-family:ui-monospace,monospace;font-size:10px;">
+                  ${s.command} ${Array.isArray(s.args) ? s.args.join(' ') : ''}
+                </div>
+                ${toolsList.length > 0 ? `
+                  <div class="mk-mcp-tools">
+                    <span class="mk-mcp-tools-label">工具:</span>${toolsList.join(', ')}
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>`;
+        }
+        return `
+          <div class="mk-list-item" style="flex-direction:column;align-items:stretch;">
+            <div style="display:flex;align-items:flex-start;gap:10px;width:100%;">
+              <div class="mk-list-item-body">
+                <div class="mk-list-item-title">
+                  ${mkDot(runtimeStatus.status === 'connected' ? 'ok' : runtimeStatus.status === 'error' ? 'err' : 'unknown')}
+                  <span>${s.name}</span>
+                  <span style="font-size:10px;color:var(--g-light-text);font-weight:400;">· ${s.type} · ${statusText}${toolsCount > 0 ? ' · ' + toolsCount + ' 工具' : ''}</span>
+                </div>
+                <div class="mk-list-item-desc" style="font-family:ui-monospace,monospace;font-size:10px;">
+                  ${s.command} ${Array.isArray(s.args) ? s.args.join(' ') : ''}
+                </div>
+                ${toolsList.length > 0 ? `
+                  <div class="mk-mcp-tools">
+                    <span class="mk-mcp-tools-label">工具:</span>${toolsList.join(', ')}
+                  </div>
+                ` : ''}
+              </div>
+              <div style="display:flex;align-items:flex-start;gap:8px;">
+                <div class="mk-toggle ${s.enabled ? 'on' : ''}" data-mcp="${s.name}" title="${s.enabled ? '已启用' : '已禁用'}"></div>
+                <div class="mk-list-actions">
+                  <button class="mk-icon-btn" data-action="edit-mcp" data-name="${s.name}" title="编辑">✎</button>
+                  <button class="mk-icon-btn danger" data-action="delete-mcp" data-name="${s.name}" title="删除">✕</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('') : '<div class="mk-field-hint">未配置 MCP server</div>';
+
+      munchkinSettingsBody.innerHTML = `
+        <div class="mk-section">
+          <div class="mk-section-title">运行状态</div>
+          <div class="mk-status-grid">
+            <div class="mk-status-item">
+              <span class="mk-status-label">进程状态</span>
+              <span class="mk-status-value">${mkDot(status.process)} ${mkStatusLabel(status.process)}${status.uptime ? ' · ' + status.uptime : ''}</span>
+            </div>
+            <div class="mk-status-item">
+              <span class="mk-status-label">Gateway</span>
+              <span class="mk-status-value">${mkDot(status.gatewayReachable)} ${mkStatusLabel(status.gatewayReachable)}</span>
+            </div>
+            <div class="mk-status-item">
+              <span class="mk-status-label">当前模型</span>
+              <span class="mk-status-value" style="font-size:11px;">${status.modelName || '—'}</span>
+            </div>
+            <div class="mk-status-item">
+              <span class="mk-status-label">MCP Grist</span>
+              <span class="mk-status-value">${mkDot(status.mcpGrist)} ${mkStatusLabel(status.mcpGrist)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mk-section">
+          <div class="mk-section-title">模型配置</div>
+          <div class="mk-field">
+            <label>服务提供商 (Provider)</label>
+            <select id="mkProvider">
+              ${providers.map(p => `<option value="${p}" ${p === currentProvider ? 'selected' : ''}>${p}</option>`).join('')}
+            </select>
+          </div>
+          <div class="mk-field">
+            <label>模型名称 (Model)</label>
+            <input type="text" id="mkModel" value="${cfg.model || ''}" placeholder="如 deepseek-v4-flash-free">
+            <div class="mk-field-hint">由 LLM 提供商定义，需与 API 支持的模型 ID 一致</div>
+          </div>
+          <div class="mk-field">
+            <label>API 地址 (Base URL)</label>
+            <input type="text" id="mkApiBase" value="${providerInfo.apiBase || ''}" placeholder="https://api.example.com/v1">
+            <div class="mk-field-hint">当前 provider 的 API 端点</div>
+          </div>
+          <div class="mk-field">
+            <label>API Key</label>
+            <input type="text" value="${providerInfo.hasApiKey ? '••••••（已配置）' : '未配置'}" disabled>
+            <div class="mk-field-hint">通过 .env 文件的 OPENCODE_API_KEY 修改</div>
+          </div>
+        </div>
+
+        <div class="mk-section">
+          <div class="mk-section-header">
+            <div class="mk-section-title" style="margin-bottom:0;">Skills 技能 (${skills.length})</div>
+            <button class="mk-add-btn" id="mkAddSkillBtn">+ 新建</button>
+          </div>
+          <div class="mk-field-hint" style="margin-bottom:8px;">内置 skill 只读,自建 skill 可编辑/删除。禁用后不会注入到 Agent 系统提示词</div>
+          ${skillsHtml}
+        </div>
+
+        <div class="mk-section">
+          <div class="mk-section-header">
+            <div class="mk-section-title" style="margin-bottom:0;">MCP 工具服务 (${mcpServers.length})</div>
+            <button class="mk-add-btn" id="mkAddMcpBtn">+ 新建</button>
+          </div>
+          <div class="mk-field-hint" style="margin-bottom:8px;">MCP server 提供外部工具能力,修改后需重启生效</div>
+          ${mcpHtml}
+        </div>
+      `;
+      mkConfigCache = cfg;
+      // 绑定开关事件
+      munchkinSettingsBody.querySelectorAll('.mk-toggle[data-skill]').forEach(el => {
+        el.addEventListener('click', () => {
+          el.classList.toggle('on');
+          el.title = el.classList.contains('on') ? '已启用' : '已禁用';
+        });
+      });
+      munchkinSettingsBody.querySelectorAll('.mk-toggle[data-mcp]').forEach(el => {
+        el.addEventListener('click', () => {
+          el.classList.toggle('on');
+          el.title = el.classList.contains('on') ? '已启用' : '已禁用';
+        });
+      });
+      // 绑定操作按钮事件
+      munchkinSettingsBody.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const action = btn.dataset.action;
+          const name = btn.dataset.name;
+          if (action === 'edit-skill') mkOpenSkillEditor(name);
+          else if (action === 'delete-skill') mkDeleteSkill(name);
+          else if (action === 'edit-mcp') mkOpenMcpEditor(name);
+          else if (action === 'delete-mcp') mkDeleteMcp(name);
+        });
+      });
+      // 新建按钮
+      document.getElementById('mkAddSkillBtn').addEventListener('click', () => mkOpenSkillEditor(null));
+      document.getElementById('mkAddMcpBtn').addEventListener('click', () => mkOpenMcpEditor(null));
+    }
+
+    // 加载配置和状态
+    async function mkLoadAll() {
+      munchkinSettingsBody.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--g-light-text);font-size:13px;">加载中…</div>';
+      try {
+        const [cfgResp, statusResp] = await Promise.all([
+          fetch('/api/agent/config'),
+          fetch('/api/agent/status'),
+        ]);
+        if (!cfgResp.ok || !statusResp.ok) throw new Error('请求失败');
+        const cfg = await cfgResp.json();
+        const status = await statusResp.json();
+        mkRender(cfg, status);
+      } catch (err) {
+        munchkinSettingsBody.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--g-error);font-size:13px;">加载失败：${err.message}</div>`;
+      }
+    }
+
+    // 保存配置
+    mkSaveBtn.addEventListener('click', async () => {
+      if (!mkConfigCache) return;
+      mkSaveBtn.disabled = true;
+      mkSaveBtn.textContent = '保存中...';
+      try {
+        // 收集禁用的 skills
+        const disabledSkills = [];
+        const mcpServerToggles = [];
+        munchkinSettingsBody.querySelectorAll('.mk-toggle[data-skill]').forEach(el => {
+          if (!el.classList.contains('on')) disabledSkills.push(el.dataset.skill);
+        });
+        munchkinSettingsBody.querySelectorAll('.mk-toggle[data-mcp]').forEach(el => {
+          mcpServerToggles.push({ name: el.dataset.mcp, enabled: el.classList.contains('on') });
+        });
+        const body = {
+          provider: document.getElementById('mkProvider').value,
+          model: document.getElementById('mkModel').value.trim(),
+          apiBase: document.getElementById('mkApiBase').value.trim(),
+          disabledSkills,
+          mcpServerToggles,
+        };
+        const resp = await fetch('/api/agent/config', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+        });
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+          mkShowToast('已保存，需重启生效');
+        } else {
+          mkShowToast(data.error || '保存失败', true);
+        }
+      } catch (err) {
+        mkShowToast('保存失败：' + err.message, true);
+      }
+      mkSaveBtn.disabled = false;
+      mkSaveBtn.textContent = '保存配置';
+    });
+
+    // 重启 munchkin
+    mkRestartBtn.addEventListener('click', async () => {
+      if (!confirm('确定重启 Munchkin 服务？正在进行的对话会中断。')) return;
+      mkRestartBtn.disabled = true;
+      mkRestartBtn.textContent = '重启中...';
+      try {
+        const resp = await fetch('/api/agent/restart', { method: 'POST' });
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+          mkShowToast('已重启');
+          setTimeout(() => mkLoadAll(), 3000); // 3 秒后刷新状态
+        } else {
+          mkShowToast(data.error || '重启失败', true);
+        }
+      } catch (err) {
+        mkShowToast('重启失败：' + err.message, true);
+      }
+      mkRestartBtn.disabled = false;
+      mkRestartBtn.textContent = '重启服务';
+    });
+
+    // 打开设置
+    document.getElementById('agentSettingsBtn').addEventListener('click', () => {
+      munchkinOverlay.classList.add('open');
+      mkLoadAll();
+    });
+    // 关闭
+    const closeMunchkinOverlay = () => { munchkinOverlay.classList.remove('open'); };
+    munchkinOverlayClose.addEventListener('click', closeMunchkinOverlay);
+    munchkinOverlay.addEventListener('click', (e) => {
+      if (e.target === munchkinOverlay) closeMunchkinOverlay();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && munchkinOverlay.classList.contains('open')) closeMunchkinOverlay();
+    });
+
+    // ============================================================
+    //  Skills / MCP CRUD 模态框
+    // ============================================================
+
+    // 插入两个编辑模态框 HTML(复用同一组 DOM,根据 mode 切换内容)
+    const editorModalHtml = `
+      <div class="mk-edit-modal" id="mkEditorModal">
+        <div class="mk-edit-dialog">
+          <div class="mk-edit-header">
+            <span id="mkEditorTitle">编辑</span>
+            <button class="mk-icon-btn" id="mkEditorClose">×</button>
+          </div>
+          <div class="mk-edit-body" id="mkEditorBody"></div>
+          <div class="mk-edit-footer">
+            <button class="mk-btn" id="mkEditorCancel">取消</button>
+            <button class="mk-btn primary" id="mkEditorSave">保存</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', editorModalHtml);
+    const mkEditorModal = document.getElementById('mkEditorModal');
+    const mkEditorTitle = document.getElementById('mkEditorTitle');
+    const mkEditorBody = document.getElementById('mkEditorBody');
+    const mkEditorClose = document.getElementById('mkEditorClose');
+    const mkEditorCancel = document.getElementById('mkEditorCancel');
+    const mkEditorSave = document.getElementById('mkEditorSave');
+    let mkEditorMode = null;  // 'skill-create' | 'skill-edit' | 'mcp-create' | 'mcp-edit'
+    let mkEditorOriginalName = null;
+
+    function mkCloseEditor() { mkEditorModal.classList.remove('open'); mkEditorMode = null; mkEditorOriginalName = null; }
+    mkEditorClose.addEventListener('click', mkCloseEditor);
+    mkEditorCancel.addEventListener('click', mkCloseEditor);
+    mkEditorModal.addEventListener('click', (e) => { if (e.target === mkEditorModal) mkCloseEditor(); });
+
+    // ---------- Skill 编辑器 ----------
+    async function mkOpenSkillEditor(name) {
+      // name 非空 = 编辑;空 = 新建
+      let skill = { name: '', description: '', always: false, content: '' };
+      if (name) {
+        try {
+          const resp = await fetch(`/api/agent/skills/${encodeURIComponent(name)}`);
+          if (!resp.ok) throw new Error('读取失败');
+          skill = await resp.json();
+          mkEditorOriginalName = name;
+          mkEditorMode = 'skill-edit';
+          mkEditorTitle.textContent = `编辑 Skill: ${name}`;
+        } catch (err) { mkShowToast('读取 skill 失败: ' + err.message, true); return; }
+      } else {
+        mkEditorMode = 'skill-create';
+        mkEditorOriginalName = null;
+        mkEditorTitle.textContent = '新建 Skill';
+      }
+      mkEditorBody.innerHTML = `
+        <div class="mk-field">
+          <label>名称(字母数字._-,首字符为字母数字)</label>
+          <input type="text" id="mkSkillName" value="${skill.name.replace(/"/g, '&quot;')}" placeholder="如 my-workflow">
+          <div class="mk-field-hint">将作为目录名,创建后改名会移动目录</div>
+        </div>
+        <div class="mk-field">
+          <label>描述</label>
+          <input type="text" id="mkSkillDesc" value="${(skill.description || '').replace(/"/g, '&quot;')}" placeholder="一句话说明这个 skill 做什么">
+        </div>
+        <div class="mk-field">
+          <label class="mk-checkbox-row">
+            <input type="checkbox" id="mkSkillAlways" ${skill.always ? 'checked' : ''}>
+            常驻(always: true,每次对话都注入系统提示词)
+          </label>
+        </div>
+        <div class="mk-field">
+          <label>SKILL.md 正文(Markdown)</label>
+          <textarea id="mkSkillContent" placeholder="# My Skill\n\n说明 agent 如何使用这个 skill...">${(skill.content || '').replace(/</g, '&lt;')}</textarea>
+          <div class="mk-field-hint">frontmatter(name/description/always)会自动生成,只写正文</div>
+        </div>
+      `;
+      mkEditorModal.classList.add('open');
+    }
+
+    // ---------- MCP server 编辑器 ----------
+    async function mkOpenMcpEditor(name) {
+      let server = { name: '', type: 'stdio', command: '', args: [], env: {}, enabledTools: ['*'], toolTimeout: 30, enabled: true };
+      if (name) {
+        // 从缓存中找
+        const cached = (mkConfigCache?.mcpServers || []).find(s => s.name === name);
+        if (cached) {
+          server = { ...cached, enabled: cached.enabled };
+        }
+        mkEditorOriginalName = name;
+        mkEditorMode = 'mcp-edit';
+        mkEditorTitle.textContent = `编辑 MCP Server: ${name}`;
+      } else {
+        mkEditorMode = 'mcp-create';
+        mkEditorOriginalName = null;
+        mkEditorTitle.textContent = '新建 MCP Server';
+      }
+      const argsStr = Array.isArray(server.args) ? server.args.join('\n') : '';
+      const envStr = Object.entries(server.env || {})
+        .map(([k, v]) => `${k}=${v}`).join('\n');
+      const enabledToolsStr = Array.isArray(server.enabledTools) && server.enabledTools[0] === '*'
+        ? '*' : (server.enabledTools || []).join(', ');
+      mkEditorBody.innerHTML = `
+        <div class="mk-field">
+          <label>名称</label>
+          <input type="text" id="mkMcpName" value="${server.name.replace(/"/g, '&quot;')}" placeholder="如 filesystem">
+        </div>
+        <div class="mk-field">
+          <label>类型(type)</label>
+          <select id="mkMcpType">
+            <option value="stdio" ${server.type === 'stdio' ? 'selected' : ''}>stdio(子进程)</option>
+            <option value="sse" ${server.type === 'sse' ? 'selected' : ''}>sse(远程 HTTP)</option>
+          </select>
+        </div>
+        <div class="mk-field">
+          <label>命令(command)</label>
+          <input type="text" id="mkMcpCommand" value="${(server.command || '').replace(/"/g, '&quot;')}" placeholder="如 python3 / npx / node">
+          <div class="mk-field-hint">stdio 类型:可执行程序路径</div>
+        </div>
+        <div class="mk-field">
+          <label>参数(args,每行一个)</label>
+          <textarea id="mkMcpArgs" style="min-height:80px;" placeholder="/app/mcp-grist/server.py">${argsStr}</textarea>
+        </div>
+        <div class="mk-field">
+          <label>环境变量(env,每行 KEY=VALUE)</label>
+          <textarea id="mkMcpEnv" style="min-height:80px;" placeholder="GRIST_URL=http://grist:8484&#10;API_KEY=\${VAR}">${envStr}</textarea>
+          <div class="mk-field-hint">支持 \${VAR} 语法引用容器环境变量</div>
+        </div>
+        <div class="mk-field">
+          <label>启用工具(enabledTools,* 表示全部,或逗号分隔工具名)</label>
+          <input type="text" id="mkMcpEnabledTools" value="${enabledToolsStr.replace(/"/g, '&quot;')}" placeholder="*">
+        </div>
+        <div class="mk-field">
+          <label>工具超时秒数(toolTimeout)</label>
+          <input type="number" id="mkMcpToolTimeout" value="${server.toolTimeout || 30}" min="1" max="300">
+        </div>
+        <div class="mk-field">
+          <label class="mk-checkbox-row">
+            <input type="checkbox" id="mkMcpEnabled" ${server.enabled ? 'checked' : ''}>
+            启用此 MCP server
+          </label>
+        </div>
+      `;
+      mkEditorModal.classList.add('open');
+    }
+
+    // ---------- 保存编辑器 ----------
+    mkEditorSave.addEventListener('click', async () => {
+      mkEditorSave.disabled = true;
+      mkEditorSave.textContent = '保存中...';
+      try {
+        if (mkEditorMode === 'skill-create' || mkEditorMode === 'skill-edit') {
+          const body = {
+            name: document.getElementById('mkSkillName').value.trim(),
+            description: document.getElementById('mkSkillDesc').value.trim(),
+            always: document.getElementById('mkSkillAlways').checked,
+            content: document.getElementById('mkSkillContent').value,
+          };
+          if (!body.name) { mkShowToast('名称不能为空', true); return; }
+          let resp;
+          if (mkEditorMode === 'skill-edit') {
+            resp = await fetch(`/api/agent/skills/${encodeURIComponent(mkEditorOriginalName)}`, {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+            });
+          } else {
+            resp = await fetch('/api/agent/skills', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+            });
+          }
+          const data = await resp.json();
+          if (resp.ok && data.success) {
+            mkShowToast('已保存,需重启生效');
+            mkCloseEditor();
+            await mkLoadAll();
+          } else {
+            mkShowToast(data.error || '保存失败', true);
+          }
+        } else if (mkEditorMode === 'mcp-create' || mkEditorMode === 'mcp-edit') {
+          const name = document.getElementById('mkMcpName').value.trim();
+          const type = document.getElementById('mkMcpType').value;
+          const command = document.getElementById('mkMcpCommand').value.trim();
+          const argsText = document.getElementById('mkMcpArgs').value;
+          const envText = document.getElementById('mkMcpEnv').value;
+          const enabledToolsText = document.getElementById('mkMcpEnabledTools').value.trim();
+          const toolTimeout = parseInt(document.getElementById('mkMcpToolTimeout').value, 10) || 30;
+          const enabled = document.getElementById('mkMcpEnabled').checked;
+          if (!name) { mkShowToast('名称不能为空', true); return; }
+          const args = argsText.split('\n').map(s => s.trim()).filter(Boolean);
+          const env = {};
+          envText.split('\n').forEach(line => {
+            const idx = line.indexOf('=');
+            if (idx > 0) env[line.slice(0, idx).trim()] = line.slice(idx + 1);
+          });
+          const body = {
+            name, type, command, args, env, toolTimeout,
+            enabled,
+            enabledTools: enabledToolsText === '*' ? ['*'] : enabledToolsText.split(',').map(s => s.trim()).filter(Boolean),
+          };
+          let resp;
+          if (mkEditorMode === 'mcp-edit') {
+            resp = await fetch(`/api/agent/mcp-servers/${encodeURIComponent(mkEditorOriginalName)}`, {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+            });
+          } else {
+            resp = await fetch('/api/agent/mcp-servers', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+            });
+          }
+          const data = await resp.json();
+          if (resp.ok && data.success) {
+            mkShowToast('已保存,需重启生效');
+            mkCloseEditor();
+            await mkLoadAll();
+          } else {
+            mkShowToast(data.error || '保存失败', true);
+          }
+        }
+      } catch (err) {
+        mkShowToast('保存失败: ' + err.message, true);
+      } finally {
+        mkEditorSave.disabled = false;
+        mkEditorSave.textContent = '保存';
+      }
+    });
+
+    // ---------- 删除处理 ----------
+    async function mkDeleteSkill(name) {
+      if (!confirm(`确定删除自建 skill "${name}"?此操作不可恢复。`)) return;
+      try {
+        const resp = await fetch(`/api/agent/skills/${encodeURIComponent(name)}`, { method: 'DELETE' });
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+          mkShowToast('已删除,需重启生效');
+          await mkLoadAll();
+        } else {
+          mkShowToast(data.error || '删除失败', true);
+        }
+      } catch (err) { mkShowToast('删除失败: ' + err.message, true); }
+    }
+
+    async function mkDeleteMcp(name) {
+      if (!confirm(`确定删除 MCP server "${name}"?此操作不可恢复。`)) return;
+      try {
+        const resp = await fetch(`/api/agent/mcp-servers/${encodeURIComponent(name)}`, { method: 'DELETE' });
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+          mkShowToast('已删除,需重启生效');
+          await mkLoadAll();
+        } else {
+          mkShowToast(data.error || '删除失败', true);
+        }
+      } catch (err) { mkShowToast('删除失败: ' + err.message, true); }
+    }
+
+    // ---------- 拖动（通过 header） ----------
+    let dragState = null;
+    header.addEventListener('mousedown', (e) => {
+      // 点击按钮时不触发拖动
+      if (e.target.closest('.agent-icon-btn')) return;
+      const rect = panel.getBoundingClientRect();
+      dragState = {
+        startX: e.clientX, startY: e.clientY,
+        origLeft: rect.left, origTop: rect.top,
+      };
+      // 切换为 left/top 定位（脱离 right/bottom）
+      panel.style.left = rect.left + 'px';
+      panel.style.top = rect.top + 'px';
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+      document.body.style.cursor = 'move';
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (!dragState) return;
+      const dx = e.clientX - dragState.startX;
+      const dy = e.clientY - dragState.startY;
+      let newLeft = dragState.origLeft + dx;
+      let newTop = dragState.origTop + dy;
+      // 边界约束：至少保留部分在视口内
+      const maxLeft = window.innerWidth - 80;
+      const maxTop = window.innerHeight - 80;
+      newLeft = Math.max(-panel.offsetWidth + 80, Math.min(newLeft, maxLeft));
+      newTop = Math.max(0, Math.min(newTop, maxTop));
+      panel.style.left = newLeft + 'px';
+      panel.style.top = newTop + 'px';
+    });
+    document.addEventListener('mouseup', () => {
+      if (dragState) {
+        dragState = null;
+        document.body.style.cursor = '';
+      }
+    });
+
+    // ---------- 调整大小（通过左下角 handle） ----------
+    let resizeState = null;
+    resizeHandle.addEventListener('mousedown', (e) => {
+      const rect = panel.getBoundingClientRect();
+      const usesLeft = panel.style.left !== '' && panel.style.left !== 'auto';
+      resizeState = {
+        startX: e.clientX, startY: e.clientY,
+        origWidth: rect.width, origHeight: rect.height,
+        origLeft: rect.left, usesLeft,
+      };
+      document.body.style.cursor = 'sw-resize';
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (!resizeState) return;
+      const dx = e.clientX - resizeState.startX;
+      const dy = e.clientY - resizeState.startY;
+      // 左侧手柄：向左拖增大宽度，向右拖减小宽度
+      const newWidth = Math.max(300, Math.min(resizeState.origWidth - dx, window.innerWidth - 20));
+      const newHeight = Math.max(360, Math.min(resizeState.origHeight + dy, window.innerHeight - 20));
+      panel.style.width = newWidth + 'px';
+      panel.style.height = newHeight + 'px';
+      // 若面板已用 left 定位（拖动过），需同步调整 left 保持右边固定
+      if (resizeState.usesLeft) {
+        panel.style.left = (resizeState.origLeft + (resizeState.origWidth - newWidth)) + 'px';
+      }
+    });
+    document.addEventListener('mouseup', () => {
+      if (resizeState) {
+        resizeState = null;
+        document.body.style.cursor = '';
+      }
+    });
+
+    // 自适应输入框高度
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+    });
+
+    // Enter 发送
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+    sendBtn.addEventListener('click', sendMessage);
+
+    function appendMessage(text, role) {
+      const wrap = document.createElement('div');
+      wrap.className = 'agent-msg agent-msg-' + role;
+      const bubble = document.createElement('div');
+      bubble.className = 'agent-msg-bubble';
+      bubble.textContent = text;
+      wrap.appendChild(bubble);
+      messages.appendChild(wrap);
+      messages.scrollTop = messages.scrollHeight;
+    }
+    function appendToolHint(text) {
+      const tip = document.createElement('div');
+      tip.className = 'agent-msg-tool';
+      tip.textContent = '🔧 ' + text;
+      messages.appendChild(tip);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function sendMessage() {
+      const text = input.value.trim();
+      if (!text) return;
+      // WebSocket 未就绪：提示用户
+      if (!ws || ws.readyState !== 1 || !chatId) {
+        appendMessage('正在连接 Munchkin，请稍候...', 'bot');
+        if (!ws || ws.readyState > 1) connectWebSocket();
+        return;
+      }
+      appendMessage(text, 'user');
+      input.value = '';
+      input.style.height = 'auto';
+      sendBtn.disabled = true;
+      typing.style.display = 'flex';
+      toolHint.textContent = '正在思考...';
+      ws.send(JSON.stringify({ type: 'message', chat_id: chatId, content: text, webui: true }));
+    }
+  })();
+
 </script>
 </body>
 </html>

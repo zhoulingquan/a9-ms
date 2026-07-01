@@ -5,28 +5,40 @@ const session = require('express-session');
 const FileStore = require('session-file-store')(session);
 
 /**
- * 请求日志中间件（仅记录 /api/ 请求）
+ * 请求日志中间件（记录所有请求，排查 Grist 代理问题用）
  */
 function requestLogger(req, res, next) {
   const start = Date.now();
   res.on('finish', () => {
-    if (req.path.startsWith('/api/')) {
-      const duration = Date.now() - start;
-      console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} → ${res.statusCode} (${duration}ms)`);
-    }
+    const duration = Date.now() - start;
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} → ${res.statusCode} (${duration}ms)`);
   });
   next();
 }
 
 /**
  * 安全响应头中间件
+ * Grist 代理路径（/grist、/v、/dw、/o、Grist 原生 /api）跳过 CSP，
+ * 让 Grist 自己的前端策略生效，避免我们的 CSP 阻止 Grist 的 eval/wasm 等功能。
  */
+const GRIST_PROXY_PREFIXES = ['/grist', '/v/', '/dw', '/o/', '/locales/', '/files', '/boot', '/welcome', '/login', '/signup', '/logout', '/doc', '/p', '/share', '/admin', '/account', '/site-settings'];
+
+function isGristProxyPath(path) {
+  return GRIST_PROXY_PREFIXES.some(p => path === p || path.startsWith(p));
+}
+
 function securityHeaders(req, res, next) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' ws: wss:; font-src 'self' https://cdn.jsdelivr.net; frame-ancestors 'self'");
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  // 仅对 A9 自身页面设置 CSP；Grist 代理路径跳过，避免阻止 Grist 的 eval/wasm 功能
+  if (!isGristProxyPath(req.path)) {
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; img-src 'self' data: blob:; connect-src 'self' ws: wss: https://cdn.jsdelivr.net https://unpkg.com; font-src 'self' https://cdn.jsdelivr.net https://unpkg.com; frame-ancestors 'self'");
+  }
   next();
 }
 

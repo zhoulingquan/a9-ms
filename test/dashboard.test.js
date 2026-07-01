@@ -24,8 +24,10 @@ test('dashboard does not automatically sync from Grist session', () => {
 });
 
 test('login registration link opens an existing Grist entry path', () => {
-  assert.match(html, /href="\/grist\/signup"/);
+  // 注册入口已移除（登录改为邮箱+密码），确认旧的 Grist 注册/登录 href 都不再暴露
+  assert.doesNotMatch(html, /href="\/grist\/welcome\/signup"/);
   assert.doesNotMatch(html, /前往 Grist 注册<\/a>[\s\S]*href="\/grist\/login"/);
+  assert.doesNotMatch(html, /前往 Grist 注册<\/a>[\s\S]*href="\/grist\/signup"/);
   assert.doesNotMatch(html, /\/grist\/auth\/login/);
 });
 
@@ -65,10 +67,8 @@ test('map marker group supports fitting bounds', () => {
 
 test('Grist button opens the configured document when available', () => {
   assert.match(html, /async function getGristOpenPath\(\)/);
-  assert.match(html, /fetch\('\/api\/health'\)/);
-  assert.match(html, /if \(health\.gristDashboardPath\) \{/);
-  assert.match(html, /return health\.gristDashboardPath;/);
-  assert.match(html, /'\/grist\/doc\/' \+ encodeURIComponent\(health\.gristDoc\)/);
+  assert.match(html, /return GRIST_URL;/);
+  assert.match(html, /var path = await getGristOpenPath\(\);/);
   assert.match(html, /window\.open\(path, '_blank'\)/);
 });
 
@@ -76,15 +76,19 @@ test('returning from Grist refreshes dashboard map layout', () => {
   assert.match(html, /function refreshDashboardLayout\(\)/);
   assert.match(html, /map\.invalidateSize\(\{ pan: false \}\)/);
   assert.doesNotMatch(html, /chartInstance\.resize\(\)/);
-  assert.match(html, /sessionStorage\.removeItem\('grist-open'\);\s*refreshDashboardLayout\(\);/);
+  // Grist 改为新标签页打开（window.open），返回看板即切换标签页；
+  // invalidateSize 由 refreshDashboardLayout 在 resize/initMap 时调用
+  assert.match(html, /window\.open\(path, '_blank'\)/);
+  assert.match(html, /window\.addEventListener\('resize', refreshDashboardLayout\)/);
 });
 
 test('dashboard renders native ECharts widgets in metric, map, and two-column chart rows', () => {
   assert.match(html, /src="https:\/\/cdn\.jsdelivr\.net\/npm\/echarts@5\.5\.0\/dist\/echarts\.min\.js"/);
-  assert.match(html, /class="dashboard-row metrics-row"[\s\S]*id="metricWidgetsGrid"/);
-  assert.match(html, /class="dashboard-row map-row"[\s\S]*id="map"/);
-  assert.match(html, /class="dashboard-row charts-row"[\s\S]*id="chartWidgetsGrid"/);
-  assert.match(html, /\.chart-widgets-grid \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(html, /class="grid-stack"[\s\S]*id="widgetGrid"/);
+  assert.match(html, /classList\.add\('is-map-widget'\)/);
+  assert.match(html, /classList\.add\('is-metric'\)/);
+  assert.match(html, /column: 12,/);
+  assert.match(html, /widget\.type === 'metric' \? 3 : 6/);
   assert.match(html, /class="native-chart"/);
   assert.doesNotMatch(html, /map-chart-grid/);
   assert.doesNotMatch(html, /grist-chart-frame/);
@@ -97,7 +101,7 @@ test('dashboard renders native ECharts widgets in metric, map, and two-column ch
 });
 
 test('dashboard loads configured native chart widgets without exposing add-widget controls', () => {
-  assert.match(html, /id="chartWidgetsGrid"/);
+  assert.match(html, /id="widgetGrid"/);
   assert.doesNotMatch(html, /添加图表窗口/);
   assert.doesNotMatch(html, /onclick="addGristWidget\(\)"/);
   assert.match(html, /async function loadDashboardWidgets\(\)/);
@@ -105,15 +109,137 @@ test('dashboard loads configured native chart widgets without exposing add-widge
   assert.match(html, /fetch\('\/api\/dashboard-widgets', \{ cache: 'no-store' \}\)/);
 });
 
+test('gridstack widgets use 1x1 minimums and save logical node sizes', () => {
+  assert.match(html, /const GRID_WIDGET_MIN_W = 1;/);
+  assert.match(html, /const GRID_WIDGET_MIN_H = 1;/);
+  assert.match(html, /minW: GRID_WIDGET_MIN_W/);
+  assert.match(html, /minH: GRID_WIDGET_MIN_H/);
+  assert.match(html, /small:\s+\{ w: 1,\s+h: 1, label: '最小 \(1x1\)' \}/);
+  assert.match(html, /alwaysShowResizeHandle: true/);
+  assert.match(html, /function widgetConstraintOptions\(\)/);
+  assert.match(html, /function applyWidgetNodeConstraints\(node, el\)/);
+  assert.match(html, /node\.minW = constraints\.minW/);
+  assert.match(html, /node\.minH = constraints\.minH/);
+  assert.match(html, /itemEl\.setAttribute\('gs-min-w', String\(constraints\.minW\)\)/);
+  assert.match(html, /itemEl\.setAttribute\('gs-min-h', String\(constraints\.minH\)\)/);
+	  assert.match(html, /function refreshWidgetResizeConstraints\(el\)/);
+	  assert.match(html, /widgetGrid\.update\(el, widgetConstraintOptions\(\)\)/);
+	  assert.match(html, /function refreshAllWidgetResizeConstraints\(\)/);
+	  assert.match(html, /refreshAllWidgetResizeConstraints\(\);\s*widgetGrid\.enable\(\);\s*refreshAllWidgetResizeConstraints\(\);/);
+	  assert.match(html, /function gridUnitsFromElementRect\(el\)/);
+	  assert.match(html, /var colWidth = gridRect\.width \/ columns/);
+	  assert.match(html, /w: Math\.max\(GRID_WIDGET_MIN_W, Math\.min\(12, Math\.round\(rect\.width \/ colWidth\)\)\)/);
+	  assert.match(html, /h: Math\.max\(GRID_WIDGET_MIN_H, Math\.min\(12, Math\.round\(rect\.height \/ cellHeight\)\)\)/);
+	  assert.match(html, /function getWidgetLayoutFromElement\(el\)/);
+	  assert.match(html, /var rectLayout = gridUnitsFromElementRect\(el\)/);
+	  assert.match(html, /x: rectLayout \? rectLayout\.x : gridUnit\(el\.getAttribute\('gs-x'\), node && node\.x, 0\)/);
+	  assert.match(html, /y: rectLayout \? rectLayout\.y : gridUnit\(el\.getAttribute\('gs-y'\), node && node\.y, 0\)/);
+	  assert.match(html, /el\.getAttribute\('gs-w'\) \|\| 1/);
+	  assert.match(html, /el\.getAttribute\('gs-h'\) \|\| 1/);
+	  assert.match(html, /w: rectLayout \? rectLayout\.w : gridUnit\(el\.getAttribute\('gs-w'\) \|\| 1, node && node\.w, GRID_WIDGET_MIN_W\)/);
+	  assert.match(html, /h: rectLayout \? rectLayout\.h : gridUnit\(el\.getAttribute\('gs-h'\) \|\| 1, node && node\.h, GRID_WIDGET_MIN_H\)/);
+	  assert.match(html, /widget\.w = gridUnit\(node\.w, widget\.w, GRID_WIDGET_MIN_W\)/);
+	  assert.match(html, /widget\.h = gridUnit\(node\.h, widget\.h, GRID_WIDGET_MIN_H\)/);
+	  assert.match(html, /var widget = syncWidgetLayoutFromElement\(el\)/);
+	  assert.match(html, /var savedSignature = getCurrentLayoutSignature\(\)/);
+	  assert.match(html, /var currentSignature = getCurrentLayoutSignature\(\)/);
+	  assert.match(html, /currentSignature && savedSignature && currentSignature !== savedSignature/);
+	  assert.match(html, /syncWidgetLayoutFromElement\(el, \{ size: false \}\)/);
+  assert.match(html, /scheduleSaveLayout\(event && event\.type === 'resizestop' \? 80 : 500\)/);
+	  assert.match(html, /let layoutInteractionActive = false/);
+	  assert.match(html, /let layoutMutationObserver = null/);
+	  assert.match(html, /let layoutWatchTimer = null/);
+	  assert.match(html, /let lastLayoutSignature = ''/);
+	  assert.match(html, /function observeGridLayoutChanges\(\)/);
+	  assert.match(html, /attributeFilter: \['gs-x', 'gs-y', 'gs-w', 'gs-h'\]/);
+	  assert.match(html, /function getCurrentLayoutSignature\(\)/);
+	  assert.match(html, /var layout = gridUnitsFromElementRect\(el\)/);
+	  assert.match(html, /function rememberCurrentLayoutSignature\(\)/);
+	  assert.match(html, /function startLayoutWatch\(\)/);
+	  assert.match(html, /setInterval\(function\(\)/);
+	  assert.match(html, /signature !== lastLayoutSignature/);
+	  assert.match(html, /scheduleSaveLayout\(80\)/);
+	  assert.match(html, /rememberCurrentLayoutSignature\(\);/);
+	  assert.match(html, /#widgetGrid \.ui-resizable-handle, #widgetGrid \.widget-header/);
+  assert.match(html, /function finishLayoutInteraction\(\)/);
+  assert.match(html, /scheduleSaveLayout\(120\)/);
+  assert.match(html, /\.grid-stack-item > \.ui-resizable-e \{[\s\S]*width: 18px/);
+  assert.match(html, /\.grid-stack-item > \.ui-resizable-e \{[\s\S]*bottom: 36px/);
+  assert.match(html, /\.grid-stack-item > \.ui-resizable-s \{[\s\S]*right: 36px/);
+  assert.match(html, /--g-resize-grip: rgba\(73,73,73,0\.42\)/);
+  assert.match(html, /--g-resize-grip-bg: rgba\(255,255,255,0\.88\)/);
+  assert.match(html, /--g-resize-grip: rgba\(213,213,213,0\.56\)/);
+  assert.match(html, /--g-resize-grip-bg: rgba\(50,50,63,0\.88\)/);
+  assert.match(html, /\.grid-stack-item > \.ui-resizable-se \{[\s\S]*width: 36px/);
+  assert.match(html, /\.grid-stack-item > \.ui-resizable-se \{[\s\S]*right: 0; bottom: 0/);
+  assert.match(html, /\.grid-stack-item > \.ui-resizable-se \{[\s\S]*background: transparent !important/);
+  assert.match(html, /\.grid-stack-item > \.ui-resizable-se \{[\s\S]*background-image: none !important/);
+  assert.match(html, /\.grid-stack-item > \.ui-resizable-se \{[\s\S]*opacity: 0/);
+  assert.match(html, /\.grid-stack-item > \.ui-resizable-se \{[\s\S]*display: block !important/);
+  assert.match(html, /\.grid-stack-item > \.ui-resizable-se \{[\s\S]*transform: none !important/);
+  assert.match(html, /\.grid-stack-item > \.ui-resizable-se \{[\s\S]*cursor: nwse-resize !important/);
+  assert.match(html, /\.grid-stack-item > \.ui-resizable-se \{[\s\S]*z-index: 140 !important/);
+  assert.match(html, /\.grid-stack-item > \.ui-resizable-se::before/);
+  assert.match(html, /linear-gradient\(135deg, transparent 0 43%, var\(--g-resize-grip\) 45% 55%, transparent 57%\)/);
+  assert.match(html, /linear-gradient\(135deg, transparent 0 46%, var\(--g-resize-grip\) 48% 55%, transparent 57%\)/);
+  assert.match(html, /filter: drop-shadow\(0 1px 0 var\(--g-resize-grip-bg\)\)/);
+  assert.match(html, /\.grid-stack-item:hover > \.ui-resizable-se \{ opacity: 0\.82; \}/);
+  assert.match(html, /\.grid-stack-item\.ui-resizable-resizing > \.ui-resizable-se \{ opacity: 1; \}/);
+  assert.match(html, /linear-gradient\(135deg, transparent 0 43%, var\(--g-primary\) 45% 55%, transparent 57%\)/);
+  assert.match(html, /body\.dashboard-locked \.grid-stack-item > \.ui-resizable-se \{ opacity: 0; pointer-events: none; \}/);
+  assert.match(html, /\.grid-stack-item-content[\s\S]*min-width: 0/);
+  assert.match(html, /\.grid-stack \.widget-title \{ min-width: 0/);
+  assert.match(html, /\.grid-stack-item\.ui-draggable-dragging,[\s\S]*transition: none/);
+  assert.doesNotMatch(html, /const layoutSizeOverrides = new Map\(\)/);
+  assert.doesNotMatch(html, /function setWidgetSizeOverride\(widgetId, size\)/);
+  assert.doesNotMatch(html, /function gridItemUnitsFromElement\(el, node\)/);
+  assert.doesNotMatch(html, /widgetGrid\.update\(el, \{ w: savedW, h: savedH/);
+  assert.doesNotMatch(html, /node\.w = units\.w/);
+  assert.doesNotMatch(html, /node\.h = units\.h/);
+  assert.doesNotMatch(html, /minW: isMap \? 6 : 1/);
+  assert.doesNotMatch(html, /minH: isMap \? 3 : 1/);
+});
+
 test('native chart widgets expose edit controls for table and field selection', () => {
   assert.match(html, /onclick="editGristWidget\(this\)"/);
   assert.match(html, /onclick="saveGristWidget\(this\)"/);
   assert.match(html, /onclick="cancelEditGristWidget\(this\)"/);
   assert.match(html, /onclick="closeGristWidget\(this\)"/);
-  assert.match(html, /onclick="addNewChart\(\)"/);
+  assert.match(html, /onclick="addWidget\('metric'\)/);
   assert.match(html, /chart-edit-form/);
   assert.match(html, /chart-add-btn/);
   assert.match(html, /await saveUserDashboardWidgets\(\)/);
+});
+
+test('native chart editor groups options and guides metric field choices', () => {
+  assert.match(html, /chart-editor-section/);
+  assert.match(html, /数据来源/);
+  assert.match(html, /统计指标/);
+  assert.match(html, /展示方式/);
+  assert.match(html, /class="edit-title"/);
+  assert.match(html, /计数不需要选择字段/);
+  assert.match(html, /function isNumericChartField\(field\)/);
+  assert.match(html, /function getMetricFieldOptions\(fields, metricType, selectedField\)/);
+  assert.match(html, /class="chart-type-icon"/);
+  assert.match(html, /key: 'line', label: '折线图'/);
+  assert.match(html, /key: 'pie', label: '饼图'/);
+});
+
+test('native chart editor expands the active chart across the grid while editing', () => {
+  assert.match(html, /\.chart-widget-card\.editing \{[\s\S]*grid-column: 1 \/ -1;/);
+  assert.match(html, /card\.classList\.toggle\('editing', editing\)/);
+});
+
+test('native charts use separate light and dark theme palettes', () => {
+  assert.match(html, /const CHART_THEME_PALETTES = \{/);
+  assert.match(html, /light: \{[\s\S]*colors: \[[\s\S]*'#16b378'[\s\S]*'#3b82f6'[\s\S]*'#8b5cf6'/);
+  assert.match(html, /dark: \{[\s\S]*colors: \[[\s\S]*'#2dd4bf'[\s\S]*'#60a5fa'[\s\S]*'#a78bfa'/);
+  assert.match(html, /function getCurrentChartPalette\(\)/);
+  assert.match(html, /function rerenderNativeChartsForTheme\(\)/);
+  assert.match(html, /applyTheme\(resolvedTheme\)[\s\S]*rerenderNativeChartsForTheme\(\)/);
+  assert.match(html, /color: palette\.colors/);
+  assert.match(html, /echarts\.graphic\.LinearGradient/);
+  assert.match(html, /areaStyle: isLine \? \{[\s\S]*opacity: 0\.18/);
 });
 
 test('dashboard disables browser cache for dynamic chart APIs', () => {
@@ -167,23 +293,21 @@ test('sticky topbar stays above the map while scrolling', () => {
 });
 
 test('map fullscreen expands the panel without leaving the map collapsed', () => {
-  assert.match(html, /body\.map-fullscreen-active \{[\s\S]*?overflow: hidden;/);
-  assert.match(html, /body\.map-fullscreen-active \.sidebar,[\s\S]*?body\.map-fullscreen-active \.topbar \{[\s\S]*?display: none;/);
-  assert.match(html, /body\.map-fullscreen-active \.main-area \{[\s\S]*?margin-left: 0;[\s\S]*?width: 100vw;[\s\S]*?max-width: 100vw;/);
-  assert.match(html, /#mapPanel\.map-fullscreen \{[\s\S]*?position: fixed; inset: 0; z-index: 10000;[\s\S]*?display: flex; flex-direction: column;/);
-  assert.match(html, /#mapPanel\.map-fullscreen #map \{[\s\S]*?flex: 1 1 auto; min-height: 0; height: auto; margin-bottom: 0;/);
-  assert.match(html, /document\.body\.classList\.toggle\('map-fullscreen-active', isFullscreen\)/);
-  assert.match(html, /map\.invalidateSize\(\{ pan: false \}\)/);
-  assert.match(html, /id="btnFullscreen"[\s\S]*aria-pressed="false"/);
-  assert.match(html, /button\.setAttribute\('aria-pressed', String\(isFullscreen\)\)/);
+  // 全屏功能已完全移除（地图改为 gridstack 内的可收起 widget），确认相关代码不再存在
+  assert.doesNotMatch(html, /body\.map-fullscreen-active/);
+  assert.doesNotMatch(html, /#mapPanel\.map-fullscreen/);
+  assert.doesNotMatch(html, /map-fullscreen-active/);
+  assert.doesNotMatch(html, /id="btnFullscreen"/);
+  assert.doesNotMatch(html, /toggle\('map-fullscreen-active'/);
+  assert.doesNotMatch(html, /setAttribute\('aria-pressed', String\(isFullscreen\)\)/);
 });
 
 test('login and Grist overlays are hidden until active', () => {
   assert.match(html, /\.login-overlay \{[\s\S]*?display: none;/);
   assert.match(html, /\.login-overlay\.active \{ display: flex; \}/);
-  assert.match(html, /\.grist-overlay \{[\s\S]*?display: none;/);
-  assert.match(html, /\.grist-overlay\.active \{ display: flex; \}/);
-  assert.match(html, /body\.grist-active \.sidebar,[\s\S]*?body\.grist-active \.main-area \{ display: none; \}/);
+  // Grist 改为新标签页打开（window.open），iframe 浮层与 body.grist-active 已移除
+  assert.doesNotMatch(html, /\.grist-overlay/);
+  assert.doesNotMatch(html, /body\.grist-active/);
 });
 
 test('sidebar can collapse into a compact icon rail', () => {
